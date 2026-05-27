@@ -36,6 +36,29 @@ Ideal for public deployment where multiple server admins connect via a single ho
 
 ---
 
+## 🚀 Getting Started (Run from Source)
+
+To run the application directly from the source code (without needing a compiled `.exe`):
+
+1. **Clone the Repository**:
+   ```cmd
+   git clone https://github.com/Cyril-47/Aegis-Suite.git
+   cd Aegis-Suite
+   ```
+
+2. **Launch the Application**:
+   Simply run the automated launcher script using Python:
+   ```cmd
+   python run.py
+   ```
+   *The launcher script will automatically:*
+   - Create a local Python virtual environment (`.venv/`) using `uv` (falls back to standard `venv` if `uv` is not installed).
+   - Install all required dependencies (`discord.py`, `fastapi`, `uvicorn`, `websockets`, `yt-dlp`, `PyNaCl`, `pydantic`).
+   - Automatically search and configure the path for FFmpeg (required for music playback).
+   - Launch the FastAPI web server on `http://127.0.0.1:8000` and automatically open your default web browser.
+
+---
+
 ## 🤖 Discord Bot Setup Instructions
 
 When you open the web interface for the first time, you will see a Setup Wizard. Here is how to gather the requested credentials:
