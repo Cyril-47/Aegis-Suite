@@ -8,8 +8,10 @@ let localCustomCommands = {};
 let rolePanelButtons = [];
 let serverRoles = [];
 
+// Hosting Mode state (server is the source of truth; do NOT cache here as authoritative — Req 5.5)
+let hostingMode = { value: null, pendingTarget: null };
+
 // DOM Elements
-const setupWizard = document.getElementById('setup-wizard');
 const mainApp = document.getElementById('main-app');
 const currentTabDesc = document.getElementById('current-tab-desc');
 
@@ -66,6 +68,10 @@ window.fetch = function (url, options) {
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // One-shot cleanup of residual credential keys from prior versions (R4.2)
+  localStorage.removeItem('bot_token');
+  localStorage.removeItem('client_id');
+
   setupNavigation();
   setupEventListeners();
   initGiveawaysTab();
@@ -82,7 +88,10 @@ function initApp() {
   if (isAppInitialized) return;
   isAppInitialized = true;
   connectWebSocket();
-  checkStatus();
+  checkStatus().then(() => {
+    // First-launch Hosting Mode chooser — admin-only, only when not yet persisted (Req 1.1, 1.6, 1.7)
+    maybeShowHostingModeSelector();
+  });
   fetchConfig();
   fetchStats();
   
@@ -135,7 +144,6 @@ async function checkAuthentication() {
       // Show setup password screen
       setupOverlay.classList.remove('hidden');
       loginOverlay.classList.add('hidden');
-      setupWizard.classList.add('hidden');
       mainApp.classList.add('hidden');
       isAuthenticated = false;
       return false;
@@ -145,7 +153,6 @@ async function checkAuthentication() {
       // Show login screen
       loginOverlay.classList.remove('hidden');
       setupOverlay.classList.add('hidden');
-      setupWizard.classList.add('hidden');
       mainApp.classList.add('hidden');
       isAuthenticated = false;
       
@@ -168,7 +175,6 @@ async function checkAuthentication() {
       authToken = '';
       loginOverlay.classList.remove('hidden');
       setupOverlay.classList.add('hidden');
-      setupWizard.classList.add('hidden');
       mainApp.classList.add('hidden');
       isAuthenticated = false;
       return false;
@@ -278,6 +284,12 @@ async function checkStatus() {
     
     currentBotStatus = data.status;
     
+    // Hosting Mode badge + Local-PC warning panel — render on every poll (Req 4.1, 5.5)
+    hostingMode.value = data.hosting_mode || null;
+    const _hmRole = data.role || localStorage.getItem('admin_role');
+    renderHostingModeBadge(hostingMode.value, _hmRole);
+    renderFeatureAvailabilityWarning(hostingMode.value);
+    
     // Toggle FFmpeg warning
     const ffmpegWarning = document.getElementById('ffmpeg-warning');
     if (ffmpegWarning) {
@@ -288,21 +300,13 @@ async function checkStatus() {
       }
     }
     
-    // Toggle Setup Wizard or Offline Notice (Tier 5.8)
+    // Toggle Offline Notice when bot is not running (R3.1)
     const offlineNotice = document.getElementById('offline-notice-overlay');
-    if (!data.has_token) {
-      if (data.role === 'admin') {
-        setupWizard.classList.remove('hidden');
-        if (offlineNotice) offlineNotice.classList.add('hidden');
-        mainApp.classList.add('hidden');
-      } else {
-        if (offlineNotice) offlineNotice.classList.remove('hidden');
-        setupWizard.classList.add('hidden');
-        mainApp.classList.add('hidden');
-      }
+    if (data.status === 'stopped' || data.status === 'connecting') {
+      if (offlineNotice) offlineNotice.classList.remove('hidden');
+      mainApp.classList.add('hidden');
       return;
     } else {
-      setupWizard.classList.add('hidden');
       if (offlineNotice) offlineNotice.classList.add('hidden');
       mainApp.classList.remove('hidden');
     }
@@ -315,17 +319,9 @@ async function checkStatus() {
     updateBotBadge(data);
     updateOverviewCard(data);
     
-    // Role-based UI filtering (Tier 5.8)
-    const btnBotToggle = document.getElementById('btn-bot-toggle');
-    const btnReconfigure = document.getElementById('btn-reconfigure');
+    // Tenant servers are pinned to their own guild
     const serverSelect = document.getElementById('server-select');
-    
     if (data.role === 'user') {
-      if (btnBotToggle) btnBotToggle.classList.add('hidden');
-      if (btnReconfigure) {
-        const row = btnReconfigure.closest('.info-row');
-        if (row) row.classList.add('hidden');
-      }
       if (serverSelect) {
         serverSelect.disabled = true;
         if (data.guild_id) {
@@ -335,12 +331,6 @@ async function checkStatus() {
             handleServerSelection(data.guild_id);
           }
         }
-      }
-    } else {
-      if (btnBotToggle) btnBotToggle.classList.remove('hidden');
-      if (btnReconfigure) {
-        const row = btnReconfigure.closest('.info-row');
-        if (row) row.classList.remove('hidden');
       }
     }
   } catch (err) {
@@ -473,85 +463,8 @@ function updateInviteLinks(clientId) {
 }
 
 // ==========================================================================
-// Action triggers (Start/Stop, Save Config)
+// Action triggers (Save Config)
 // ==========================================================================
-async function saveWizardCredentials() {
-  const token = document.getElementById('wizard-token').value.trim();
-  const clientId = document.getElementById('wizard-client-id').value.trim();
-  
-  if (!token || !clientId) {
-    showToast('Please fill in both required fields.', 'error');
-    return;
-  }
-
-  const payload = {
-    bot_token: token,
-    client_id: clientId,
-    welcome_settings: {
-      enabled: true,
-      channel_name: 'welcome',
-      message_title: 'Welcome to the Server, {user}!',
-      message_description: "We are thrilled to have you here! Please make sure to check out the rules and have a wonderful time.",
-      embed_color: '#6366F1',
-      auto_assign_roles: []
-    },
-    automod_settings: {
-      enabled: true,
-      block_profanity: true,
-      block_links: false,
-      max_mentions: 5,
-      log_channel_name: 'mod-logs',
-      profanity_words: ['badword1', 'badword2']
-    }
-  };
-
-  try {
-    showToast('Saving configurations...', 'info');
-    const res = await fetch('/api/config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-    
-    if (res.ok) {
-      showToast('Settings saved! Starting bot...', 'success');
-      await startBot();
-      await checkStatus();
-    } else {
-      showToast('Failed to save config.', 'error');
-    }
-  } catch (err) {
-    showToast('Network error during configuration save.', 'error');
-  }
-}
-
-async function startBot() {
-  try {
-    const res = await fetch('/api/bot/start', { method: 'POST' });
-    const data = await res.json();
-    if (data.status === 'starting' || data.status === 'already_running') {
-      showToast('Bot started successfully.', 'success');
-    } else {
-      showToast('Failed to launch bot service.', 'error');
-    }
-  } catch (err) {
-    showToast('Error sending start command.', 'error');
-  }
-}
-
-async function stopBot() {
-  try {
-    const res = await fetch('/api/bot/stop', { method: 'POST' });
-    const data = await res.json();
-    if (data.status === 'stopped' || data.status === 'already_stopped') {
-      showToast('Bot stopped successfully.', 'warning');
-    } else {
-      showToast('Failed to stop bot service.', 'error');
-    }
-  } catch (err) {
-    showToast('Error sending stop command.', 'error');
-  }
-}
 
 // ==========================================================================
 // Guilds Fetching & Selecting
@@ -1468,43 +1381,12 @@ async function populateGuildChannels(guildId) {
 // Event Listeners & Helpers
 // ==========================================================================
 function setupEventListeners() {
-  // Wizard Submit
-  document.getElementById('btn-save-wizard').addEventListener('click', saveWizardCredentials);
-  
   // Refresh Guilds
   document.getElementById('btn-refresh-guilds').addEventListener('click', refreshGuildsList);
   
   // Server Selection
   document.getElementById('server-select').addEventListener('change', (e) => {
     handleServerSelection(e.target.value);
-  });
-  
-  // Start/Stop Toggle Button (badge)
-  document.getElementById('btn-bot-toggle').addEventListener('click', async () => {
-    if (currentBotStatus === 'running') {
-      showToast('Stopping bot...', 'info');
-      await stopBot();
-    } else {
-      showToast('Starting bot...', 'info');
-      await startBot();
-    }
-    checkStatus();
-  });
-  
-  // Reconfigure settings button
-  document.getElementById('btn-reconfigure').addEventListener('click', () => {
-    const reset = confirm("Are you sure you want to change credentials? This will log out the bot.");
-    if (reset) {
-      // Clear token in configuration to force setup wizard
-      if (currentConfig) {
-        currentConfig.bot_token = '';
-        fetch('/api/config', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(currentConfig)
-        }).then(() => checkStatus());
-      }
-    }
   });
   
   // Scan Button
@@ -4157,5 +4039,371 @@ function stopGiveawaysTicker() {
   if (giveawayCountdownInterval) {
     clearInterval(giveawayCountdownInterval);
     giveawayCountdownInterval = null;
+  }
+}
+
+
+// ==========================================================================
+// Hosting Mode Selector / Badge / Settings Panel
+// (Local PC vs Cloud — feature availability disclosure, admin-only switcher)
+// ==========================================================================
+
+const HOSTING_MODE_BADGE_LABELS = {
+  local_pc: 'Local PC',
+  cloud: 'Cloud',
+  unconfigured: 'Unconfigured'
+};
+
+const HOSTING_MODE_BADGE_ICONS = {
+  local_pc: 'fa-solid fa-desktop',
+  cloud: 'fa-solid fa-cloud',
+  unconfigured: 'fa-solid fa-circle-question'
+};
+
+const HOSTING_MODE_BADGE_ARIA = {
+  local_pc: 'Local PC mode \u2014 intermittent uptime',
+  cloud: 'Cloud mode \u2014 24/7 uptime',
+  unconfigured: 'Hosting mode: Unconfigured'
+};
+
+const HOSTING_MODE_LABEL = {
+  local_pc: 'Local PC',
+  cloud: 'Cloud'
+};
+
+function _normalizeHostingModeRole(role) {
+  // Treat anything other than 'admin' as tenant for badge interactivity (Req 4.5, 4.6)
+  return role === 'admin' ? 'admin' : 'tenant';
+}
+
+function _hostingModeKey(mode) {
+  return (mode === 'local_pc' || mode === 'cloud') ? mode : 'unconfigured';
+}
+
+function renderHostingModeBadge(mode, role) {
+  let badge = document.getElementById('hosting-mode-badge');
+  if (!badge) return;
+  
+  const key = _hostingModeKey(mode);
+  const label = HOSTING_MODE_BADGE_LABELS[key];
+  const iconClass = HOSTING_MODE_BADGE_ICONS[key];
+  const ariaLabel = HOSTING_MODE_BADGE_ARIA[key];
+  const normalizedRole = _normalizeHostingModeRole(role);
+  
+  // Replace <button> with <span> for tenants and vice versa as the role demands.
+  // The badge MUST never be interactive for tenants (Req 4.6, Req 7.7).
+  const wantTag = normalizedRole === 'admin' ? 'BUTTON' : 'SPAN';
+  if (badge.tagName !== wantTag) {
+    const replacement = document.createElement(wantTag === 'BUTTON' ? 'button' : 'span');
+    replacement.id = 'hosting-mode-badge';
+    replacement.className = badge.className;
+    if (wantTag === 'BUTTON') {
+      replacement.setAttribute('type', 'button');
+    }
+    // Move children across so the icon + text span structure is preserved
+    while (badge.firstChild) {
+      replacement.appendChild(badge.firstChild);
+    }
+    badge.parentNode.replaceChild(replacement, badge);
+    badge = replacement;
+  }
+  
+  // Visual state class — clear all variants then add the active one
+  badge.classList.remove('state-local-pc', 'state-cloud', 'state-unconfigured');
+  badge.classList.add(`state-${key.replace(/_/g, '-')}`);
+  
+  // Tooltip + accessible label (Req 4.7)
+  badge.setAttribute('title', ariaLabel);
+  badge.setAttribute('aria-label', ariaLabel);
+  
+  // Icon swap (replace inner <i>'s className)
+  const iconEl = badge.querySelector('i');
+  if (iconEl) {
+    iconEl.className = iconClass;
+  }
+  
+  // Text swap
+  let textEl = badge.querySelector('#hosting-mode-badge-text');
+  if (!textEl) {
+    textEl = document.createElement('span');
+    textEl.id = 'hosting-mode-badge-text';
+    badge.appendChild(textEl);
+  }
+  textEl.textContent = label;
+  
+  // Wire interactivity per role
+  if (normalizedRole === 'admin') {
+    badge.classList.remove('read-only');
+    badge.removeAttribute('tabindex');
+    badge.removeAttribute('aria-disabled');
+    if (badge.tagName === 'BUTTON') {
+      badge.disabled = false;
+    }
+    // Idempotent click handler — strip any prior bound handler then bind fresh
+    badge.onclick = function (e) {
+      e.preventDefault();
+      openHostingModeSettings();
+    };
+  } else {
+    badge.classList.add('read-only');
+    badge.setAttribute('tabindex', '-1');
+    badge.setAttribute('aria-disabled', 'true');
+    if (badge.tagName === 'BUTTON') {
+      badge.disabled = true;
+    }
+    badge.onclick = null;
+  }
+}
+
+function renderFeatureAvailabilityWarning(mode) {
+  const panel = document.getElementById('feature-availability-warning');
+  if (!panel) return;
+  if (mode === 'local_pc') {
+    panel.classList.remove('hidden');
+  } else {
+    panel.classList.add('hidden');
+  }
+}
+
+// First-launch trigger: admin-only, opens chooser only when no value persisted (Req 1.1, 1.6, 1.7)
+async function maybeShowHostingModeSelector() {
+  const role = localStorage.getItem('admin_role');
+  if (role !== 'admin') return; // Tenants never see the chooser
+  try {
+    const res = await fetch('/api/hosting-mode');
+    if (!res.ok) return; // Do not fail open to the modal on a network blip
+    const data = await res.json();
+    const value = data && data.hosting_mode;
+    if (value === 'local_pc' || value === 'cloud') {
+      return; // Already configured
+    }
+    openHostingModeSelector();
+  } catch (err) {
+    console.error('maybeShowHostingModeSelector: error fetching hosting mode', err);
+  }
+}
+
+function openHostingModeSelector() {
+  const overlay = document.getElementById('hosting-mode-selector-overlay');
+  if (!overlay) return;
+  overlay.classList.remove('hidden');
+  
+  const cards = overlay.querySelectorAll('.option-card[data-mode]');
+  const confirmBtn = document.getElementById('hosting-mode-selector-confirm');
+  const errorEl = document.getElementById('hosting-mode-selector-error');
+  if (errorEl) {
+    errorEl.textContent = '';
+    errorEl.classList.add('hidden');
+  }
+  
+  let selectedMode = null;
+  
+  function _selectCard(card) {
+    cards.forEach(c => {
+      c.classList.remove('selected');
+      c.setAttribute('aria-selected', 'false');
+    });
+    card.classList.add('selected');
+    card.setAttribute('aria-selected', 'true');
+    selectedMode = card.getAttribute('data-mode');
+    if (confirmBtn) confirmBtn.disabled = false;
+  }
+  
+  cards.forEach(card => {
+    card.onclick = () => _selectCard(card);
+    card.onkeydown = (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        _selectCard(card);
+      }
+    };
+    if (!card.hasAttribute('tabindex')) card.setAttribute('tabindex', '0');
+    if (!card.hasAttribute('role')) card.setAttribute('role', 'radio');
+  });
+  
+  if (confirmBtn) {
+    // Confirm is disabled until a card is picked
+    confirmBtn.disabled = true;
+    confirmBtn.onclick = async () => {
+      if (selectedMode !== 'local_pc' && selectedMode !== 'cloud') return;
+      confirmBtn.disabled = true;
+      try {
+        const res = await fetch('/api/hosting-mode', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hosting_mode: selectedMode })
+        });
+        if (res.ok) {
+          // Clear inline error, hide overlay, refresh badge + warning panel via the existing poller
+          if (errorEl) {
+            errorEl.textContent = '';
+            errorEl.classList.add('hidden');
+          }
+          overlay.classList.add('hidden');
+          checkStatus();
+        } else {
+          // Non-2xx — keep overlay open with inline error (Req 1.10)
+          let detail = 'Failed to save hosting mode. Please try again.';
+          try {
+            const errBody = await res.json();
+            if (errBody && errBody.detail) detail = errBody.detail;
+          } catch (_) {}
+          if (errorEl) {
+            errorEl.textContent = detail;
+            errorEl.classList.remove('hidden');
+          } else {
+            showToast(detail, 'error');
+          }
+          confirmBtn.disabled = false;
+        }
+      } catch (err) {
+        const msg = 'Network error saving hosting mode. Please try again.';
+        if (errorEl) {
+          errorEl.textContent = msg;
+          errorEl.classList.remove('hidden');
+        } else {
+          showToast(msg, 'error');
+        }
+        confirmBtn.disabled = false;
+      }
+    };
+  }
+  
+  // The Selector must NOT be dismissable by Escape, outside-click, or back navigation
+  // before confirmation (Req 1.9). We do not bind any escape/outside-click handlers.
+}
+
+function openHostingModeSettings() {
+  // Admin-only — Tenants never reach this surface (Req 7.7)
+  if (localStorage.getItem('admin_role') !== 'admin') return;
+  
+  const panel = document.getElementById('hosting-mode-settings-panel');
+  if (!panel) return;
+  panel.classList.remove('hidden');
+  try {
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (_) {}
+  
+  const current = hostingMode.value;
+  const currentLabel = current === 'local_pc' ? HOSTING_MODE_LABEL.local_pc
+                     : current === 'cloud' ? HOSTING_MODE_LABEL.cloud
+                     : 'Unconfigured';
+  const currentEl = document.getElementById('hosting-mode-settings-current');
+  if (currentEl) currentEl.textContent = currentLabel;
+  
+  const switchBtn = document.getElementById('hosting-mode-settings-switch');
+  const switchLabelEl = document.getElementById('hosting-mode-settings-switch-label');
+  let targetMode;
+  if (current === 'local_pc') targetMode = 'cloud';
+  else if (current === 'cloud') targetMode = 'local_pc';
+  else targetMode = 'local_pc'; // unconfigured -> default proposal
+  
+  if (switchLabelEl) {
+    if (current === 'local_pc' || current === 'cloud') {
+      switchLabelEl.textContent = `Switch to ${HOSTING_MODE_LABEL[targetMode]}`;
+    } else {
+      switchLabelEl.textContent = 'Switch';
+    }
+  }
+  
+  const confirmation = document.getElementById('hosting-mode-settings-confirmation');
+  const confirmBtn = document.getElementById('hosting-mode-settings-confirm');
+  const cancelBtn = document.getElementById('hosting-mode-settings-cancel');
+  const warningEl = document.getElementById('hosting-mode-settings-warning');
+  const errorEl = document.getElementById('hosting-mode-settings-error');
+  
+  if (errorEl) {
+    errorEl.textContent = '';
+    errorEl.classList.add('hidden');
+  }
+  
+  if (switchBtn) {
+    switchBtn.onclick = () => {
+      hostingMode.pendingTarget = targetMode;
+      
+      // Re-render the appropriate Feature_Availability_Warning content for the TARGET mode (Req 7.3)
+      // The DOM content is static; reveal the canonical panel only when the target is local_pc.
+      // For the in-settings preview, we mirror the same impacted/unaffected sections by toggling
+      // a copy if present, otherwise reveal the existing panel as a stand-in.
+      if (warningEl) {
+        if (targetMode === 'local_pc') {
+          warningEl.classList.remove('hidden');
+        } else {
+          // Switching to Cloud silences the Local-PC-only warning content (Req 3.5).
+          // Render a short confirmation-of-silence message instead of the impacted list.
+          warningEl.classList.remove('hidden');
+        }
+      }
+      
+      if (confirmBtn) {
+        confirmBtn.textContent = `Switch to ${HOSTING_MODE_LABEL[targetMode]}`;
+        confirmBtn.disabled = false;
+      }
+      if (confirmation) confirmation.classList.remove('hidden');
+      if (errorEl) {
+        errorEl.textContent = '';
+        errorEl.classList.add('hidden');
+      }
+    };
+  }
+  
+  if (confirmBtn) {
+    confirmBtn.onclick = async () => {
+      const target = hostingMode.pendingTarget;
+      if (target !== 'local_pc' && target !== 'cloud') return;
+      confirmBtn.disabled = true;
+      try {
+        const res = await fetch('/api/hosting-mode', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hosting_mode: target })
+        });
+        if (res.ok) {
+          if (confirmation) confirmation.classList.add('hidden');
+          if (errorEl) {
+            errorEl.textContent = '';
+            errorEl.classList.add('hidden');
+          }
+          hostingMode.pendingTarget = null;
+          showToast(`Hosting mode switched to ${HOSTING_MODE_LABEL[target]}.`, 'success');
+          checkStatus(); // Refresh badge + warning panel
+        } else {
+          // Non-2xx — leave persisted state unchanged, surface inline error
+          let detail = 'Failed to switch hosting mode. Please try again.';
+          try {
+            const errBody = await res.json();
+            if (errBody && errBody.detail) detail = errBody.detail;
+          } catch (_) {}
+          if (errorEl) {
+            errorEl.textContent = detail;
+            errorEl.classList.remove('hidden');
+          } else {
+            showToast(detail, 'error');
+          }
+          confirmBtn.disabled = false;
+        }
+      } catch (err) {
+        const msg = 'Network error switching hosting mode. Please try again.';
+        if (errorEl) {
+          errorEl.textContent = msg;
+          errorEl.classList.remove('hidden');
+        } else {
+          showToast(msg, 'error');
+        }
+        confirmBtn.disabled = false;
+      }
+    };
+  }
+  
+  if (cancelBtn) {
+    cancelBtn.onclick = () => {
+      // Cancel: hide confirmation, clear pending target, NO PUT call (Req 7.5)
+      if (confirmation) confirmation.classList.add('hidden');
+      hostingMode.pendingTarget = null;
+      if (errorEl) {
+        errorEl.textContent = '';
+        errorEl.classList.add('hidden');
+      }
+    };
   }
 }

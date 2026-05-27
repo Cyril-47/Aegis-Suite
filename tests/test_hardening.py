@@ -2,6 +2,8 @@ import sys
 import os
 import time
 
+import pytest
+
 # Add parent directory to path to locate application modules
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
@@ -11,6 +13,57 @@ import audit_log
 
 # Setup environment variables for stateless testing
 os.environ["JWT_SECRET"] = "super-secret-validation-key-1234567890"
+
+
+# ---------------------------------------------------------------------------
+# Pytest-aware cleanup. The __main__ block at the bottom already scrubs
+# config.json before/after the script runs, but the GitHub Actions CI job
+# (and `pytest tests/`) collect each test_* function individually and never
+# enter __main__. Without an autouse fixture, residual state from a prior
+# run (e.g. "test_guild_id_9988" left in config["revoked_guilds"]) makes
+# test_session_revocation fail on its first assertion. The fixture below
+# clears all test-only entries before AND after every test function so the
+# hardening suite is idempotent under both runners.
+# ---------------------------------------------------------------------------
+
+_TEST_GUILD_IDS = {"test_guild_id_9988", "55555", "998877", "12345", "limit_guild_1"}
+_TEST_PAIRING_CODES = {"TEST99"}
+
+
+def _scrub_config_test_state() -> None:
+    try:
+        with utils.config_lock:
+            config = utils.load_config()
+            config["revoked_guilds"] = [
+                g for g in config.get("revoked_guilds", []) if g not in _TEST_GUILD_IDS
+            ]
+            guild_configs = config.get("guild_configs", {})
+            for gid in _TEST_GUILD_IDS:
+                guild_configs.pop(gid, None)
+            config["scheduled_messages"] = [
+                m
+                for m in config.get("scheduled_messages", [])
+                if m.get("guild_id") not in _TEST_GUILD_IDS
+            ]
+            config["auto_responders"] = [
+                r
+                for r in config.get("auto_responders", [])
+                if r.get("guild_id") not in _TEST_GUILD_IDS
+            ]
+            pending = config.get("pending_pairings", {})
+            for code in _TEST_PAIRING_CODES:
+                pending.pop(code, None)
+            utils.save_config(config)
+        auth.load_revoked_guilds()
+    except Exception as exc:
+        print(f"Warning: failed to scrub config.json test state: {exc}")
+
+
+@pytest.fixture(autouse=True)
+def _isolate_hardening_test_state():
+    _scrub_config_test_state()
+    yield
+    _scrub_config_test_state()
 
 def test_jwt_tampering():
     print("[*] Running JWT Tampering test...")

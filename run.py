@@ -9,6 +9,10 @@ def run_command(command, shell=True):
     process.communicate()
     return process.returncode
 
+def is_headless_cloud() -> bool:
+    """Returns True when running on a cloud host where webbrowser.open would fail or be useless."""
+    return bool(os.getenv("RAILWAY_ENVIRONMENT")) or bool(os.getenv("RENDER"))
+
 def main():
     print("==============================================")
     print("   Discord Server Optimizer Bot & Dashboard")
@@ -69,17 +73,24 @@ def main():
     print("[+] Press Ctrl+C to stop the server.")
     print("----------------------------------------------")
     
-    # Automatically open browser once server starts
-    import threading
-    import webbrowser
-    import time
-    
-    def open_browser():
-        time.sleep(1.5)
-        print("[+] Automatically opening the Dashboard in your browser...")
-        webbrowser.open("http://127.0.0.1:8000")
-        
-    threading.Thread(target=open_browser, daemon=True).start()
+    # Automatically open browser once server starts (skipped on headless cloud hosts)
+    if not is_headless_cloud():
+        import threading
+        import webbrowser
+        import time
+
+        def open_browser():
+            time.sleep(1.5)
+            print("[+] Automatically opening the Dashboard in your browser...")
+            try:
+                webbrowser.open("http://127.0.0.1:8000")
+            except Exception as exc:
+                print(f"[!] webbrowser.open failed: {exc}. Continuing without opening a browser.")
+
+        threading.Thread(target=open_browser, daemon=True).start()
+    else:
+        print("[+] Headless cloud environment detected (RAILWAY_ENVIRONMENT or RENDER set). "
+              "Skipping webbrowser.open.")
     
     # Run uvicorn inside the virtual environment python
     uvicorn_cmd = [python_exe, "-m", "uvicorn", "web_server:app", "--host", "127.0.0.1", "--port", "8000", "--log-level", "info"]
