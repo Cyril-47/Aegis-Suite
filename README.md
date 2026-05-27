@@ -70,6 +70,24 @@ The Aegis bot is hosted by us — you do not need to create a Discord applicatio
 
 ---
 
+## 📦 Self-Hosting Quick Start (Windows EXE)
+
+If you want to run your **own** copy of Aegis Suite (Local PC mode), the easiest path is the prebuilt Windows EXE:
+
+1. Go to the [Releases page](https://github.com/Cyril-47/Aegis-Suite/releases) and download the latest `AegisOptimizer.exe`.
+2. Place the EXE in any folder you can write to (it stores its config next to itself).
+3. Double-click the EXE. The first launch shows a one-time **first-run console wizard** that asks for:
+   - Your **Discord bot token** (Discord Developer Portal → Your App → Bot tab).
+   - Your application's **Client ID** (OAuth2 tab; a 17-20 digit number).
+   - A **password** for the dashboard admin login.
+   - Optionally, a public dashboard URL if you've put a reverse proxy in front of it.
+4. The wizard hashes the password (PBKDF2-SHA256), generates a JWT secret, and writes everything to a DPAPI-encrypted `.env.enc` file bound to your Windows user account. The plaintext copy is deleted as soon as encryption succeeds.
+5. The dashboard launches automatically at `http://127.0.0.1:8000` and a Desktop shortcut is created for future launches.
+
+To re-run the wizard later (for example, to rotate credentials), delete `.env.enc` and re-launch the EXE. To inspect the encrypted contents, use `python -m secret_store decrypt --source .env.enc`.
+
+---
+
 ## 🏠 Hosting Modes
 
 Aegis Suite can be run two different ways, and the right choice depends on **where the bot process lives** and **how continuously it stays online**. In Local PC mode the bot runs on the Maintainer's own Windows machine and is online only while that PC is awake and connected. In Cloud mode the same repository runs on a paid third-party host that the Maintainer provisions themselves, with continuous 24/7 uptime expected. The dashboard's first-launch chooser, the header badge, and the Feature Availability Warning panel all surface this choice. Pick your hosting model first, then read the Secrets at Rest section below for the credential-handling rules that apply to the local path.
