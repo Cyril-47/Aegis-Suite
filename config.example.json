@@ -1,0 +1,48 @@
+{
+  "_comment": "Rename this file to config.json. Do NOT store real secrets here. Move bot_token and admin_password_hash to your .env file instead.",
+  "bot_token": "",
+  "client_id": "",
+  "welcome_settings": {
+    "enabled": true,
+    "channel_id": null,
+    "channel_name": "welcome",
+    "message_title": "Welcome to the Server, {user}!",
+    "message_description": "We are thrilled to have you here! Please make sure to check out the rules and have a wonderful time.",
+    "embed_color": "#6366F1",
+    "auto_assign_roles": []
+  },
+  "automod_settings": {
+    "enabled": true,
+    "block_profanity": true,
+    "block_links": false,
+    "max_mentions": 5,
+    "log_channel_id": null,
+    "log_channel_name": "mod-logs",
+    "profanity_words": [
+      "badword1",
+      "badword2"
+    ]
+  },
+  "custom_commands": {
+    "!website": "Visit our official website at https://example.com!",
+    "!rules": "Please read #rules-and-info. Be respectful and have fun!"
+  },
+  "ticket_settings": {
+    "enabled": true,
+    "category_name": "🎟️ SUPPORT TICKETS",
+    "staff_role_name": "Moderator",
+    "ticket_channel_id": null,
+    "panel_message_id": null
+  },
+  "admin_password_hash": "",
+  "scheduled_messages": [],
+  "leveling_settings": {
+    "enabled": false,
+    "xp_per_message": 15,
+    "xp_cooldown_seconds": 60,
+    "level_up_channel": null,
+    "level_roles": {},
+    "ignored_channels": [],
+    "ignored_roles": []
+  }
+}

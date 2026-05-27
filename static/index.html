@@ -1,0 +1,2128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>
+    window.BOT_API_URL = '%%BOT_API_URL%%';
+  </script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Discord Server Optimizer Dashboard</title>
+  <!-- Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Style Sheet -->
+  <link rel="stylesheet" href="/static/style.css">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+
+  <!-- Background Aurora Glows -->
+  <div class="glow-aurora glow-indigo"></div>
+  <div class="glow-aurora glow-emerald"></div>
+
+  <!-- SETUP WIZARD (Visible when bot token is not configured) -->
+  <div id="setup-wizard" class="wizard-container hidden">
+    <div class="wizard-box glass">
+      <div class="wizard-header">
+        <div class="logo-area">
+          <i class="fa-brands fa-discord bot-logo"></i>
+          <h1>Server Optimizer Setup</h1>
+        </div>
+        <p>Connect your Discord bot to get started with automatic server optimizations.</p>
+      </div>
+
+      <div class="wizard-steps">
+        <div class="step-card">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>Create a Bot Application</h3>
+            <p>Go to the <a href="https://discord.com/developers/applications" target="_blank">Discord Developer Portal</a>, click <strong>New Application</strong>, and name it.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>Enable Privileged Gateway Intents</h3>
+            <p>Under the <strong>Bot</strong> tab of your application, scroll down and enable both <strong>Server Members Intent</strong> and <strong>Message Content Intent</strong>. Click Save Changes.</p>
+          </div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3>Enter Credentials</h3>
+            <div class="input-group">
+              <label for="wizard-token">Bot Token <span class="required">*</span></label>
+              <div class="password-wrapper">
+                <input type="password" id="wizard-token" placeholder="MTIzNDU2Nzg5MDEyMzQ1Njc4.GxxXxx.xxxxx...">
+                <button type="button" class="btn-toggle-pass" onclick="togglePasswordVisibility('wizard-token')">
+                  <i class="fa-solid fa-eye"></i>
+                </button>
+              </div>
+              <small>Found under Developer Portal > Application > Bot > Reset Token / Copy.</small>
+            </div>
+            
+            <div class="input-group">
+              <label for="wizard-client-id">Application (Client) ID <span class="required">*</span></label>
+              <input type="text" id="wizard-client-id" placeholder="123456789012345678">
+              <small>Found under Developer Portal > Application > General Information > Application ID.</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="wizard-footer">
+        <button id="btn-save-wizard" class="btn btn-primary btn-glow">
+          <i class="fa-solid fa-circle-play"></i> Save & Start Bot
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTH SETUP OVERLAY -->
+  <div id="auth-setup-overlay" class="wizard-container hidden">
+    <div class="wizard-box glass">
+      <div class="wizard-header">
+        <div class="logo-area">
+          <i class="fa-solid fa-user-lock bot-logo"></i>
+          <h1>Set Admin Password</h1>
+        </div>
+        <p>Set a secure password to protect your server optimization dashboard from unauthorized access.</p>
+      </div>
+      <div class="card-body px-4 pb-4">
+        <form id="auth-setup-form">
+          <div class="input-group">
+            <label for="setup-password">Admin Password <span class="required">*</span></label>
+            <div class="password-wrapper">
+              <input type="password" id="setup-password" placeholder="Min. 6 characters..." required>
+              <button type="button" class="btn-toggle-pass" onclick="togglePasswordVisibility('setup-password')">
+                <i class="fa-solid fa-eye"></i>
+              </button>
+            </div>
+          </div>
+          <div class="input-group mt-3">
+            <label for="setup-confirm-password">Confirm Password <span class="required">*</span></label>
+            <div class="password-wrapper">
+              <input type="password" id="setup-confirm-password" placeholder="Confirm password..." required>
+              <button type="button" class="btn-toggle-pass" onclick="togglePasswordVisibility('setup-confirm-password')">
+                <i class="fa-solid fa-eye"></i>
+              </button>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-glow mt-4 w-100">
+            <i class="fa-solid fa-shield-halved"></i> Save Password
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- AUTH LOGIN OVERLAY -->
+  <div id="auth-login-overlay" class="wizard-container hidden">
+    <div class="wizard-box glass">
+      <div class="wizard-header">
+        <div class="logo-area">
+          <i class="fa-solid fa-shield-halved bot-logo"></i>
+          <h1>Dashboard Login</h1>
+        </div>
+        <p>Enter your Administrator Password or a 6-digit Server Connection Code.</p>
+      </div>
+      <div class="card-body px-4 pb-4">
+        <form id="auth-login-form">
+          <div class="input-group">
+            <label for="login-password">Connection Code or Password <span class="required">*</span></label>
+            <div class="password-wrapper">
+              <input type="password" id="login-password" placeholder="Enter server code or password..." required style="text-transform: uppercase;">
+              <button type="button" class="btn-toggle-pass" onclick="togglePasswordVisibility('login-password')">
+                <i class="fa-solid fa-eye"></i>
+              </button>
+            </div>
+            <small class="text-sub font-size-08 mt-1">Generate a temporary connection code inside your Discord server using the <code>/linkdashboard</code> command.</small>
+          </div>
+          <button type="submit" class="btn btn-primary btn-glow mt-4 w-100">
+            <i class="fa-solid fa-key"></i> Unlock Dashboard
+          </button>
+
+          <div class="invite-banner glass-inner mt-4 p-3 text-center hidden" id="login-invite-container" style="border-radius: 12px; border: 1px solid rgba(88, 101, 242, 0.2); background: rgba(88, 101, 242, 0.05); text-align: left;">
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+              <div style="background: rgba(88, 101, 242, 0.2); width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                <i class="fa-brands fa-discord" style="color: #818cf8; font-size: 1.4rem;"></i>
+              </div>
+              <div>
+                <h4 style="margin: 0; font-size: 0.95rem; font-weight: 600; color: #fff;">Need to invite the bot?</h4>
+                <p style="margin: 2px 0 0 0; font-size: 0.78rem; color: #94a3b8; line-height: 1.3;">Add Aegis Bot to your server first to generate connection codes.</p>
+              </div>
+            </div>
+            <a href="#" id="login-invite-btn-large" target="_blank" class="btn btn-discord btn-glow w-100" style="padding: 10px; border-radius: 10px; font-weight: 600; font-size: 0.88rem; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; box-sizing: border-box;">
+              <i class="fa-brands fa-discord"></i> Invite Aegis Bot to Server
+            </a>
+          </div>
+          
+          <div class="onboarding-guide mt-4 pt-3" style="border-top: 1px solid rgba(255,255,255,0.1); text-align: left;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+              <h4 class="text-sub font-size-09" style="color: #818cf8; font-weight: 600; margin: 0;"><i class="fa-solid fa-circle-info"></i> How to connect a server:</h4>
+              <a href="#" id="login-invite-btn" target="_blank" class="btn btn-sm hidden" style="font-size: 0.75rem; padding: 2px 8px; border-radius: 4px; background: rgba(129, 140, 248, 0.2); border: 1px solid rgba(129, 140, 248, 0.4); color: #818cf8; text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;">
+                <i class="fa-solid fa-plus"></i> Invite Bot
+              </a>
+            </div>
+            <ol class="font-size-08 pl-4" style="color: #94a3b8; line-height: 1.5; padding-left: 1.25rem; margin: 0;">
+              <li style="margin-bottom: 5px;"><strong>Invite the bot</strong> using the button above (or your bot's administrator invite link).</li>
+              <li style="margin-bottom: 5px;">Make sure you have <strong>Administrator permissions</strong> on the server.</li>
+              <li style="margin-bottom: 5px;">Run the <strong><code>/linkdashboard</code></strong> slash command in any text channel.</li>
+              <li style="margin-bottom: 5px;"><strong>Copy the 6-character connection code</strong> generated by the bot.</li>
+              <li style="margin-bottom: 5px;"><strong>Paste it above</strong> and click <strong>Unlock Dashboard</strong>.</li>
+            </ol>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- OFFLINE NOTICE (Visible when bot is offline and non-admin visits) -->
+  <div id="offline-notice-overlay" class="wizard-container hidden">
+    <div class="wizard-box glass text-center">
+      <div class="wizard-header" style="text-align: center; display: flex; flex-direction: column; align-items: center;">
+        <div class="logo-area" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
+          <i class="fa-solid fa-triangle-exclamation text-warning animate-bounce" style="font-size: 3.5rem; margin-bottom: 20px; color: #f59e0b;"></i>
+          <h1>Dashboard Offline</h1>
+        </div>
+        <p style="font-size: 1.1rem; margin-top: 15px; color: #94a3b8;">Dashboard is currently offline. Please contact the administrator.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN APP CONTAINER -->
+  <div id="main-app" class="app-layout">
+    
+    <!-- SIDEBAR -->
+    <aside class="sidebar glass">
+      <div class="app-brand">
+        <i class="fa-solid fa-wand-magic-sparkles brand-icon animate-pulse"></i>
+        <div class="brand-text">
+          <h2>Aegis Optimizer</h2>
+          <span>Server Management Suite</span>
+        </div>
+      </div>
+
+      <nav class="nav-menu">
+        <button class="nav-item active" data-tab="tab-overview">
+          <i class="fa-solid fa-house"></i> Overview
+        </button>
+        <button class="nav-item" data-tab="tab-auditor">
+          <i class="fa-solid fa-shield-halved"></i> Server Auditor
+        </button>
+        <button class="nav-item" data-tab="tab-optimizer">
+          <i class="fa-solid fa-sliders"></i> Layout Optimizer
+        </button>
+        <button class="nav-item" data-tab="tab-commands">
+          <i class="fa-solid fa-code"></i> Custom Commands
+        </button>
+        <button class="nav-item" data-tab="tab-tickets">
+          <i class="fa-solid fa-ticket"></i> Support Tickets
+        </button>
+        <button class="nav-item" data-tab="tab-roles">
+          <i class="fa-solid fa-user-shield"></i> Role Creator
+        </button>
+        <button class="nav-item" data-tab="tab-role-panels">
+          <i class="fa-solid fa-tags"></i> Role Panels
+        </button>
+        <button class="nav-item" data-tab="tab-templates">
+          <i class="fa-solid fa-layer-group"></i> Templates Manager
+        </button>
+        <button class="nav-item" data-tab="tab-welcome">
+          <i class="fa-solid fa-door-open"></i> Welcome Setup
+        </button>
+        <button class="nav-item" data-tab="tab-automod">
+          <i class="fa-solid fa-gavel"></i> Auto-Moderation
+        </button>
+        <button class="nav-item" data-tab="tab-embed-builder">
+          <i class="fa-solid fa-envelope-open-text"></i> Embed Builder Pro
+        </button>
+        <button class="nav-item" data-tab="tab-music">
+          <i class="fa-solid fa-music"></i> Music Player
+        </button>
+        <button class="nav-item" data-tab="tab-scheduler">
+          <i class="fa-solid fa-clock"></i> Scheduler
+        </button>
+        <button class="nav-item" data-tab="tab-giveaways">
+          <i class="fa-solid fa-gift"></i> Giveaways
+        </button>
+        <button class="nav-item" data-tab="tab-leveling">
+          <i class="fa-solid fa-trophy"></i> Leveling & XP
+        </button>
+        <button class="nav-item" data-tab="tab-auto-responder">
+          <i class="fa-solid fa-robot"></i> Auto-Responder
+        </button>
+        <button class="nav-item" data-tab="tab-audit-log">
+          <i class="fa-solid fa-list-check"></i> Audit Log
+        </button>
+        <button class="nav-item" data-tab="tab-logs">
+          <i class="fa-solid fa-terminal"></i> Live Console
+        </button>
+      </nav>
+
+      <div class="px-3 mb-3">
+        <button id="btn-logout" class="btn btn-secondary w-100" style="padding: 10px; border-radius: 12px; font-size: 0.9rem;">
+          <i class="fa-solid fa-right-from-bracket"></i> Log Out
+        </button>
+      </div>
+
+      <div class="bot-badge-container">
+        <div class="bot-badge glass-inner">
+          <img id="bot-avatar" src="https://discord.com/assets/c09c2a688b139c15814e578d0554c9a6.png" alt="Bot Avatar">
+          <div class="bot-badge-info">
+            <h4 id="bot-username">Loading Bot...</h4>
+            <span id="bot-status" class="status-offline">Offline</span>
+          </div>
+          <button id="btn-bot-toggle" class="btn-circle" title="Start/Stop Bot">
+            <i class="fa-solid fa-power-off"></i>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- CONTENT WRAPPER -->
+    <main class="content-area">
+      <!-- HEADER -->
+      <header class="top-header glass">
+        <div class="header-left">
+          <h1>Dashboard</h1>
+          <p id="current-tab-desc">Monitor your Discord bot and manage connected servers.</p>
+        </div>
+
+        <div class="header-right">
+          <!-- Server Selector -->
+          <div class="server-selector-wrapper">
+            <label for="server-select">Target Server:</label>
+            <select id="server-select" class="glass-input">
+              <option value="">Select a server...</option>
+            </select>
+            <button id="btn-refresh-guilds" class="btn btn-secondary btn-icon-only" title="Refresh Servers">
+              <i class="fa-solid fa-rotate"></i>
+            </button>
+          </div>
+
+          <!-- Invite Button -->
+          <a id="btn-invite-bot" href="#" target="_blank" class="btn btn-discord hidden">
+            <i class="fa-brands fa-discord"></i> Invite Bot
+          </a>
+        </div>
+      </header>
+
+      <!-- TAB SECTIONS -->
+      <div class="tab-content-container">
+
+        <!-- TAB: OVERVIEW -->
+        <section id="tab-overview" class="tab-pane active">
+          <div class="grid-layout">
+            <!-- Analytics Cards Row -->
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-chart-line"></i> Dashboard Activity</h2>
+              </div>
+              <div class="card-body grid-4-col">
+                <div class="stat-card glass-inner">
+                  <h3>Bot Uptime</h3>
+                  <div class="stat-value" id="stat-uptime">0m</div>
+                  <div class="stat-sub">Uptime since boot</div>
+                </div>
+                <div class="stat-card glass-inner">
+                  <h3>Messages Logged</h3>
+                  <div class="stat-value" id="stat-messages">0</div>
+                  <div class="stat-sub">Total messages today</div>
+                </div>
+                <div class="stat-card glass-inner">
+                  <h3>Commands Run</h3>
+                  <div class="stat-value" id="stat-commands">0</div>
+                  <div class="stat-sub">Total commands today</div>
+                </div>
+                <div class="stat-card glass-inner">
+                  <h3>Joins / Tickets</h3>
+                  <div class="stat-value" id="stat-joins-tickets">0 / 0</div>
+                  <div class="stat-sub">Joins & Support tickets today</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Bot Status Card -->
+            <div class="card glass span-2">
+              <div class="card-header">
+                <h2><i class="fa-solid fa-robot"></i> Bot Connection Info</h2>
+              </div>
+              <div class="card-body bot-details-grid">
+                <div class="bot-visual">
+                  <img id="bot-overview-avatar" src="https://discord.com/assets/c09c2a688b139c15814e578d0554c9a6.png" alt="Bot Avatar" class="large-avatar">
+                  <div class="bot-ping-status">
+                    <span class="status-indicator"></span>
+                    <span id="bot-overview-status-text">DISCONNECTED</span>
+                  </div>
+                </div>
+                <div class="bot-info-details">
+                  <div class="info-row">
+                    <span class="label">Username:</span>
+                    <span id="bot-overview-username" class="value">-</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="label">Application ID:</span>
+                    <span id="bot-overview-id" class="value">-</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="label">Servers Joined:</span>
+                    <span id="bot-overview-guilds" class="value">0</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="label">Setup Configuration:</span>
+                    <button id="btn-reconfigure" class="btn btn-secondary btn-small">
+                      <i class="fa-solid fa-gear"></i> Change Credentials
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Server Selector Helper -->
+            <div id="no-server-selected-card" class="card glass span-4 text-center select-helper-card">
+              <i class="fa-solid fa-server big-icon animate-bounce"></i>
+              <h2>No Discord Server Selected</h2>
+              <p>Please select a guild from the dropdown in the top right to analyze and optimize its structure.</p>
+              <div class="invite-prompt-group">
+                <p>Don't see your server in the list? Make sure the bot is invited to it!</p>
+                <a id="btn-invite-bot-prompt" href="#" target="_blank" class="btn btn-discord hidden">
+                  <i class="fa-brands fa-discord"></i> Invite Bot to Server
+                </a>
+              </div>
+            </div>
+
+            <!-- Active Server Card (Hidden until selected) -->
+            <div id="active-server-card" class="card glass span-4 hidden">
+              <div class="card-header border-bottom">
+                <div class="guild-header-details">
+                  <img id="active-guild-icon" src="" alt="Guild Icon" class="guild-avatar">
+                  <div>
+                    <h2 id="active-guild-name">My Discord Server</h2>
+                    <span id="active-guild-id" class="sub-label">ID: -</span>
+                  </div>
+                </div>
+                <div class="guild-tags">
+                  <span id="guild-boost-tag" class="tag tag-pink"><i class="fa-solid fa-gem"></i> Boost Tier 0</span>
+                </div>
+              </div>
+              <div class="card-body grid-3-col">
+                <div class="stat-card glass-inner">
+                  <h3>Members</h3>
+                  <div class="stat-value" id="guild-stat-members">0</div>
+                  <div class="stat-sub" id="guild-stat-online">0 Online</div>
+                </div>
+                <div class="stat-card glass-inner">
+                  <h3>Channels</h3>
+                  <div class="stat-value" id="guild-stat-channels">0</div>
+                  <div class="stat-sub" id="guild-stat-channels-split">0 Text / 0 Voice</div>
+                </div>
+                <div class="stat-card glass-inner">
+                  <h3>Roles</h3>
+                  <div class="stat-value" id="guild-stat-roles">0</div>
+                  <div class="stat-sub">Fully Scan roles in Auditor</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Server Backup / Restore Panel (Hidden until selected) -->
+            <div id="backup-restore-card" class="card glass span-4 hidden">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-box-archive"></i> Server Layout Backup & Restore</h2>
+                <p>Export your server's entire channel configuration, roles, and permissions as a backup file, or restore it in one click.</p>
+              </div>
+              <div class="card-body backup-grid">
+                <div class="backup-action-box glass-inner text-center">
+                  <i class="fa-solid fa-file-arrow-down backup-icon-large text-indigo"></i>
+                  <h3>Create Server Backup</h3>
+                  <p class="mt-2 mb-4 text-sub">Downloads a structured JSON snapshot containing your categories, channels, overrides, and role configurations.</p>
+                  <button id="btn-download-backup" class="btn btn-primary btn-glow">
+                    <i class="fa-solid fa-download"></i> Download Backup File
+                  </button>
+                </div>
+                <div class="backup-action-box glass-inner text-center">
+                  <i class="fa-solid fa-file-arrow-up backup-icon-large text-emerald"></i>
+                  <h3>Restore Server Backup</h3>
+                  <p class="mt-2 mb-4 text-sub">Restores a downloaded backup file. <strong>Warning: Existing channels will be moved to an archive folder to prevent data loss.</strong></p>
+                  
+                  <label for="upload-backup-file" class="btn btn-secondary cursor-pointer">
+                    <i class="fa-solid fa-upload"></i> Upload Backup File
+                  </label>
+                  <input type="file" id="upload-backup-file" accept=".json" class="hidden">
+                  <div id="restore-status" class="mt-3 text-center hidden">
+                    <i class="fa-solid fa-circle-notch fa-spin spinner"></i>
+                    <span class="ml-2">Restoring server structure...</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB: AUDITOR -->
+        <section id="tab-auditor" class="tab-pane hidden">
+          <div class="grid-layout">
+            <!-- Score Meter -->
+            <div class="card glass span-1 text-center py-4">
+              <div class="card-header text-center">
+                <h2>Health Score</h2>
+              </div>
+              <div class="card-body flex-center flex-column">
+                <div class="radial-progress-wrapper">
+                  <svg class="radial-svg" viewBox="0 0 120 120">
+                    <circle class="circle-bg" cx="60" cy="60" r="50"></circle>
+                    <circle id="audit-score-circle" class="circle-progress" cx="60" cy="60" r="50" style="stroke-dashoffset: 314;"></circle>
+                  </svg>
+                  <div class="radial-text" id="audit-score-value">0%</div>
+                </div>
+                <div id="audit-score-rating" class="score-rating-badge rating-none">NOT SCANNED</div>
+                <button id="btn-run-audit" class="btn btn-primary btn-glow mt-4">
+                  <i class="fa-solid fa-magnifying-glass-shield"></i> Scan Server
+                </button>
+              </div>
+            </div>
+
+            <!-- Audit Details -->
+            <div class="card glass span-3">
+              <div class="card-header border-bottom">
+                <h2>Audit Findings & Security Analysis</h2>
+              </div>
+              <div class="card-body">
+                <div id="audit-loading" class="text-center py-5 hidden">
+                  <i class="fa-solid fa-circle-notch fa-spin large-spinner"></i>
+                  <p class="mt-3">Analyzing guild structure, safety levels, and role overrides...</p>
+                </div>
+                <div id="audit-results-empty" class="text-center py-5">
+                  <i class="fa-solid fa-shield-halved big-icon opacity-50"></i>
+                  <p class="mt-3">Click the "Scan Server" button to run the automated safety and design audit.</p>
+                </div>
+                <div id="audit-results-list" class="checklist-list hidden">
+                  <!-- Dynamic check cards go here -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB: OPTIMIZER -->
+        <section id="tab-optimizer" class="tab-pane hidden">
+          <div class="card glass mb-4">
+            <div class="card-header border-bottom">
+              <h2>Select an Optimization Layout Preset</h2>
+              <p>Reorganizes, categorizes, and secures channels according to curated community models.</p>
+            </div>
+            <div class="card-body">
+              <div class="preset-selector-grid">
+                <!-- Preset: Gaming -->
+                <div class="preset-card glass-inner active" data-preset="gaming">
+                  <div class="preset-badge badge-indigo">RECOMMENDED</div>
+                  <div class="preset-icon"><i class="fa-solid fa-gamepad"></i></div>
+                  <h3>Gaming Guild / Squads</h3>
+                  <p>Designed for gaming servers. Features dedicated general lobbies, clips highlights, meme chats, bot command center, and voice channels (Squads, Duos, Lounges).</p>
+                  <div class="preset-meta border-top mt-3 pt-3">
+                    <h4>Created Layout:</h4>
+                    <ul>
+                      <li>🏆 <strong>Info</strong>: welcome, rules-and-info, announcements</li>
+                      <li>💬 <strong>Text</strong>: general, gaming-lobby, clips-highlights, memes, bot-commands</li>
+                      <li>🔊 <strong>Voice</strong>: General Voice, Squad Room 1, Squad Room 2, Chill Lounge</li>
+                      <li>🛡️ <strong>Staff</strong>: staff-chat, mod-logs</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <!-- Preset: Community -->
+                <div class="preset-card glass-inner" data-preset="community">
+                  <div class="preset-badge badge-emerald">SOCIAL</div>
+                  <div class="preset-icon"><i class="fa-solid fa-users"></i></div>
+                  <h3>Social Community</h3>
+                  <p>A broad, engaging template perfect for social circles. Features interest-based channels (hobbies, media), text lounges, and standard rules/announcements structure.</p>
+                  <div class="preset-meta border-top mt-3 pt-3">
+                    <h4>Created Layout:</h4>
+                    <ul>
+                      <li>📢 <strong>Info</strong>: welcome, rules-and-roles, announcements</li>
+                      <li>💬 <strong>Text</strong>: general-chat, introductions, bot-commands</li>
+                      <li>🎭 <strong>Interests</strong>: hobbies, media-and-art, memes</li>
+                      <li>🔊 <strong>Voice</strong>: General Lounge, Gaming, Music Room</li>
+                      <li>🛡️ <strong>Staff</strong>: mod-chat, mod-logs</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <!-- Preset: Developer -->
+                <div class="preset-card glass-inner" data-preset="developer">
+                  <div class="preset-badge badge-pink">TECH</div>
+                  <div class="preset-icon"><i class="fa-solid fa-code"></i></div>
+                  <h3>Coding & Projects</h3>
+                  <p>Optimized for coding clusters, hackathons, or tech discussion. Emphasizes showcase channels, resources feeds, questions help desk, and collaboration voice desks.</p>
+                  <div class="preset-meta border-top mt-3 pt-3">
+                    <h4>Created Layout:</h4>
+                    <ul>
+                      <li>📚 <strong>Info</strong>: welcome, rules-and-resources, announcements</li>
+                      <li>💬 <strong>Text</strong>: general-dev, questions-and-help, resources, bot-commands</li>
+                      <li>💻 <strong>Projects</strong>: showcase, ideas-feedback, github-feed</li>
+                      <li>🔊 <strong>Voice</strong>: Dev Desk 1, Dev Desk 2, Standup Room</li>
+                      <li>🛡️ <strong>Staff</strong>: staff-chat, mod-logs</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid-layout">
+            <!-- Channel Handling -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2>Channel Handling Options</h2>
+              </div>
+              <div class="card-body">
+                <div class="radio-group-container">
+                  <label class="radio-card glass-inner active">
+                    <input type="radio" name="channel-handling" value="archive" checked>
+                    <div class="radio-card-content">
+                      <div class="title"><i class="fa-solid fa-box-archive text-indigo"></i> Archive Existing (Recommended)</div>
+                      <p>Creates a private category named <code>📦 ARCHIVED CHANNELS</code> and moves all current categories/channels inside. Restricts access to Staff only. <strong>Zero data loss!</strong></p>
+                    </div>
+                  </label>
+
+                  <label class="radio-card glass-inner">
+                    <input type="radio" name="channel-handling" value="keep">
+                    <div class="radio-card-content">
+                      <div class="title"><i class="fa-solid fa-layer-group text-emerald"></i> Keep Existing / Append</div>
+                      <p>Leaves your existing categories and channels untouched, and simply appends the new preset categories and channels at the bottom of the channel list.</p>
+                    </div>
+                  </label>
+
+                  <label class="radio-card glass-inner danger-radio">
+                    <input type="radio" name="channel-handling" value="delete">
+                    <div class="radio-card-content">
+                      <div class="title"><i class="fa-solid fa-trash-can text-danger"></i> Deconstruct / Delete All</div>
+                      <p>Deletes all current channels and categories before applying the preset. <strong>Warning: This cannot be undone and will erase all chat histories!</strong></p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Run Optimize -->
+            <div class="card glass span-2 flex-center flex-column py-5">
+              <div class="text-center px-4">
+                <i class="fa-solid fa-triangle-exclamation warning-icon mb-3 animate-pulse"></i>
+                <h2>Apply Optimization</h2>
+                <p class="max-width-350 mt-2 text-sub">Make sure the bot has the highest role ranking (above Moderator roles) and has the Administrator permission enabled on Discord so it can create roles, move channels, and restrict overrides.</p>
+              </div>
+              <button id="btn-execute-optimize" class="btn btn-primary btn-glow mt-4 btn-large">
+                <i class="fa-solid fa-magic"></i> Run Server Optimization
+              </button>
+              <div id="optimizer-status" class="mt-3 text-center hidden">
+                <i class="fa-solid fa-circle-notch fa-spin spinner"></i>
+                <span class="ml-2" id="optimizer-status-text">Optimizing server layout...</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB: CUSTOM COMMANDS -->
+        <section id="tab-commands" class="tab-pane hidden">
+          <div class="grid-layout">
+            <!-- Add Command Form -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2>Create Custom Command</h2>
+                <p>Map triggers (e.g. <code>!ip</code>) to responses. When users type the trigger, the bot responds instantly.</p>
+              </div>
+              <div class="card-body">
+                <form id="command-form">
+                  <div class="input-group">
+                    <label for="command-trigger">Command Trigger <span class="required">*</span></label>
+                    <input type="text" id="command-trigger" placeholder="e.g. !website" required>
+                    <small>Must include command prefix (e.g. <code>!</code>, <code>/</code>, or <code>?</code>).</small>
+                  </div>
+
+                  <div class="input-group">
+                    <label for="command-response">Response Text <span class="required">*</span></label>
+                    <textarea id="command-response" rows="5" placeholder="e.g. Visit our website at https://example.com!" required></textarea>
+                    <small>Standard Discord markdown is fully supported (bold, italics, links).</small>
+                  </div>
+
+                  <button type="submit" class="btn btn-primary btn-glow">
+                    <i class="fa-solid fa-plus"></i> Add Custom Command
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <!-- Commands List -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2>Active Custom Commands</h2>
+                <p>List of all commands currently registered. Click save to upload changes to the bot.</p>
+              </div>
+              <div class="card-body p-0">
+                <div class="table-container">
+                  <table class="premium-table" id="table-commands">
+                    <thead>
+                      <tr>
+                        <th>Trigger</th>
+                        <th>Response</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="commands-list-body">
+                      <!-- Dynamic rows will go here -->
+                    </tbody>
+                  </table>
+                  <div id="commands-empty" class="text-center py-5">
+                    <i class="fa-solid fa-code-merge big-icon opacity-50"></i>
+                    <p class="mt-2 text-sub">No custom commands registered. Add one using the form on the left!</p>
+                  </div>
+                </div>
+                <div class="p-4 border-top text-right flex-between">
+                  <small class="text-muted">Changes only take effect after clicking save.</small>
+                  <button id="btn-save-commands" class="btn btn-primary btn-glow btn-small">
+                    <i class="fa-solid fa-floppy-disk"></i> Save & Deploy Commands
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB: SUPPORT TICKETS -->
+        <section id="tab-tickets" class="tab-pane hidden">
+          <div class="grid-layout">
+            <!-- Ticket Configuration Settings -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2>Support Ticket Configuration</h2>
+                <p>Deploy a clickable ticketing panel in your server. When clicked, the bot creates private text channels for users to talk with staff.</p>
+              </div>
+              <div class="card-body">
+                <form id="tickets-form">
+                  <div class="toggle-group mb-4">
+                    <span class="toggle-label font-weight-500">Enable Ticket System:</span>
+                    <label class="switch">
+                      <input type="checkbox" id="tickets-enabled" checked>
+                      <span class="slider round"></span>
+                    </label>
+                  </div>
+
+                  <div class="input-group">
+                    <label for="tickets-category">Ticket Category Name:</label>
+                    <input type="text" id="tickets-category" placeholder="🎟️ SUPPORT TICKETS" value="🎟️ SUPPORT TICKETS">
+                    <small>Name of the category under which private support channels will be created.</small>
+                  </div>
+
+                  <div class="input-group">
+                    <label for="tickets-role">Staff Role Name (to view tickets):</label>
+                    <input type="text" id="tickets-role" placeholder="Moderator" value="Moderator">
+                    <small>Name of the role allowed to see and reply to support channels.</small>
+                  </div>
+
+                  <div class="input-group">
+                    <label for="tickets-deploy-channel">Deploy Panel Channel:</label>
+                    <select id="tickets-deploy-channel" class="glass-input">
+                      <option value="">Select channel...</option>
+                    </select>
+                    <small>The channel where the bot will post the "Create Support Ticket" button embed.</small>
+                  </div>
+
+                  <div class="flex-between border-top pt-3">
+                    <button type="submit" class="btn btn-secondary">
+                      <i class="fa-solid fa-floppy-disk"></i> Save Settings
+                    </button>
+                    <button type="button" id="btn-deploy-tickets" class="btn btn-primary btn-glow">
+                      <i class="fa-solid fa-paper-plane"></i> Deploy Ticket Panel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            <!-- Ticket System Preview Info -->
+            <div class="card glass span-2 flex-center flex-column text-center p-5">
+              <i class="fa-solid fa-ticket-simple ticket-icon-illustration mb-3 animate-pulse"></i>
+              <h2>Interactive Ticketing Panel</h2>
+              <p class="max-width-350 text-sub mt-2 mb-4">Once deployed, the bot creates a permanent embedded message. Users clicking "Create Ticket" get their own channel where they can share private issues, logs, or reports securely.</p>
+              
+              <div class="glass-inner text-left max-width-350 info-box">
+                <h4><i class="fa-solid fa-circle-info"></i> How it works:</h4>
+                <ul class="info-list mt-2">
+                  <li>Creates channels named <code>#ticket-username</code>.</li>
+                  <li>Configures private permissions dynamically (hides from other members).</li>
+                  <li>Adds a "Close Ticket" button in the created channel for staff to delete it when resolved.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB: WELCOME SETUP -->
+        <section id="tab-welcome" class="tab-pane hidden">
+          <div class="grid-layout">
+            <!-- Configuration Settings -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2>Welcome Greeting Settings</h2>
+              </div>
+              <div class="card-body">
+                <form id="welcome-form">
+                  <div class="toggle-group mb-4">
+                    <span class="toggle-label">Enable Welcome Greetings:</span>
+                    <label class="switch">
+                      <input type="checkbox" id="welcome-enabled" checked>
+                      <span class="slider round"></span>
+                    </label>
+                  </div>
+
+                  <div class="input-group">
+                    <label for="welcome-channel">Welcome Channel:</label>
+                    <select id="welcome-channel" class="glass-input">
+                      <option value="">Choose welcome channel...</option>
+                    </select>
+                    <small>Default channels named "welcome" or "welcome-logs" will be checked automatically if left blank.</small>
+                  </div>
+
+                  <div class="input-group">
+                    <label for="welcome-title">Embed Title:</label>
+                    <input type="text" id="welcome-title" placeholder="Welcome to the Server, {user}!" value="Welcome to the Server, {user}!">
+                    <small>Variables available: <code>{user}</code> (username), <code>{server}</code> (server name)</small>
+                  </div>
+
+                  <div class="input-group">
+                    <label for="welcome-description">Embed Description:</label>
+                    <textarea id="welcome-description" rows="4" placeholder="Welcome to the server {user}! We are glad to have you..."></textarea>
+                    <small>Use markdown formatting: *italics*, **bold**, standard emotes. Supports <code>{user}</code> (mentions them) and <code>{server}</code>.</small>
+                  </div>
+
+                  <div class="input-group">
+                    <label for="welcome-color">Theme Color:</label>
+                    <div class="color-picker-wrapper">
+                      <input type="color" id="welcome-color-picker" value="#6366f1">
+                      <input type="text" id="welcome-color-hex" value="#6366F1" placeholder="#6366F1" maxlength="7">
+                    </div>
+                  </div>
+
+                  <div class="input-group">
+                    <label for="welcome-autoroles">Auto-Assign Roles on Join:</label>
+                    <input type="text" id="welcome-autoroles" placeholder="Verified Member, Gaming User">
+                    <small>Comma-separated list of role names or role IDs to auto-assign to new members when they join.</small>
+                  </div>
+
+                  <button type="submit" class="btn btn-primary btn-glow mt-3">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Welcome Settings
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <!-- Preview Embed Card -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2>Welcome Embed Preview</h2>
+                <p>Real-time visual simulation of what members will see on Discord.</p>
+              </div>
+              <div class="card-body flex-center bg-discord-chat">
+                <div class="discord-message">
+                  <img src="https://discord.com/assets/c09c2a688b139c15814e578d0554c9a6.png" class="discord-author-avatar" alt="Bot avatar">
+                  <div class="discord-message-content">
+                    <div class="discord-message-header">
+                      <span class="discord-author-name">Server Optimizer Bot</span>
+                      <span class="discord-bot-tag">BOT</span>
+                      <span class="discord-timestamp">Today at 12:00 PM</span>
+                    </div>
+                    <div id="preview-embed-border" class="discord-embed" style="border-left-color: #6366f1;">
+                      <div class="discord-embed-grid">
+                        <div class="discord-embed-main">
+                          <h4 id="preview-embed-title" class="discord-embed-title">Welcome to the Server, GamerName!</h4>
+                          <div id="preview-embed-desc" class="discord-embed-description">We are thrilled to have you here! Please make sure to check out the rules and have a wonderful time.</div>
+                        </div>
+                        <img src="https://discord.com/assets/c09c2a688b139c15814e578d0554c9a6.png" class="discord-embed-thumbnail" alt="User avatar">
+                      </div>
+                      <div class="discord-embed-footer">Member #1</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB: AUTOMOD -->
+        <section id="tab-automod" class="tab-pane hidden">
+          <div class="grid-layout">
+            <!-- Mod settings -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2>Auto-Moderation Settings</h2>
+              </div>
+              <div class="card-body">
+                <form id="automod-form">
+                  <div class="toggle-group mb-4">
+                    <span class="toggle-label font-weight-500">Enable Auto-Moderation Suite:</span>
+                    <label class="switch">
+                      <input type="checkbox" id="automod-enabled" checked>
+                      <span class="slider round"></span>
+                    </label>
+                  </div>
+                  <p class="setting-desc mb-4">Activates filters that scan and handle chat infractions. Automatically warning users and deleting messages.</p>
+
+                  <div class="toggle-group mb-2">
+                    <span class="toggle-label">Block Profanity & Swearwords:</span>
+                    <label class="switch">
+                      <input type="checkbox" id="automod-profanity" checked>
+                      <span class="slider round"></span>
+                    </label>
+                  </div>
+                  <p class="setting-desc mb-4">Automatically deletes messages matching the filtered words list. Staff members bypass this check.</p>
+
+                  <div class="toggle-group mb-2">
+                    <span class="toggle-label">Block Links & Invites:</span>
+                    <label class="switch">
+                      <input type="checkbox" id="automod-links">
+                      <span class="slider round"></span>
+                    </label>
+                  </div>
+                  <p class="setting-desc mb-4">Removes links shared by normal users (blocks advertisement, phishing links, and server invites).</p>
+
+                  <div class="input-group">
+                    <label for="automod-max-mentions">Mass Mention Threshold:</label>
+                    <input type="number" id="automod-max-mentions" min="1" max="50" value="5">
+                    <small>Deletes messages containing more than this number of mentions (blocks ping spam raids).</small>
+                  </div>
+
+                  <div class="input-group">
+                    <label for="automod-log-channel">Mod Logs Channel:</label>
+                    <select id="automod-log-channel" class="glass-input">
+                      <option value="">Choose log channel...</option>
+                    </select>
+                    <small>Channel where AutoMod infractions and server status reports are logged.</small>
+                  </div>
+
+                  <button type="submit" class="btn btn-primary btn-glow mt-3">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Moderation Settings
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <!-- Blocklist management -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2>Custom Word Filter Blocklist</h2>
+                <p>Add specific slurs, spam keywords, or links that the bot should automatically delete.</p>
+              </div>
+              <div class="card-body">
+                <div class="input-group">
+                  <label for="automod-words">Filtered Words (Comma Separated):</label>
+                  <textarea id="automod-words" rows="8" placeholder="badword1, spamlink.com, slurs..."></textarea>
+                  <small>Checks for exact word matches (case-insensitive) in user messages. Bypassed by members with Administrator or Manage Messages permissions.</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB: ROLE CREATOR -->
+        <section id="tab-roles" class="tab-pane hidden">
+          <div class="grid-layout">
+            <!-- Create Role Form -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-user-shield"></i> Create Server Role</h2>
+                <p>Add a new role to your server with custom styling and settings.</p>
+              </div>
+              <div class="card-body">
+                <form id="role-creator-form">
+                  <div class="input-group">
+                    <label for="role-name">Role Name <span class="required">*</span></label>
+                    <input type="text" id="role-name" placeholder="e.g. Community Leader" required>
+                  </div>
+
+                  <div class="input-group">
+                    <label for="role-color">Role Color:</label>
+                    <div class="color-picker-wrapper">
+                      <input type="color" id="role-color-picker" value="#99aab5">
+                      <input type="text" id="role-color-hex" value="#99AAB5" placeholder="#99AAB5" maxlength="7">
+                    </div>
+                  </div>
+
+                  <div class="toggle-group mb-4">
+                    <span class="toggle-label font-weight-500">Display Role Separately (Hoist):</span>
+                    <label class="switch">
+                      <input type="checkbox" id="role-hoist">
+                      <span class="slider round"></span>
+                    </label>
+                  </div>
+
+                  <button type="submit" class="btn btn-primary btn-glow">
+                    <i class="fa-solid fa-plus"></i> Create Role
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <!-- Server Roles List -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-users-gear"></i> Server Roles</h2>
+                <p>List of all roles configured on your Discord server. Click delete to remove them.</p>
+              </div>
+              <div class="card-body p-0">
+                <div class="table-container max-h-400">
+                  <table class="premium-table" id="table-roles">
+                    <thead>
+                      <tr>
+                        <th>Role Name</th>
+                        <th>Color</th>
+                        <th>Members</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="roles-list-body">
+                      <!-- Dynamic rows go here -->
+                    </tbody>
+                  </table>
+                  <div id="roles-empty" class="text-center py-5">
+                    <i class="fa-solid fa-user-shield big-icon opacity-50"></i>
+                    <p class="mt-2 text-sub">No roles loaded. Ensure a server is selected and bot is online.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB: ROLE PANELS -->
+        <section id="tab-role-panels" class="tab-pane hidden">
+          <div class="grid-layout">
+            <!-- Config Form -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-tags"></i> Create Role Selection Panel</h2>
+                <p>Deploy a clickable panel where users can self-assign roles using buttons.</p>
+              </div>
+              <div class="card-body">
+                <form id="role-panel-form">
+                  <div class="input-group">
+                    <label for="role-panel-title">Panel Title <span class="required">*</span></label>
+                    <input type="text" id="role-panel-title" value="Assign Your Roles" required>
+                  </div>
+
+                  <div class="input-group">
+                    <label for="role-panel-desc">Panel Description <span class="required">*</span></label>
+                    <textarea id="role-panel-desc" rows="3" required>Click the buttons below to toggle your self-assignable roles!</textarea>
+                  </div>
+
+                  <div class="input-group">
+                    <label for="role-panel-color">Theme Color:</label>
+                    <div class="color-picker-wrapper">
+                      <input type="color" id="role-panel-color-picker" value="#6366f1">
+                      <input type="text" id="role-panel-color-hex" value="#6366F1" placeholder="#6366F1" maxlength="7">
+                    </div>
+                  </div>
+
+                  <div class="input-group">
+                    <label for="role-panel-channel">Deploy Panel Channel:</label>
+                    <select id="role-panel-channel" class="glass-input">
+                      <option value="">Select channel...</option>
+                    </select>
+                  </div>
+
+                  <!-- Button Builder Grid -->
+                  <div class="border-top pt-3 mt-3">
+                    <h3>Add Button to Panel</h3>
+                    <div class="button-builder-box glass-inner mt-2 p-3">
+                      <div class="input-group">
+                        <label for="builder-btn-role">Target Role:</label>
+                        <select id="builder-btn-role" class="glass-input">
+                          <option value="">Select role...</option>
+                        </select>
+                      </div>
+
+                      <div class="grid-2-col mt-2">
+                        <div class="input-group">
+                          <label for="builder-btn-label">Button Label:</label>
+                          <input type="text" id="builder-btn-label" placeholder="e.g. Member">
+                        </div>
+                        <div class="input-group">
+                          <label for="builder-btn-emoji">Emoji (Optional):</label>
+                          <input type="text" id="builder-btn-emoji" placeholder="e.g. 📢">
+                        </div>
+                      </div>
+
+                      <div class="input-group mt-2">
+                        <label for="builder-btn-style">Button Color:</label>
+                        <select id="builder-btn-style" class="glass-input">
+                          <option value="primary">Blue (Primary)</option>
+                          <option value="secondary">Grey (Secondary)</option>
+                          <option value="success">Green (Success)</option>
+                          <option value="danger">Red (Danger)</option>
+                        </select>
+                      </div>
+
+                      <button type="button" id="btn-add-panel-button" class="btn btn-secondary btn-small mt-3">
+                        <i class="fa-solid fa-plus"></i> Add Button
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Dynamic Buttons List -->
+                  <div class="mt-3">
+                    <label>Panel Buttons List:</label>
+                    <div id="panel-buttons-list" class="buttons-list-container mt-2">
+                      <!-- List of added buttons with delete actions -->
+                    </div>
+                  </div>
+
+                  <div class="flex-between border-top pt-3 mt-4">
+                    <button type="button" id="btn-clear-panel-form" class="btn btn-secondary">
+                      <i class="fa-solid fa-trash-can"></i> Clear Panel
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-glow">
+                      <i class="fa-solid fa-paper-plane"></i> Deploy Role Panel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            <!-- Preview Card -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2>Panel Message Preview</h2>
+                <p>Simulates what the role panel will look like when deployed in Discord.</p>
+              </div>
+              <div class="card-body flex-center bg-discord-chat flex-column py-5">
+                <div class="discord-message">
+                  <img src="https://discord.com/assets/c09c2a688b139c15814e578d0554c9a6.png" class="discord-author-avatar" alt="Bot avatar">
+                  <div class="discord-message-content">
+                    <div class="discord-message-header">
+                      <span class="discord-author-name">Server Optimizer Bot</span>
+                      <span class="discord-bot-tag">BOT</span>
+                      <span class="discord-timestamp">Today at 12:00 PM</span>
+                    </div>
+                    <div id="preview-role-embed-border" class="discord-embed" style="border-left-color: #6366f1;">
+                      <div class="discord-embed-grid">
+                        <div class="discord-embed-main">
+                          <h4 id="preview-role-embed-title" class="discord-embed-title">Assign Your Roles</h4>
+                          <div id="preview-role-embed-desc" class="discord-embed-description">Click the buttons below to toggle your self-assignable roles!</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div id="preview-role-buttons" class="discord-buttons-row mt-2">
+                      <!-- Simulator Buttons will render here -->
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB: TEMPLATES MANAGER -->
+        <section id="tab-templates" class="tab-pane hidden">
+          <div class="grid-layout">
+            <!-- Save Template Card -->
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-cloud-arrow-up"></i> Save Current Server as Template</h2>
+                <p>Capture your server's current role hierarchy and channel setup as a template to deploy elsewhere.</p>
+              </div>
+              <div class="card-body">
+                <div class="flex-between">
+                  <div class="input-group mr-3 w-100">
+                    <label for="template-save-name">Template Name <span class="required">*</span></label>
+                    <input type="text" id="template-save-name" placeholder="e.g. My Community Layout" class="glass-input">
+                  </div>
+                  <button id="btn-save-template" class="btn btn-primary btn-glow" style="margin-top: 24px; white-space: nowrap;">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Layout
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Pre-built Templates Grid -->
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-circle-nodes"></i> Pre-built Layout Templates</h2>
+                <p>Deploy professional ready-made layouts with one click. Note: Deploying a template will archive your current channels.</p>
+              </div>
+              <div class="card-body grid-3-col">
+                <!-- Gaming Card -->
+                <div class="stat-card glass-inner text-center">
+                  <i class="fa-solid fa-gamepad" style="font-size: 2rem; color: var(--primary);"></i>
+                  <h3 class="mt-2">Gaming Presets</h3>
+                  <p class="text-sub mt-1 font-size-08">Includes Welcome, Announcements, General, Clips, LFG channels and lobby voice rooms.</p>
+                  <button class="btn btn-primary btn-small mt-3 w-100 btn-apply-builtin" data-preset="Gaming">Apply Template</button>
+                </div>
+                <!-- Community Card -->
+                <div class="stat-card glass-inner text-center">
+                  <i class="fa-solid fa-users" style="font-size: 2rem; color: var(--success);"></i>
+                  <h3 class="mt-2">Social Community</h3>
+                  <p class="text-sub mt-1 font-size-08">Structured with Info, Media, Memes, General chat channels and event planning categories.</p>
+                  <button class="btn btn-success btn-small mt-3 w-100 btn-apply-builtin" data-preset="Community">Apply Template</button>
+                </div>
+                <!-- Tech Card -->
+                <div class="stat-card glass-inner text-center">
+                  <i class="fa-solid fa-laptop-code" style="font-size: 2rem; color: var(--pink);"></i>
+                  <h3 class="mt-2">Coding & Devs</h3>
+                  <p class="text-sub mt-1 font-size-08">Organized for projects with Tech chat, Project Showcase, Q&A helpdesk and study logs.</p>
+                  <button class="btn btn-discord mt-3 btn-small w-100 btn-apply-builtin" data-preset="Developer">Apply Template</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Custom User Templates Grid -->
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-box-archive"></i> Your Custom Saved Templates</h2>
+                <p>Deploy layouts you have saved from this server or other connected servers.</p>
+              </div>
+              <div class="card-body p-0">
+                <div class="table-container max-h-400">
+                  <table class="premium-table" id="table-templates">
+                    <thead>
+                      <tr>
+                        <th>Template Name</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="templates-list-body">
+                      <!-- Dynamic rows will render here -->
+                    </tbody>
+                  </table>
+                  <div id="templates-empty" class="text-center py-5">
+                    <i class="fa-solid fa-layer-group big-icon opacity-50"></i>
+                    <p class="mt-2 text-sub">No custom templates saved yet. Use the tool above to save your layout.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB: EMBED BUILDER PRO -->
+        <section id="tab-embed-builder" class="tab-pane hidden">
+          <div class="grid-layout">
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2>Visual Embed Designer</h2>
+                <p>Create rich, detailed cards to announce updates or showcase features on your server.</p>
+              </div>
+              <div class="card-body">
+                <form id="embed-builder-form">
+                  <div class="input-group" style="border: 1px dashed rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; background-color: rgba(255,255,255,0.02); margin-bottom: 20px;">
+                    <label for="embed-template-preset" style="font-weight: 600; color: var(--primary); display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-wand-magic-sparkles"></i> Load Embed Template Preset:</label>
+                    <select id="embed-template-preset" class="glass-input" style="border-color: rgba(99, 102, 241, 0.4);">
+                      <option value="">-- Choose a Preset Template --</option>
+                      <option value="welcome">👋 Welcome / Greeting Embed</option>
+                      <option value="rules">📜 Server Rules & Regulations</option>
+                      <option value="announcement">📢 Server Announcement</option>
+                      <option value="giveaway">🎉 Giveaway Announcement</option>
+                      <option value="support">🎟️ Support Ticket Info</option>
+                    </select>
+                  </div>
+
+                  <div class="input-group">
+                    <label for="embed-target-channel">Destination Channel <span class="required">*</span></label>
+                    <select id="embed-target-channel" class="glass-input" required>
+                      <option value="">Select channel...</option>
+                    </select>
+                  </div>
+                  
+                  <div class="input-group">
+                    <label for="embed-plain-text">Plain Text Content (Outside Embed):</label>
+                    <textarea id="embed-plain-text" rows="2" placeholder="Optional text above the embed..."></textarea>
+                  </div>
+
+                  <div class="border-top pt-3 mt-3">
+                    <h3>Author Field</h3>
+                    <div class="grid-2-col mt-2">
+                      <div class="input-group">
+                        <label for="embed-author-name">Author Name:</label>
+                        <input type="text" id="embed-author-name" placeholder="e.g. Aegis Staff">
+                      </div>
+                      <div class="input-group">
+                        <label for="embed-author-icon">Author Icon URL:</label>
+                        <input type="url" id="embed-author-icon" placeholder="https://...">
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="border-top pt-3 mt-3">
+                    <h3>Body Settings</h3>
+                    <div class="input-group mt-2">
+                      <label for="embed-title">Embed Title:</label>
+                      <input type="text" id="embed-title" placeholder="e.g. Server Announcement">
+                    </div>
+                    <div class="input-group">
+                      <label for="embed-description">Embed Description:</label>
+                      <textarea id="embed-description-text" rows="5" placeholder="Description support standard markdown..."></textarea>
+                    </div>
+                    <div class="grid-2-col">
+                      <div class="input-group">
+                        <label for="embed-color">Embed Color:</label>
+                        <div class="color-picker-wrapper">
+                          <input type="color" id="embed-color-picker" value="#6366f1">
+                          <input type="text" id="embed-color-hex" value="#6366F1" placeholder="#6366F1" maxlength="7">
+                        </div>
+                      </div>
+                      <div class="input-group">
+                        <label for="embed-thumbnail">Thumbnail Image URL:</label>
+                        <input type="url" id="embed-thumbnail" placeholder="https://...">
+                        <div class="preset-links-container" style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 5px;">
+                          <span style="font-size: 0.7rem; color: var(--text-muted); align-self: center;">Presets:</span>
+                          <span class="preset-link-thumb" data-url="/static/bot_logo.png" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">Bot Logo</span>
+                          <span class="preset-link-thumb" data-url="https://i.imgur.com/T0bZUXk.png" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">Welcome</span>
+                          <span class="preset-link-thumb" data-url="https://i.imgur.com/V9l5Nn0.png" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">Warning</span>
+                          <span class="preset-link-thumb" data-url="https://i.imgur.com/f8V03Jq.png" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">Success</span>
+                          <span class="preset-link-thumb" data-url="https://i.imgur.com/NlVd7s7.png" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">Gift</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="border-top pt-3 mt-3">
+                    <h3>Large Image Setting</h3>
+                    <div class="input-group mt-2">
+                      <label for="embed-image">Large Image URL:</label>
+                      <input type="url" id="embed-image" placeholder="https://...">
+                      <div class="preset-links-container" style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 5px;">
+                        <span style="font-size: 0.7rem; color: var(--text-muted); align-self: center;">Presets:</span>
+                        <span class="preset-link-image" data-url="/static/bot_banner.png" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">Bot Banner</span>
+                        <span class="preset-link-image" data-url="https://i.imgur.com/WcI9L8F.png" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">Lofi Music</span>
+                        <span class="preset-link-image" data-url="https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=600&q=80" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">Gaming</span>
+                        <span class="preset-link-image" data-url="https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=600&q=80" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">Party</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="border-top pt-3 mt-3">
+                    <div class="flex-between">
+                      <h3>Embed Fields (Key-Value)</h3>
+                      <button type="button" id="btn-embed-add-field" class="btn btn-secondary btn-small">
+                        <i class="fa-solid fa-plus"></i> Add Field
+                      </button>
+                    </div>
+                    <div id="embed-fields-container" class="mt-2">
+                      <!-- Added fields list goes here -->
+                    </div>
+                  </div>
+
+                  <div class="border-top pt-3 mt-3">
+                    <h3>Footer Settings</h3>
+                    <div class="grid-2-col mt-2">
+                      <div class="input-group">
+                        <label for="embed-footer-text">Footer Text:</label>
+                        <input type="text" id="embed-footer-text" placeholder="e.g. Powered by Aegis Suite">
+                      </div>
+                      <div class="input-group">
+                        <label for="embed-footer-icon">Footer Icon URL:</label>
+                        <input type="url" id="embed-footer-icon" placeholder="https://...">
+                      </div>
+                    </div>
+                    <div class="toggle-group mt-2">
+                      <span class="toggle-label font-size-08">Include Timestamp:</span>
+                      <label class="switch">
+                        <input type="checkbox" id="embed-timestamp" checked>
+                        <span class="slider round"></span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="border-top pt-3 mt-4 flex-between">
+                    <div>
+                      <button type="button" id="btn-embed-import" class="btn btn-secondary btn-small">
+                        <i class="fa-solid fa-file-import"></i> Import JSON
+                      </button>
+                      <button type="button" id="btn-embed-export" class="btn btn-secondary btn-small">
+                        <i class="fa-solid fa-file-export"></i> Export JSON
+                      </button>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-glow">
+                      <i class="fa-solid fa-paper-plane"></i> Send Embed Message
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            <!-- Embed Preview Simulator -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2>Visual Simulator Preview</h2>
+                <p>Simulates how the embed will look when pushed live to Discord chat.</p>
+              </div>
+              <div class="card-body bg-discord-chat flex-column py-5">
+                <!-- Outer message simulation -->
+                <div class="discord-message" style="width: 100%; max-width: 520px;">
+                  <img src="https://discord.com/assets/c09c2a688b139c15814e578d0554c9a6.png" class="discord-author-avatar" alt="Bot avatar">
+                  <div class="discord-message-content">
+                    <div class="discord-message-header">
+                      <span class="discord-author-name">Server Optimizer Bot</span>
+                      <span class="discord-bot-tag">BOT</span>
+                      <span class="discord-timestamp">Today at 12:00 PM</span>
+                    </div>
+                    <div id="sim-plain-text" class="sim-message-text mb-2 text-white"></div>
+                    <div id="preview-builder-embed" class="discord-embed" style="border-left-color: #6366f1;">
+                      <div class="discord-embed-grid">
+                        <div class="discord-embed-main">
+                          <div id="preview-embed-author" class="discord-embed-author hidden">
+                            <img id="preview-embed-author-icon" src="" class="discord-embed-author-icon hidden">
+                            <span id="preview-embed-author-name"></span>
+                          </div>
+                          <h4 id="preview-embed-title-text" class="discord-embed-title hidden"></h4>
+                          <div id="preview-embed-description" class="discord-embed-description hidden"></div>
+                          
+                          <!-- Custom Fields Grid -->
+                          <div id="preview-embed-fields" class="discord-embed-fields hidden"></div>
+                        </div>
+                        <img id="preview-embed-thumbnail-img" src="" class="discord-embed-thumbnail hidden" alt="Thumbnail">
+                      </div>
+                      <img id="preview-embed-large-img" src="" class="discord-embed-image hidden" alt="Large Image">
+                      <div id="preview-embed-footer-container" class="discord-embed-footer hidden">
+                        <img id="preview-embed-footer-icon-img" src="" class="discord-embed-footer-icon hidden">
+                        <span id="preview-embed-footer-text-span"></span>
+                        <span id="preview-embed-footer-timestamp" class="ml-1"></span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB: GIVEAWAYS -->
+        <section id="tab-giveaways" class="tab-pane hidden">
+          <div class="grid-layout">
+            <!-- Left Side: Create Giveaway Form -->
+            <div class="card glass">
+              <div class="card-header border-bottom">
+                <h2>🎁 Create a Giveaway</h2>
+                <p>Launch a giveaway with persistent button reactions on Discord.</p>
+              </div>
+              <div class="card-body">
+                <form id="giveaway-create-form">
+                  <div class="input-group">
+                    <label for="giveaway-target-channel">Destination Channel <span class="required">*</span></label>
+                    <select id="giveaway-target-channel" class="glass-input" required>
+                      <option value="">Select channel...</option>
+                    </select>
+                  </div>
+                  
+                  <div class="input-group">
+                    <label for="giveaway-prize">Giveaway Prize <span class="required">*</span></label>
+                    <input type="text" id="giveaway-prize" placeholder="e.g. Discord Nitro Classic" required>
+                  </div>
+                  
+                  <div class="grid-2-col">
+                    <div class="input-group">
+                      <label for="giveaway-winners">Winner Count <span class="required">*</span></label>
+                      <input type="number" id="giveaway-winners" min="1" max="50" value="1" required>
+                    </div>
+                    <div class="input-group">
+                      <label for="giveaway-duration">Duration (e.g. 10m, 2h, 1d) <span class="required">*</span></label>
+                      <input type="text" id="giveaway-duration" placeholder="e.g. 10m" required>
+                    </div>
+                  </div>
+                  
+                  <button type="submit" class="btn btn-primary w-100 mt-3" style="border-radius: 12px; padding: 12px; font-weight: 600;">
+                    <i class="fa-solid fa-gift"></i> Launch Giveaway
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <!-- Right Side: Active Giveaways -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2>⚡ Active Giveaways</h2>
+                <p>Live giveaways running on your Discord server.</p>
+              </div>
+              <div class="card-body">
+                <div id="active-giveaways-container" class="grid-2-col">
+                  <!-- Active giveaways render here -->
+                </div>
+                <div id="active-giveaways-empty" class="text-center py-5">
+                  <i class="fa-solid fa-gift big-icon opacity-50"></i>
+                  <p class="mt-2 text-sub">No active giveaways at the moment.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom: Giveaway History -->
+          <div class="card glass mt-4">
+            <div class="card-header border-bottom">
+              <h2>📜 Giveaway History</h2>
+              <p>Completed giveaways and rolled winners.</p>
+            </div>
+            <div class="card-body" style="padding: 0;">
+              <div class="table-container">
+                <table class="premium-table">
+                  <thead>
+                    <tr>
+                      <th>Prize</th>
+                      <th>Winners</th>
+                      <th>Entrants Count</th>
+                      <th>Completed At</th>
+                      <th style="text-align: right;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="giveaway-history-list-body">
+                    <!-- Completed giveaways rows -->
+                  </tbody>
+                </table>
+                <div id="giveaway-history-empty" class="text-center py-5">
+                  <i class="fa-solid fa-clock-rotate-left big-icon opacity-50"></i>
+                  <p class="mt-2 text-sub">No completed giveaways found in records.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB: MUSIC PLAYER -->
+        <section id="tab-music" class="tab-pane hidden">
+          <div id="ffmpeg-warning" class="info-box text-danger mb-4 hidden" style="border-left-color: var(--danger); background-color: rgba(239, 68, 68, 0.05); margin-bottom: 20px; border-radius: 8px; padding: 20px;">
+            <h4 style="color: var(--danger); display: flex; align-items: center; gap: 8px; font-weight: 600;">
+              <i class="fa-solid fa-triangle-exclamation"></i> Local Voice/Audio Playback Disabled
+            </h4>
+            <p class="font-size-08 mt-1 text-sub" style="color: #dbdee1 !important;">
+              FFmpeg is not installed or not configured in your system's PATH. The local music player cannot stream audio.
+              Please install FFmpeg or invite one of the <strong>Alternative External Music Bots</strong> (like Lara) listed at the bottom of this tab.
+            </p>
+            <div class="mt-2">
+              <button id="btn-toggle-ffmpeg-guide" type="button" class="btn btn-secondary btn-small" style="background-color: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.25);">
+                <i class="fa-solid fa-book mr-1"></i> How to Install FFmpeg
+              </button>
+            </div>
+            
+            <div id="ffmpeg-install-guide" class="hidden mt-3 p-3 glass-inner" style="background-color: rgba(0, 0, 0, 0.25); border: 1px solid rgba(255, 255, 255, 0.05); color: #dbdee1; border-radius: 8px; text-align: left;">
+              <h4 class="mb-2" style="font-size: 0.95rem; font-weight: 600; color: #fff;">📦 Step-by-Step FFmpeg Installation Guide</h4>
+              
+              <div class="grid-2-col mt-2" style="gap: 20px;">
+                <div>
+                  <strong style="color: #818cf8;"><i class="fa-brands fa-windows"></i> Windows Setup:</strong>
+                  <ol style="margin-left: 15px; margin-top: 6px; font-size: 0.75rem; line-height: 1.6; list-style-type: decimal; color: #dbdee1;">
+                    <li>Download the latest essentials build zip from <a href="https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" target="_blank" style="color: #818cf8; text-decoration: underline; font-weight: 600;">Gyan.dev</a>.</li>
+                    <li>Extract the folder and rename the main folder to <code>ffmpeg</code>.</li>
+                    <li>Move the <code>ffmpeg</code> folder directly into your <code>C:\</code> drive (so it sits at <code>C:\ffmpeg</code>).</li>
+                    <li>Open Windows Search, search for <strong>"Environment Variables"</strong>, and choose <strong>"Edit the system environment variables"</strong>.</li>
+                    <li>Click <strong>"Environment Variables..."</strong> at the bottom.</li>
+                    <li>Under System variables, locate <strong>"Path"</strong>, select it, and click <strong>"Edit..."</strong>.</li>
+                    <li>Click <strong>"New"</strong>, paste <code>C:\ffmpeg\bin</code>, click OK on all prompt screens.</li>
+                    <li><strong>Restart the Bot launcher terminal</strong> to load the new environment path.</li>
+                  </ol>
+                </div>
+                
+                <div style="border-left: 1px solid rgba(255, 255, 255, 0.05); padding-left: 20px;">
+                  <strong style="color: #34d399;"><i class="fa-brands fa-apple"></i> macOS (via Homebrew):</strong>
+                  <p style="font-size: 0.75rem; margin-top: 6px; line-height: 1.5; color: #dbdee1;">
+                    Open Terminal and run:<br>
+                    <code style="background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 4px; font-family: monospace; color: #34d399;">brew install ffmpeg</code>
+                  </p>
+                  
+                  <strong style="color: #fbbf24; display: block; margin-top: 15px;"><i class="fa-brands fa-linux"></i> Linux (Ubuntu/Debian):</strong>
+                  <p style="font-size: 0.75rem; margin-top: 6px; line-height: 1.5; color: #dbdee1;">
+                    Open Terminal and install via package manager:<br>
+                    <code style="background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 4px; font-family: monospace; color: #fbbf24;">sudo apt update && sudo apt install -y ffmpeg</code>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="grid-layout">
+            <!-- Now Playing Panel -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2>Now Playing Controls</h2>
+              </div>
+              <div class="card-body">
+                <div class="music-visualizer-box glass-inner p-4 text-center">
+                  <div class="music-album-art mb-3">
+                    <img id="music-track-thumbnail" src="https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=200&auto=format&fit=crop" class="now-playing-img" alt="Track Album Art">
+                    <div class="eq-waves animate-eq hidden" id="music-eq-waves">
+                      <span></span><span></span><span></span><span></span>
+                    </div>
+                  </div>
+                  <h3 id="music-track-title">No Audio Playing</h3>
+                  <p id="music-track-requester" class="text-sub font-size-08 mt-1">Select a song below to start streaming.</p>
+                  
+                  <!-- Volume controller -->
+                  <div class="flex-center mt-4">
+                    <i class="fa-solid fa-volume-low mr-2 text-sub"></i>
+                    <input type="range" id="music-volume-slider" min="0" max="100" value="50" class="volume-slider w-50">
+                    <i class="fa-solid fa-volume-high ml-2 text-sub"></i>
+                    <span id="music-volume-label" class="ml-2 font-size-08 text-sub">50%</span>
+                  </div>
+
+                  <!-- Playback controls -->
+                  <div class="flex-center mt-4 gap-3">
+                    <button id="btn-music-stop" class="btn-circle btn-danger" title="Stop & Reset">
+                      <i class="fa-solid fa-stop"></i>
+                    </button>
+                    <button id="btn-music-toggle" class="btn-circle btn-primary" title="Play/Pause">
+                      <i class="fa-solid fa-play"></i>
+                    </button>
+                    <button id="btn-music-skip" class="btn-circle btn-secondary" title="Skip Song">
+                      <i class="fa-solid fa-forward"></i>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Channel controls -->
+                <div class="mt-4 border-top pt-3">
+                  <div class="input-group">
+                    <label for="music-voice-select">Voice Channel Selector:</label>
+                    <div class="flex-between">
+                      <select id="music-voice-select" class="glass-input w-100 mr-2">
+                        <option value="">Choose voice channel...</option>
+                      </select>
+                      <button id="btn-music-join-channel" class="btn btn-primary" style="white-space: nowrap;">
+                        <i class="fa-solid fa-arrow-right-to-bracket"></i> Join
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- YouTube Search & Queue -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2>YouTube Search & Queue</h2>
+              </div>
+              <div class="card-body">
+                <form id="music-play-form">
+                  <div class="input-group">
+                    <label for="music-search-query">Enter Search Keywords or URL:</label>
+                    <div class="flex-between">
+                      <input type="text" id="music-search-query" placeholder="e.g. Lofi beats / YouTube URL..." class="glass-input w-100 mr-2" required>
+                      <button type="submit" class="btn btn-primary btn-glow" style="white-space: nowrap;">
+                        <i class="fa-solid fa-plus"></i> Queue Track
+                      </button>
+                    </div>
+                  </div>
+                </form>
+
+                <!-- Queue listing -->
+                <div class="mt-4 border-top pt-3">
+                  <h3>Active Playlist Queue</h3>
+                  <div class="table-container max-h-300 mt-2">
+                    <table class="premium-table" id="table-music-queue">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Track Title</th>
+                          <th>Duration</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody id="music-queue-list-body">
+                        <!-- Queue list will render dynamically -->
+                      </tbody>
+                    </table>
+                    <div id="music-queue-empty" class="text-center py-5">
+                      <i class="fa-solid fa-music big-icon opacity-50"></i>
+                      <p class="mt-2 text-sub">No tracks queued up. Add one above!</p>
+                    </div>
+                  </div>
+                  <div class="flex-between border-top mt-3 pt-3">
+                    <span id="music-queue-stats" class="text-sub font-size-08">0 Songs in queue</span>
+                    <button id="btn-music-shuffle" class="btn btn-secondary btn-small">
+                      <i class="fa-solid fa-shuffle"></i> Shuffle Queue
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Alternative External Bots Panel -->
+            <div class="card glass span-4 mt-4">
+              <div class="card-header border-bottom">
+                <h2>Alternative External Music Bots</h2>
+                <p>Host-free, high-quality audio alternatives if the built-in node is offline or lacks custom server resources.</p>
+              </div>
+              <div class="card-body">
+                <div class="grid-4-col">
+                  <!-- Bot: Lara -->
+                  <div class="glass-inner p-3 text-center flex-column flex-between" style="height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                      <div class="preset-icon text-indigo" style="font-size: 2rem; margin-bottom: 8px;">
+                        <i class="fa-solid fa-headphones-simple"></i>
+                      </div>
+                      <h3 style="font-size: 1rem; margin-bottom: 6px;">Lara Music</h3>
+                      <p class="text-sub font-size-08" style="line-height: 1.4; margin-bottom: 12px;">Premium high-quality music bot featuring advanced audio filters, autoplay, soundboards, and playlist storage.</p>
+                    </div>
+                    <a href="https://discord.com/oauth2/authorize?client_id=944016826751389717&permissions=36784128&scope=bot%20applications.commands" target="_blank" class="btn btn-primary btn-small w-100" style="text-decoration: none; display: inline-block; text-align: center;">
+                      <i class="fa-solid fa-user-plus"></i> Invite Lara
+                    </a>
+                  </div>
+
+                  <!-- Bot: FredBoat -->
+                  <div class="glass-inner p-3 text-center flex-column flex-between" style="height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                      <div class="preset-icon text-emerald" style="font-size: 2rem; margin-bottom: 8px;">
+                        <i class="fa-solid fa-ship"></i>
+                      </div>
+                      <h3 style="font-size: 1rem; margin-bottom: 6px;">FredBoat</h3>
+                      <p class="text-sub font-size-08" style="line-height: 1.4; margin-bottom: 12px;">Reliable, open-source, and extremely easy-to-use music bot. Supports YouTube, SoundCloud, and Bandcamp streams.</p>
+                    </div>
+                    <a href="https://discord.com/oauth2/authorize?client_id=184473251628711936&scope=bot&permissions=36784128" target="_blank" class="btn btn-primary btn-small w-100" style="text-decoration: none; display: inline-block; text-align: center;">
+                      <i class="fa-solid fa-user-plus"></i> Invite FredBoat
+                    </a>
+                  </div>
+
+                  <!-- Bot: Lofi Girl -->
+                  <div class="glass-inner p-3 text-center flex-column flex-between" style="height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                      <div class="preset-icon text-pink" style="font-size: 2rem; margin-bottom: 8px;">
+                        <i class="fa-solid fa-mug-hot"></i>
+                      </div>
+                      <h3 style="font-size: 1rem; margin-bottom: 6px;">Lofi Girl</h3>
+                      <p class="text-sub font-size-08" style="line-height: 1.4; margin-bottom: 12px;">Broadcasts chilled, high-quality lofi hip hop audio 24/7. Perfect for peaceful study or relaxing gaming rooms.</p>
+                    </div>
+                    <a href="https://discord.com/oauth2/authorize?client_id=1010196885345714247&permissions=36784128&scope=bot%20applications.commands" target="_blank" class="btn btn-primary btn-small w-100" style="text-decoration: none; display: inline-block; text-align: center;">
+                      <i class="fa-solid fa-user-plus"></i> Invite Lofi Girl
+                    </a>
+                  </div>
+
+                  <!-- Bot: Jockie Music -->
+                  <div class="glass-inner p-3 text-center flex-column flex-between" style="height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
+                    <div>
+                      <div class="preset-icon text-warning" style="font-size: 2rem; margin-bottom: 8px; color: var(--warning);">
+                        <i class="fa-solid fa-compact-disc"></i>
+                      </div>
+                      <h3 style="font-size: 1rem; margin-bottom: 6px;">Jockie Music</h3>
+                      <p class="text-sub font-size-08" style="line-height: 1.4; margin-bottom: 12px;">Supports streaming to multiple channels on the same server simultaneously. Loaded with command sets.</p>
+                    </div>
+                    <a href="https://discord.com/oauth2/authorize?client_id=411916947773030400&permissions=36784128&scope=bot%20applications.commands" target="_blank" class="btn btn-primary btn-small w-100" style="text-decoration: none; display: inline-block; text-align: center;">
+                      <i class="fa-solid fa-user-plus"></i> Invite Jockie
+                    </a>
+                  </div>
+                </div>
+
+                <!-- Custom Invite Generator -->
+                <div class="mt-4 border-top pt-4">
+                  <h3 class="mb-2">Custom Bot Invite Generator</h3>
+                  <p class="text-sub font-size-08 mb-3">Add any other custom music or utility bot directly to your server by pasting its Application Client ID below.</p>
+                  <div class="grid-2-col">
+                    <div class="input-group">
+                      <label for="custom-bot-client-id">Application/Client ID:</label>
+                      <input type="text" id="custom-bot-client-id" placeholder="e.g. 1508704388368302190" class="glass-input w-100">
+                    </div>
+                    <div class="input-group">
+                      <label for="custom-bot-perms">Required Permissions:</label>
+                      <div class="flex-between">
+                        <select id="custom-bot-perms" class="glass-input w-100 mr-2">
+                          <option value="36784128">Music Player (Connect, Speak, Commands)</option>
+                          <option value="8">Administrator (Full Access)</option>
+                          <option value="0">Basic Permissions (Read/Write Only)</option>
+                        </select>
+                        <button id="btn-generate-bot-invite" class="btn btn-primary" style="white-space: nowrap;">
+                          <i class="fa-solid fa-square-arrow-up-right"></i> Generate Invite
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB: SCHEDULER -->
+        <section id="tab-scheduler" class="tab-pane hidden">
+          <div class="grid-layout">
+            <!-- Schedule Form -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2>Schedule Event Message</h2>
+                <p>Configure automated messages to broadcast once or on a recurring timeline.</p>
+              </div>
+              <div class="card-body">
+                <form id="scheduler-form">
+                  <div class="input-group">
+                    <label for="scheduler-channel">Target Channel <span class="required">*</span></label>
+                    <select id="scheduler-channel" class="glass-input" required>
+                      <option value="">Select channel...</option>
+                    </select>
+                  </div>
+
+                  <div class="input-group">
+                    <label for="scheduler-content">Message Content <span class="required">*</span></label>
+                    <textarea id="scheduler-content" rows="4" placeholder="Message content support markdown..." required></textarea>
+                  </div>
+
+                  <div class="grid-2-col">
+                    <div class="input-group">
+                      <label for="scheduler-type">Timeline Style <span class="required">*</span></label>
+                      <select id="scheduler-type" class="glass-input" required>
+                        <option value="once">Send Once</option>
+                        <option value="recurring">Recurring Schedule</option>
+                      </select>
+                    </div>
+                    <div class="input-group" id="scheduler-datetime-wrapper">
+                      <label for="scheduler-datetime">Target Date & Time <span class="required">*</span></label>
+                      <input type="datetime-local" id="scheduler-datetime" class="glass-input">
+                    </div>
+                  </div>
+
+                  <div class="grid-2-col hidden" id="scheduler-recurring-wrapper">
+                    <div class="input-group">
+                      <label for="scheduler-interval-type">Time Unit:</label>
+                      <select id="scheduler-interval-type" class="glass-input">
+                        <option value="hourly">Hourly</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                      </select>
+                    </div>
+                    <div class="input-group">
+                      <label for="scheduler-interval-val">Repeat Every:</label>
+                      <input type="number" id="scheduler-interval-val" min="1" max="100" value="1" class="glass-input">
+                    </div>
+                  </div>
+
+                  <button type="submit" class="btn btn-primary btn-glow mt-3">
+                    <i class="fa-solid fa-calendar-plus"></i> Deploy Scheduled Message
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <!-- Active Schedules -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2>Active Scheduled Broadcasts</h2>
+              </div>
+              <div class="card-body p-0">
+                <div class="table-container max-h-400">
+                  <table class="premium-table" id="table-scheduler">
+                    <thead>
+                      <tr>
+                        <th>Channel</th>
+                        <th>Type / Timing</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="scheduler-list-body">
+                      <!-- Active schedules go here -->
+                    </tbody>
+                  </table>
+                  <div id="scheduler-empty" class="text-center py-5">
+                    <i class="fa-solid fa-clock big-icon opacity-50"></i>
+                    <p class="mt-2 text-sub">No scheduled messages configured. Set one up on the left!</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB: LEVELING & XP -->
+        <section id="tab-leveling" class="tab-pane hidden">
+          <div class="grid-layout">
+            <!-- Leveling Settings -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2>XP System Configurations</h2>
+              </div>
+              <div class="card-body">
+                <form id="leveling-config-form">
+                  <div class="toggle-group mb-4">
+                    <span class="toggle-label font-weight-500">Enable Leveling System:</span>
+                    <label class="switch">
+                      <input type="checkbox" id="leveling-enabled">
+                      <span class="slider round"></span>
+                    </label>
+                  </div>
+
+                  <div class="grid-2-col">
+                    <div class="input-group">
+                      <label for="leveling-xp-per-msg">XP Per Message:</label>
+                      <input type="number" id="leveling-xp-per-msg" min="1" max="100" value="15" class="glass-input">
+                    </div>
+                    <div class="input-group">
+                      <label for="leveling-xp-cooldown">XP Cooldown (Seconds):</label>
+                      <input type="number" id="leveling-xp-cooldown" min="1" max="600" value="60" class="glass-input">
+                    </div>
+                  </div>
+
+                  <div class="input-group">
+                    <label for="leveling-announce-channel">Level Up Announcement Channel:</label>
+                    <select id="leveling-announce-channel" class="glass-input">
+                      <option value="">Post in same channel...</option>
+                    </select>
+                  </div>
+
+                  <div class="border-top pt-3 mt-3">
+                    <div class="flex-between mb-2">
+                      <h3>Level Roles Configuration</h3>
+                      <button type="button" id="btn-level-role-add" class="btn btn-secondary btn-small">
+                        <i class="fa-solid fa-plus"></i> Add Mapping
+                      </button>
+                    </div>
+                    <div class="grid-2-col mb-2">
+                      <input type="number" id="builder-lvl-target" placeholder="Level e.g. 5" class="glass-input" min="1">
+                      <select id="builder-lvl-role" class="glass-input">
+                        <option value="">Choose role...</option>
+                      </select>
+                    </div>
+                    
+                    <div class="table-container max-h-200 mt-2">
+                      <table class="premium-table" id="table-level-roles">
+                        <thead>
+                          <tr>
+                            <th>Target Level</th>
+                            <th>Role Reward</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody id="level-roles-list-body">
+                          <!-- Mapped roles list dynamically goes here -->
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div class="flex-between border-top pt-3 mt-4">
+                    <button type="button" id="btn-level-reset" class="btn btn-secondary text-danger">
+                      <i class="fa-solid fa-trash-can"></i> Reset Server XP Data
+                    </button>
+                    <button type="submit" class="btn btn-primary btn-glow">
+                      <i class="fa-solid fa-floppy-disk"></i> Save Leveling Settings
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            <!-- Leaderboard Listing -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2>Server Rank Leaderboard</h2>
+              </div>
+              <div class="card-body p-0">
+                <div class="table-container max-h-400">
+                  <table class="premium-table" id="table-level-leaderboard">
+                    <thead>
+                      <tr>
+                        <th>Rank</th>
+                        <th>User Name</th>
+                        <th>Level</th>
+                        <th>Total XP</th>
+                        <th>Messages</th>
+                      </tr>
+                    </thead>
+                    <tbody id="level-leaderboard-list-body">
+                      <!-- Leaderboard entries go here -->
+                    </tbody>
+                  </table>
+                  <div id="level-leaderboard-empty" class="text-center py-5">
+                    <i class="fa-solid fa-trophy big-icon opacity-50"></i>
+                    <p class="mt-2 text-sub">No user statistics available. Earn XP by typing in chat!</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB: AUTO-RESPONDERS -->
+        <section id="tab-auto-responder" class="tab-pane hidden">
+          <div class="grid-layout">
+            <!-- Create Responder -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2>Create Auto-Responder Trigger</h2>
+                <p>Respond dynamically to keyword triggers. Supports exact matches, simple containing searches, or advanced regex models.</p>
+              </div>
+              <div class="card-body">
+                <form id="auto-responder-form">
+                  <div class="grid-2-col">
+                    <div class="input-group">
+                      <label for="auto-resp-type">Matching Model:</label>
+                      <select id="auto-resp-type" class="glass-input">
+                        <option value="exact">Exact Match</option>
+                        <option value="contains">Contains Word</option>
+                        <option value="regex">Regular Expression</option>
+                      </select>
+                    </div>
+                    <div class="input-group">
+                      <label for="auto-resp-trigger">Trigger Phrase / Regex <span class="required">*</span></label>
+                      <input type="text" id="auto-resp-trigger" placeholder="e.g. store" required>
+                    </div>
+                  </div>
+
+                  <div class="input-group">
+                    <label for="auto-resp-response">Response Text <span class="required">*</span></label>
+                    <textarea id="auto-resp-response" rows="4" placeholder="Automated response text..." required></textarea>
+                  </div>
+
+                  <!-- Send embed toggle in auto-responder -->
+                  <div class="toggle-group mb-3">
+                    <span class="toggle-label font-size-08">Include Rich Embed Card:</span>
+                    <label class="switch">
+                      <input type="checkbox" id="auto-resp-embed-toggle">
+                      <span class="slider round"></span>
+                    </label>
+                  </div>
+
+                  <!-- Embed Editor (Hidden unless toggled) -->
+                  <div id="auto-resp-embed-editor" class="glass-inner p-3 mb-3 hidden">
+                    <div class="input-group">
+                      <label for="auto-resp-embed-title">Embed Title:</label>
+                      <input type="text" id="auto-resp-embed-title" placeholder="Embed Title...">
+                    </div>
+                    <div class="input-group">
+                      <label for="auto-resp-embed-desc">Embed Description:</label>
+                      <textarea id="auto-resp-embed-desc" rows="3" placeholder="Embed Description..."></textarea>
+                    </div>
+                    <div class="input-group">
+                      <label for="auto-resp-embed-color">Embed Color:</label>
+                      <input type="color" id="auto-resp-embed-color" value="#6366f1">
+                    </div>
+                  </div>
+
+                  <button type="submit" class="btn btn-primary btn-glow">
+                    <i class="fa-solid fa-plus"></i> Save Responder Trigger
+                  </button>
+                </form>
+
+                <!-- Variables Card -->
+                <div class="glass-inner mt-4 p-3 info-box">
+                  <h4><i class="fa-solid fa-circle-info"></i> Allowed Variables:</h4>
+                  <ul class="info-list font-size-08 mt-1">
+                    <li><code>{user}</code> - Mentions the message author.</li>
+                    <li><code>{username}</code> - Author's screen name.</li>
+                    <li><code>{server}</code> - Connected Guild name.</li>
+                    <li><code>{channel}</code> - Channel name trigger occurred in.</li>
+                    <li><code>{membercount}</code> - Member count in server.</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <!-- Active Responders -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2>Registered Responders</h2>
+              </div>
+              <div class="card-body p-0">
+                <div class="table-container max-h-400">
+                  <table class="premium-table" id="table-auto-responders">
+                    <thead>
+                      <tr>
+                        <th>Matching Rule</th>
+                        <th>Response Preview</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="auto-responders-list-body">
+                      <!-- List will populate dynamically -->
+                    </tbody>
+                  </table>
+                  <div id="auto-responders-empty" class="text-center py-5">
+                    <i class="fa-solid fa-robot big-icon opacity-50"></i>
+                    <p class="mt-2 text-sub">No auto-responders configured. Add one on the left!</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB: AUDIT LOG -->
+        <section id="tab-audit-log" class="tab-pane hidden">
+          <div class="card glass">
+            <div class="card-header border-bottom flex-between flex-wrap">
+              <div>
+                <h2>Dashboard Audit Trail</h2>
+                <p>Chronological feed of administrative and moderation actions logged via this optimizer dashboard.</p>
+              </div>
+              <div class="flex-between mt-2 mt-md-0">
+                <select id="audit-log-filter" class="glass-input mr-2">
+                  <option value="ALL">All Categories</option>
+                  <option value="BOT_CONTROL">Bot Lifecycle</option>
+                  <option value="CONFIG_CHANGE">Configurations</option>
+                  <option value="BACKUP_ACTION">Backup & Restore</option>
+                  <option value="ROLE_ACTION">Roles Config</option>
+                  <option value="TICKET_ACTION">Ticketing Panel</option>
+                  <option value="MUSIC_ACTION">Music Player</option>
+                  <option value="SCHEDULE_ACTION">Message Scheduler</option>
+                  <option value="LEVELING_ACTION">Leveling Settings</option>
+                  <option value="AUTORESPONDER_ACTION">Auto-Responder</option>
+                </select>
+                <button id="btn-audit-log-refresh" class="btn btn-secondary btn-icon-only" title="Refresh Logs">
+                  <i class="fa-solid fa-rotate"></i>
+                </button>
+              </div>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-container max-h-500">
+                <table class="premium-table" id="table-audit-logs">
+                  <thead>
+                    <tr>
+                      <th>Timestamp</th>
+                      <th>Category</th>
+                      <th>User/Actor</th>
+                      <th>Action Logged</th>
+                      <th>Target Guild ID</th>
+                    </tr>
+                  </thead>
+                  <tbody id="audit-logs-list-body">
+                    <!-- Audit logs entries populate dynamically -->
+                  </tbody>
+                </table>
+                <div id="audit-logs-empty" class="text-center py-5">
+                  <i class="fa-solid fa-list-check big-icon opacity-50"></i>
+                  <p class="mt-2 text-sub">No dashboard actions recorded in audit logs.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB: LIVE LOGS -->
+        <section id="tab-logs" class="tab-pane hidden">
+          <div class="card glass console-card">
+            <div class="card-header border-bottom flex-between">
+              <div>
+                <h2>Live System Logs</h2>
+                <p>Real-time terminal feed from the local server and Discord bot processes.</p>
+              </div>
+              <div class="console-actions">
+                <button id="btn-clear-logs" class="btn btn-secondary btn-small">
+                  <i class="fa-solid fa-trash"></i> Clear Console
+                </button>
+              </div>
+            </div>
+            <div class="card-body p-0">
+              <div id="log-terminal" class="terminal-screen">
+                <!-- Logs are streamed here -->
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Notification Toast Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Script -->
+  <script src="/static/app.js"></script>
+</body>
+</html>
