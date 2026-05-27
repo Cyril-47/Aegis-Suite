@@ -22,66 +22,6 @@
   <div class="glow-aurora glow-indigo"></div>
   <div class="glow-aurora glow-emerald"></div>
 
-  <!-- SETUP WIZARD (Visible when bot token is not configured) -->
-  <div id="setup-wizard" class="wizard-container hidden">
-    <div class="wizard-box glass">
-      <div class="wizard-header">
-        <div class="logo-area">
-          <i class="fa-brands fa-discord bot-logo"></i>
-          <h1>Server Optimizer Setup</h1>
-        </div>
-        <p>Connect your Discord bot to get started with automatic server optimizations.</p>
-      </div>
-
-      <div class="wizard-steps">
-        <div class="step-card">
-          <div class="step-number">1</div>
-          <div class="step-content">
-            <h3>Create a Bot Application</h3>
-            <p>Go to the <a href="https://discord.com/developers/applications" target="_blank">Discord Developer Portal</a>, click <strong>New Application</strong>, and name it.</p>
-          </div>
-        </div>
-
-        <div class="step-card">
-          <div class="step-number">2</div>
-          <div class="step-content">
-            <h3>Enable Privileged Gateway Intents</h3>
-            <p>Under the <strong>Bot</strong> tab of your application, scroll down and enable both <strong>Server Members Intent</strong> and <strong>Message Content Intent</strong>. Click Save Changes.</p>
-          </div>
-        </div>
-
-        <div class="step-card">
-          <div class="step-number">3</div>
-          <div class="step-content">
-            <h3>Enter Credentials</h3>
-            <div class="input-group">
-              <label for="wizard-token">Bot Token <span class="required">*</span></label>
-              <div class="password-wrapper">
-                <input type="password" id="wizard-token" placeholder="MTIzNDU2Nzg5MDEyMzQ1Njc4.GxxXxx.xxxxx...">
-                <button type="button" class="btn-toggle-pass" onclick="togglePasswordVisibility('wizard-token')">
-                  <i class="fa-solid fa-eye"></i>
-                </button>
-              </div>
-              <small>Found under Developer Portal > Application > Bot > Reset Token / Copy.</small>
-            </div>
-            
-            <div class="input-group">
-              <label for="wizard-client-id">Application (Client) ID <span class="required">*</span></label>
-              <input type="text" id="wizard-client-id" placeholder="123456789012345678">
-              <small>Found under Developer Portal > Application > General Information > Application ID.</small>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="wizard-footer">
-        <button id="btn-save-wizard" class="btn btn-primary btn-glow">
-          <i class="fa-solid fa-circle-play"></i> Save & Start Bot
-        </button>
-      </div>
-    </div>
-  </div>
-
   <!-- AUTH SETUP OVERLAY -->
   <div id="auth-setup-overlay" class="wizard-container hidden">
     <div class="wizard-box glass">
@@ -181,15 +121,45 @@
     </div>
   </div>
 
-  <!-- OFFLINE NOTICE (Visible when bot is offline and non-admin visits) -->
+  <!-- OFFLINE NOTICE (Visible when bot is offline) -->
   <div id="offline-notice-overlay" class="wizard-container hidden">
     <div class="wizard-box glass text-center">
       <div class="wizard-header" style="text-align: center; display: flex; flex-direction: column; align-items: center;">
         <div class="logo-area" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
           <i class="fa-solid fa-triangle-exclamation text-warning animate-bounce" style="font-size: 3.5rem; margin-bottom: 20px; color: #f59e0b;"></i>
-          <h1>Dashboard Offline</h1>
+          <h1>Dashboard Unavailable</h1>
         </div>
-        <p style="font-size: 1.1rem; margin-top: 15px; color: #94a3b8;">Dashboard is currently offline. Please contact the administrator.</p>
+        <p style="font-size: 1.1rem; margin-top: 15px; color: #94a3b8;">This dashboard is temporarily unavailable. Please try again later.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- HOSTING MODE SELECTOR (First-launch chooser) -->
+  <div id="hosting-mode-selector-overlay" class="wizard-container hidden">
+    <div class="wizard-box glass">
+      <div class="wizard-header">
+        <div class="logo-area">
+          <i class="fa-solid fa-server bot-logo"></i>
+          <h1>Choose Your Hosting Mode</h1>
+        </div>
+        <p>How are you running Aegis Suite?</p>
+      </div>
+      <div class="card-body px-4 pb-4">
+        <div class="hosting-mode-options">
+          <div class="option-card" id="hosting-option-local-pc" data-mode="local_pc" tabindex="0">
+            <div class="option-card-icon"><i class="fa-solid fa-desktop"></i></div>
+            <h3>Local PC</h3>
+            <p>Run the Aegis EXE on your own machine. Intermittent uptime — features that need a 24/7 connection will not run while your PC is off or asleep.</p>
+          </div>
+          <div class="option-card" id="hosting-option-cloud" data-mode="cloud" tabindex="0">
+            <div class="option-card-icon"><i class="fa-solid fa-cloud"></i></div>
+            <h3>Cloud</h3>
+            <p>Deploy this repository to a paid host you provisioned yourself (Railway, Render, generic Docker VPS). Continuous 24/7 uptime expected. Aegis does not provision the host for you. You are responsible for provisioning, paying for, and configuring the third-party host. <a href="#hosting-modes-readme" id="hosting-cloud-readme-link">See deployment instructions in README.</a></p>
+          </div>
+        </div>
+        <button type="button" id="hosting-mode-selector-confirm" class="btn btn-primary btn-glow mt-4 w-100" disabled>
+          <i class="fa-solid fa-check"></i> Confirm Selection
+        </button>
       </div>
     </div>
   </div>
@@ -277,9 +247,6 @@
             <h4 id="bot-username">Loading Bot...</h4>
             <span id="bot-status" class="status-offline">Offline</span>
           </div>
-          <button id="btn-bot-toggle" class="btn-circle" title="Start/Stop Bot">
-            <i class="fa-solid fa-power-off"></i>
-          </button>
         </div>
       </div>
     </aside>
@@ -309,6 +276,15 @@
           <a id="btn-invite-bot" href="#" target="_blank" class="btn btn-discord hidden">
             <i class="fa-brands fa-discord"></i> Invite Bot
           </a>
+
+          <!-- Hosting Mode Badge -->
+          <button id="hosting-mode-badge"
+                  class="hosting-mode-badge state-unconfigured"
+                  title="Hosting mode"
+                  aria-label="Hosting mode: Unconfigured">
+            <i class="fa-solid fa-circle-question"></i>
+            <span id="hosting-mode-badge-text">Unconfigured</span>
+          </button>
         </div>
       </header>
 
@@ -317,6 +293,46 @@
 
         <!-- TAB: OVERVIEW -->
         <section id="tab-overview" class="tab-pane active">
+          <!-- Feature Availability Warning (visible only in local_pc mode) -->
+          <div id="feature-availability-warning" class="feature-availability-warning hidden">
+            <div class="warning-header">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <h3>Local PC mode — feature availability</h3>
+            </div>
+            <p class="warning-explainer">Features in the "Impacted" section below will not run while the host PC is offline, asleep, or disconnected from Discord.</p>
+            <div class="warning-sections">
+              <section class="warning-section warning-section-impacted">
+                <h4>Impacted by intermittent uptime</h4>
+                <ul>
+                  <li>Auto-moderation message handlers</li>
+                  <li>Scheduled messages background loop</li>
+                  <li>Giveaway end-time scheduler</li>
+                  <li>Leveling XP grants on member messages</li>
+                  <li><code>on_guild_remove</code> session revocation</li>
+                  <li><code>/linkdashboard</code> pairing-code expiry</li>
+                  <li>Periodic audit log roll-ups</li>
+                  <li>Welcome embeds and auto-role assignment on member join</li>
+                  <li>Auto-responders</li>
+                </ul>
+              </section>
+              <section class="warning-section warning-section-unaffected">
+                <h4>Unaffected by intermittent uptime</h4>
+                <ul>
+                  <li>Dashboard configuration changes</li>
+                  <li>Server health audit scan</li>
+                  <li>Server layout optimizer</li>
+                  <li>Role creator</li>
+                  <li>Role panel deployment</li>
+                  <li>Custom commands configuration</li>
+                  <li>Server template save and apply</li>
+                  <li>Embed builder</li>
+                  <li>Server backup and restore</li>
+                  <li>Audit log viewer</li>
+                </ul>
+              </section>
+            </div>
+          </div>
+
           <div class="grid-layout">
             <!-- Analytics Cards Row -->
             <div class="card glass span-4">
@@ -372,12 +388,6 @@
                   <div class="info-row">
                     <span class="label">Servers Joined:</span>
                     <span id="bot-overview-guilds" class="value">0</span>
-                  </div>
-                  <div class="info-row">
-                    <span class="label">Setup Configuration:</span>
-                    <button id="btn-reconfigure" class="btn btn-secondary btn-small">
-                      <i class="fa-solid fa-gear"></i> Change Credentials
-                    </button>
                   </div>
                 </div>
               </div>
@@ -2044,6 +2054,26 @@
 
         <!-- TAB: AUDIT LOG -->
         <section id="tab-audit-log" class="tab-pane hidden">
+          <div id="hosting-mode-settings-panel" class="card glass hidden">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-server"></i> Hosting Mode</h3>
+            </div>
+            <div class="card-body">
+              <p>Current mode: <strong id="hosting-mode-settings-current">Unconfigured</strong></p>
+              <button type="button" id="hosting-mode-settings-switch" class="btn btn-secondary">
+                <i class="fa-solid fa-arrow-right-arrow-left"></i> <span id="hosting-mode-settings-switch-label">Switch</span>
+              </button>
+              <div id="hosting-mode-settings-confirmation" class="hosting-mode-settings-confirmation hidden">
+                <div id="hosting-mode-settings-warning"></div>
+                <div class="confirmation-actions">
+                  <button type="button" id="hosting-mode-settings-confirm" class="btn btn-primary"></button>
+                  <button type="button" id="hosting-mode-settings-cancel" class="btn btn-secondary">Cancel</button>
+                </div>
+              </div>
+              <div id="hosting-mode-settings-error" class="hosting-mode-settings-error hidden" role="alert"></div>
+            </div>
+          </div>
+
           <div class="card glass">
             <div class="card-header border-bottom flex-between flex-wrap">
               <div>

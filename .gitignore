@@ -1,7 +1,10 @@
 .venv/
+.vscode/
 __pycache__/
 *.pyc
 .env
+.env.enc
+.env.enc.bak
 config.json
 audit_log.json
 leveling_data.json

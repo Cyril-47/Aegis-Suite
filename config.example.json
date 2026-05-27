@@ -2,6 +2,7 @@
   "_comment": "Rename this file to config.json. Do NOT store real secrets here. Move bot_token and admin_password_hash to your .env file instead.",
   "bot_token": "",
   "client_id": "",
+  "hosting_mode": "",
   "welcome_settings": {
     "enabled": true,
     "channel_id": null,

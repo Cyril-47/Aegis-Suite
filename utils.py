@@ -26,26 +26,60 @@ def get_resource_path(relative_path: str) -> str:
 # Load environment variables from .env if present (Tier 2.8) and migrate secrets (Tier 6.1)
 def load_env_file():
     env_path = get_writeable_path(".env")
+    enc_path = get_writeable_path(".env.enc")
     env_data = {}
-    
-    # 1. Read existing .env if it exists
+
+    # 0. If .env.enc is present, decrypt it via Windows DPAPI and treat the
+    # plaintext as if it had been read from .env. The plaintext is parsed
+    # in-memory only — it is never materialized to disk. This is the
+    # release-mode path for the local Windows EXE deployment; cloud
+    # deployments (Railway/Render) skip this branch because no .env.enc
+    # ships with the platform-provisioned image and DPAPI is unavailable
+    # on Linux.
+    encrypted_lines = None
+    if os.path.exists(enc_path):
+        try:
+            from secret_store import decrypt_env_file, CorruptedSecretFile
+            try:
+                plaintext_bytes = decrypt_env_file(enc_path)
+            except CorruptedSecretFile as exc:
+                print(f"[!] Encrypted secrets at {enc_path} could not be loaded: {exc}")
+                plaintext_bytes = None
+            if plaintext_bytes is not None:
+                encrypted_lines = plaintext_bytes.decode("utf-8", errors="replace").splitlines()
+        except Exception as exc:
+            # Never let a failure in the encryption path block startup; on
+            # cloud hosts the platform-injected env vars take precedence.
+            print(f"[!] Could not load secret_store: {exc}")
+
+    # 1. Read existing .env if it exists (legacy plaintext path), or fall
+    # back to the decrypted .env.enc lines from step 0.
+    plaintext_lines = None
     if os.path.exists(env_path):
         try:
             with open(env_path, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line or line.startswith("#"):
-                        continue
-                    parts = line.split("=", 1)
-                    if len(parts) == 2:
-                        key = parts[0].strip()
-                        val = parts[1].strip()
-                        if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
-                            val = val[1:-1]
-                        env_data[key] = val
-                        os.environ[key] = val
+                plaintext_lines = f.readlines()
         except Exception as e:
             print(f"Error loading .env file: {e}")
+
+    source_lines = encrypted_lines if encrypted_lines is not None else plaintext_lines
+    if source_lines is not None:
+        for raw_line in source_lines:
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
+            parts = line.split("=", 1)
+            if len(parts) != 2:
+                continue
+            key = parts[0].strip()
+            val = parts[1].strip()
+            if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
+                val = val[1:-1]
+            env_data[key] = val
+            # Platform-provided env vars (Railway/Render) take precedence
+            # over file-loaded values to preserve the cloud secrets path.
+            if key not in os.environ or not os.environ.get(key):
+                os.environ[key] = val
             
     # 2. Check config.json for migrations
     config_path = get_writeable_path("config.json")
@@ -144,6 +178,7 @@ def ensure_ffmpeg_path():
 DEFAULT_CONFIG = {
     "bot_token": "",
     "client_id": "",
+    "hosting_mode": "",
     "welcome_settings": {
         "enabled": True,
         "channel_id": None,

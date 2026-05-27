@@ -1,0 +1,13 @@
+# Aegis Suite — runtime dependencies
+# Pinned to versions verified against Python 3.12 on 2025-01.
+discord.py==2.4.0
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+websockets==13.1
+yt-dlp==2024.12.13
+PyNaCl==1.5.0
+pydantic==2.10.3
+
+# Build-only (Windows EXE packaging). Listed here so CI test job has a complete env;
+# Railway will install them but they are inert at runtime.
+Pillow==11.0.0

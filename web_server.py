@@ -51,6 +51,42 @@ def get_active_bot():
     return bot
 
 # Lifespan Context Manager (Tier 4.6 & 4.7 & 8.6)
+def _bootstrap_hosting_mode_from_env() -> None:
+    """One-time AEGIS_HOSTING_MODE bootstrap for headless cloud deploys.
+
+    Honored only when ``config.json`` does not already carry a valid
+    ``hosting_mode``. A pre-existing persisted value is never overwritten so
+    a stale Railway / Render env var cannot silently stomp an explicit
+    Maintainer choice (Requirement 6.3). Invalid env values are logged at
+    WARNING level and ignored (Requirement 6.2). Extracted as a module-level
+    helper so tests can call it directly without spinning up uvicorn.
+    """
+    valid = ("local_pc", "cloud")
+    config = utils.load_config()
+    if config.get("hosting_mode") in valid:
+        # Persisted choice already exists — do not consult the env var at all.
+        return
+    env_val = os.environ.get("AEGIS_HOSTING_MODE", "").strip().lower()
+    if not env_val:
+        return
+    if env_val not in valid:
+        logger.warning(
+            f"AEGIS_HOSTING_MODE={env_val!r} is not a valid hosting mode "
+            f"(expected 'local_pc' or 'cloud'); ignoring."
+        )
+        return
+    # Re-read under the config lock so a concurrent admin PUT that lands
+    # during startup wins. We only write when the persisted value is still
+    # empty / invalid, preserving Requirement 6.3.
+    with utils.config_lock:
+        cfg = utils.load_config()
+        if cfg.get("hosting_mode") in valid:
+            return
+        cfg["hosting_mode"] = env_val
+        utils.save_config(cfg)
+    logger.info(f"Hosting mode bootstrapped from AEGIS_HOSTING_MODE: {env_val}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup actions
@@ -61,6 +97,14 @@ async def lifespan(app: FastAPI):
     # Start the rate-limiter GC task (Tier 8.6)
     gc_task = asyncio.create_task(utils.prune_stale_rate_limiters())
     
+    # Hosting Mode env-var bootstrap (Requirement 6) — must run before the
+    # bot service starts so config.json carries the correct mode by the time
+    # the bot is connecting.
+    try:
+        _bootstrap_hosting_mode_from_env()
+    except Exception as e:
+        logger.error(f"Hosting mode bootstrap failed: {e}")
+
     # Try starting the bot if token is already configured
     config = utils.load_config()
     token = utils.get_bot_token(config)
@@ -71,7 +115,7 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Failed to start bot on startup: {e}")
     else:
-        logger.info("No saved bot token found. Awaiting user configuration via Web Dashboard.")
+        logger.error("DISCORD_BOT_TOKEN is missing from environment. Set it in the server's .env. Bot will not start.")
         
     yield
     
@@ -174,13 +218,20 @@ class TicketSettingsModel(BaseModel):
     panel_message_id: Optional[str] = None
 
 class ConfigModel(BaseModel):
-    bot_token: str
     client_id: str
     welcome_settings: WelcomeSettingsModel
     automod_settings: AutomodSettingsModel
     ticket_settings: Optional[TicketSettingsModel] = None
     custom_commands: Optional[dict] = Field(default_factory=dict)
     admin_password_hash: Optional[str] = ""
+
+class HostingModePutRequest(BaseModel):
+    # Dedicated request body for PUT /api/hosting-mode. The handler enforces
+    # that the value (after .strip()) equals exactly "local_pc" or "cloud" — a
+    # plain ``str`` is used here so missing / non-string / unknown values are
+    # caught by the handler with HTTP 400 (rather than Pydantic's 422 default)
+    # to satisfy Requirement 8.3.
+    hosting_mode: str
 
 class LoginRequest(BaseModel):
     password: str
@@ -381,6 +432,12 @@ async def get_status(request: Request):
         if role == "tenant":
             role = "user"
         
+    # Normalize the persisted hosting_mode for the response payload — empty
+    # string, missing key, or any value other than the two valid enum values
+    # is reported as ``null`` (Requirement 8.6, 5.4).
+    hosting_mode_raw = config.get("hosting_mode")
+    hosting_mode_value = hosting_mode_raw if hosting_mode_raw in ("local_pc", "cloud") else None
+
     status_data = {
         "status": "running" if bot and bot.is_ready() else ("connecting" if bot else "stopped"),
         "has_token": has_token,
@@ -388,7 +445,8 @@ async def get_status(request: Request):
         "role": role,
         "guild_id": guild_id,
         "bot_user": None,
-        "client_id": config.get("client_id", "")
+        "client_id": config.get("client_id", ""),
+        "hosting_mode": hosting_mode_value
     }
     
     if bot and bot.is_ready():
@@ -402,6 +460,77 @@ async def get_status(request: Request):
         
     return status_data
 
+@app.get("/api/hosting-mode")
+async def get_hosting_mode():
+    """Return the persisted hosting mode (or ``null`` when unset / invalid).
+
+    Allowed for any authenticated session (admin or tenant) — ``auth_middleware``
+    handles the 401 path for missing / invalid tokens, and the response value
+    is non-sensitive (Requirement 8.1, 8.5).
+    """
+    config = utils.load_config()
+    raw = config.get("hosting_mode")
+    value = raw if raw in ("local_pc", "cloud") else None
+    return {"hosting_mode": value}
+
+@app.put("/api/hosting-mode")
+async def put_hosting_mode(request: Request, body: dict = Body(...)):
+    """Persist a new hosting mode. Admin-only (Requirement 7.7, 8.4)."""
+    # 1. Admin-only handler-level role check. ``auth_middleware`` has already
+    # rejected unauthenticated requests upstream with HTTP 401 (Req 8.5).
+    auth_header = request.headers.get("Authorization")
+    token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else ""
+    if auth.get_session_role(token) != "admin":
+        raise HTTPException(status_code=403, detail="Forbidden: Admin role required")
+
+    # 2. Body validation (Requirement 8.3). config.json is NOT touched on a 400.
+    if not isinstance(body, dict):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid hosting_mode value. Must be 'local_pc' or 'cloud'."
+        )
+    new_raw = body.get("hosting_mode")
+    if not isinstance(new_raw, str):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid hosting_mode value. Must be 'local_pc' or 'cloud'."
+        )
+    new_value = new_raw.strip()
+    if new_value not in ("local_pc", "cloud"):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid hosting_mode value. Must be 'local_pc' or 'cloud'."
+        )
+
+    # 3. Persist under the same config_lock used by every other config writer
+    # (Requirement 5.1, 9.5). The old value (default "") is captured before
+    # the write so the audit log can name both values.
+    with utils.config_lock:
+        config = utils.load_config()
+        old_value = config.get("hosting_mode", "") or ""
+        config["hosting_mode"] = new_value
+        success = utils.save_config(config)
+
+    if not success:
+        # Disk write failed — surface as HTTP 500 and skip the audit log so
+        # the audit trail does not falsely claim a change took effect (mirrors
+        # the existing pattern in POST /api/config).
+        raise HTTPException(status_code=500, detail="Failed to save hosting mode.")
+
+    # 4. Best-effort audit log entry (Requirement 7.6). audit_log.log_action
+    # already swallows write errors internally, so a logging failure does not
+    # roll back the config write.
+    try:
+        audit_log.log_action(
+            actor="admin",
+            category="CONFIG_CHANGE",
+            action=f"Hosting mode changed from '{old_value}' to '{new_value}'",
+        )
+    except Exception as e:
+        logger.error(f"Failed to append audit log entry for hosting mode change: {e}")
+
+    return {"status": "success", "hosting_mode": new_value}
+
 @app.get("/api/config")
 async def get_config(request: Request):
     auth_header = request.headers.get("Authorization")
@@ -414,11 +543,13 @@ async def get_config(request: Request):
         
     config = utils.load_config().copy()
     
+    # Strip the residual bot_token key from the legacy on-disk config so the
+    # response body never exposes that field (R2.5 — managed-hosting migration).
+    # Tokens live exclusively in the server-side .env via DISCORD_BOT_TOKEN.
+    config.pop("bot_token", None)
+    
     # Hide password hash
     config["admin_password_hash"] = "********" if os.environ.get("ADMIN_PASSWORD_HASH") else ""
-        
-    # Mask token
-    config["bot_token"] = "********" if utils.get_bot_token(config) else ""
         
     if session_role == "tenant":
         # Resolve guild-specific configs (Tier 5.6)
@@ -446,56 +577,9 @@ async def save_config(config_data: ConfigModel, request: Request):
     
     if session_role == "admin":
         # Global administrator configuration saving
-        old_token = utils.get_bot_token(current_config)
-        
-        # Retain existing token if submitted as masked (Tier 2.1)
-        if new_data.get("bot_token") == "********":
-            new_data["bot_token"] = old_token
-            
-        # Check if token changed. If running and token changed, notify
-        token_changed = old_token != new_data["bot_token"]
-        
-        if new_data.get("bot_token") != "********":
-            # Token is being changed / updated
-            env_path = utils.get_writeable_path(".env")
-            if new_data.get("bot_token"):
-                # Save new token to .env
-                try:
-                    # Maintain existing keys in .env
-                    env_data = {}
-                    if os.path.exists(env_path):
-                        with open(env_path, "r", encoding="utf-8") as f:
-                            for line in f:
-                                line = line.strip()
-                                if line and "=" in line:
-                                    k, v = line.split("=", 1)
-                                    env_data[k.strip()] = v.strip()
-                    env_data["DISCORD_BOT_TOKEN"] = new_data["bot_token"]
-                    with open(env_path, "w", encoding="utf-8") as f:
-                        for k, v in env_data.items():
-                            f.write(f"{k}={v}\n")
-                    os.environ["DISCORD_BOT_TOKEN"] = new_data["bot_token"]
-                except Exception as e:
-                    logger.error(f"Failed to write new token to .env: {e}")
-            else:
-                # Clear token from .env
-                try:
-                    env_data = {}
-                    if os.path.exists(env_path):
-                        with open(env_path, "r", encoding="utf-8") as f:
-                            for line in f:
-                                line = line.strip()
-                                if line and "=" in line:
-                                    k, v = line.split("=", 1)
-                                    env_data[k.strip()] = v.strip()
-                    env_data.pop("DISCORD_BOT_TOKEN", None)
-                    with open(env_path, "w", encoding="utf-8") as f:
-                        for k, v in env_data.items():
-                            f.write(f"{k}={v}\n")
-                except Exception:
-                    pass
-                os.environ.pop("DISCORD_BOT_TOKEN", None)
-                
+        # Defensive: drop any stray bot_token field; tokens live only in server .env
+        new_data.pop("bot_token", None)
+
         # Always keep bot_token and admin_password_hash empty in config.json
         new_data["bot_token"] = ""
         new_data["admin_password_hash"] = ""
@@ -516,7 +600,7 @@ async def save_config(config_data: ConfigModel, request: Request):
             logger.info("Bot configuration updated in-memory.")
             
         audit_log.log_action("admin", "CONFIG_CHANGE", "Dashboard configuration saved")
-        return {"status": "success", "token_changed": token_changed}
+        return {"status": "success", "token_changed": False}
         
     else:
         # Tenant administrator configuration saving (Tier 5.6)
@@ -537,42 +621,6 @@ async def save_config(config_data: ConfigModel, request: Request):
             
         audit_log.log_action("admin", "CONFIG_CHANGE", f"Dashboard configuration saved for server {session_guild_id}", session_guild_id)
         return {"status": "success", "token_changed": False}
-
-@app.post("/api/bot/start")
-async def start_bot():
-    config = utils.load_config()
-    token = utils.get_bot_token(config)
-    if not token:
-        raise HTTPException(status_code=400, detail="Bot token is missing. Please save configuration first.")
-    
-    bot = bot_manager.get_bot()
-    if bot:
-        return {"status": "already_running"}
-        
-    try:
-        success = await bot_manager.start_bot_service(token)
-        if success:
-            audit_log.log_action("admin", "BOT_CONTROL", "Discord bot started")
-            return {"status": "starting"}
-        else:
-            return {"status": "failed_to_start"}
-    except Exception as e:
-        logger.error(f"Error starting bot: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/api/bot/stop")
-async def stop_bot():
-    bot = bot_manager.get_bot()
-    if not bot:
-        return {"status": "already_stopped"}
-        
-    try:
-        await bot_manager.stop_bot_service()
-        audit_log.log_action("admin", "BOT_CONTROL", "Discord bot stopped")
-        return {"status": "stopped"}
-    except Exception as e:
-        logger.error(f"Error stopping bot: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/guilds")
 async def get_guilds(request: Request):
