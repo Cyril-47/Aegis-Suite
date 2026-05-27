@@ -73,6 +73,26 @@ def main():
     print("[+] Press Ctrl+C to stop the server.")
     print("----------------------------------------------")
     
+    # First-run setup wizard for self-hosted Local PC installs.
+    # Skipped silently when credentials are already present (cloud env vars,
+    # legacy .env, or DPAPI-encrypted .env.enc) and on headless cloud hosts
+    # where the platform supplies secrets via environment variables.
+    if not is_headless_cloud():
+        try:
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            import first_run_wizard
+            from pathlib import Path as _Path
+
+            _repo_root = _Path(__file__).resolve().parent
+            if not first_run_wizard.credentials_already_exist(_repo_root):
+                if not first_run_wizard.run_first_run_wizard(_repo_root):
+                    print("[-] First-run setup was not completed; aborting launch.")
+                    sys.exit(1)
+        except Exception as _exc:
+            print(f"[!] First-run wizard failed: {_exc}. Continuing; "
+                  "the dashboard will start in maintenance mode if no "
+                  "credentials are configured.")
+    
     # Automatically open browser once server starts (skipped on headless cloud hosts)
     if not is_headless_cloud():
         import threading
