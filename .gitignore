@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+config.json
+audit_log.json
+leveling_data.json
+giveaways.json
+templates/*.json
+dist/
+build/
+*.spec
+*.db
+*.log

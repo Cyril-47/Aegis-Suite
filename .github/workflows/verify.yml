@@ -1,0 +1,28 @@
+name: Verify Security Layering
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install discord.py fastapi uvicorn pydantic websockets Pillow
+
+    - name: Run Hardening Verification Tests
+      run: |
+        python tests/test_hardening.py

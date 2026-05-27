@@ -1,0 +1,15 @@
+# Caddyfile for Aegis Suite Public Deployment
+
+# WARNING: The :80 block below runs plain, unencrypted HTTP.
+# This is suitable ONLY for local testing. In production, serving JWT tokens
+# and Discord credentials over plain HTTP exposes them to sniffing attacks.
+# Replace the entire :80 block with your actual domain block to automatically
+# provision Let's Encrypt TLS:
+#
+# your-domain.com {
+#     reverse_proxy localhost:8000
+# }
+
+:80 {
+    reverse_proxy localhost:8000
+}
