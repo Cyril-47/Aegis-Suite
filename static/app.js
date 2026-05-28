@@ -301,8 +301,12 @@ async function checkStatus() {
     }
     
     // Toggle Offline Notice when bot is not running (R3.1)
+    // Only show when definitively stopped — NOT during the initial
+    // 'connecting' phase which is normal on fresh startup. This prevents
+    // the "Dashboard Unavailable" overlay from blocking the hosting-mode
+    // selector and the main app during the first few seconds of boot.
     const offlineNotice = document.getElementById('offline-notice-overlay');
-    if (data.status === 'stopped' || data.status === 'connecting') {
+    if (data.status === 'stopped') {
       if (offlineNotice) offlineNotice.classList.remove('hidden');
       mainApp.classList.add('hidden');
       return;
