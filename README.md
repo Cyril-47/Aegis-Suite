@@ -32,7 +32,7 @@ Ideal for single server owners running the dashboard locally.
 Ideal for public deployment where multiple server admins connect via a single hosted bot.
 1. **Hosting**: Run the web server and bot processes concurrently on a Linux VPS, Docker container, or platform like Railway.
 2. **Reverse Proxy (TLS)**: Front the application with a reverse proxy like Caddy (see `Caddyfile` for automated LetsEncrypt SSL certificate configuration) to encrypt WebSocket handshakes and API tokens.
-3. **Linking Flow**: Server owners run the `/linkdashboard` slash command inside their Discord server to receive a temporary 6-digit linking code to unlock their server's panel on the dashboard.
+3. **Linking Flow**: Server owners run the `!linkdashboard` prefix command or `/linkdashboard` slash command inside their Discord server to receive a temporary 6-digit linking code to unlock their server's panel on the dashboard.
 
 ---
 
@@ -64,9 +64,9 @@ To run the application directly from the source code (without needing a compiled
 The Aegis bot is hosted by us — you do not need to create a Discord application or paste any token.
 
 1. **Invite Aegis to your server.** Click the **Invite Bot** button on the dashboard login page at `https://[your domain]/`. You must have **Administrator** permission on the target Discord server.
-2. **Run `/linkdashboard` in your server.** In any text channel of the server you just invited the bot to, type `/linkdashboard`. The bot will reply (only to you) with a 6-digit alphanumeric connection code that is valid for 10 minutes.
+2. **Run `!linkdashboard` or `/linkdashboard` in your server.** In any text channel, type `!linkdashboard` (instant prefix command fallback) or `/linkdashboard` (slash command). The bot will reply with a 6-digit alphanumeric connection code that is valid for 10 minutes.
 3. **Paste the code into the dashboard.** Back at `https://[your domain]/`, paste the 6-digit code into the login field and click **Unlock Dashboard**.
-4. **You're in.** The dashboard now shows your server's panel. Codes are single-use; if you need to log in again later, run `/linkdashboard` to mint a fresh one.
+4. **You're in.** The dashboard now shows your server's panel. Codes are single-use; if you need to log in again later, run `!linkdashboard` or `/linkdashboard` to mint a fresh one.
 
 ---
 
