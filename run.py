@@ -13,41 +13,64 @@ def is_headless_cloud() -> bool:
     """Returns True when running on a cloud host where webbrowser.open would fail or be useless."""
     return bool(os.getenv("RAILWAY_ENVIRONMENT")) or bool(os.getenv("RENDER"))
 
+def is_frozen_exe() -> bool:
+    """Returns True when running inside a PyInstaller --onefile bundle."""
+    return getattr(sys, 'frozen', False)
+
+def _get_app_root():
+    """Return the directory where config/data files should live.
+    
+    For a frozen EXE, this is the directory containing the .exe itself
+    (not the temp extraction folder). For source runs, it's the directory
+    containing run.py.
+    """
+    if is_frozen_exe():
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
+
 def main():
     print("==============================================")
     print("   Discord Server Optimizer Bot & Dashboard")
     print("==============================================")
     
-    # 1. Check for virtual environment
-    venv_dir = os.path.join(os.path.dirname(__file__), ".venv")
-    python_exe = os.path.join(venv_dir, "Scripts", "python.exe")
+    app_root = _get_app_root()
     
-    if not os.path.exists(venv_dir) or not os.path.exists(python_exe):
-        print("\n[+] Creating virtual environment using uv...")
-        # Check if uv is in PATH
+    # When running as a frozen EXE, all dependencies are bundled inside.
+    # Skip venv creation and dependency installation entirely.
+    if not is_frozen_exe():
+        # 1. Check for virtual environment
+        venv_dir = os.path.join(os.path.dirname(__file__), ".venv")
+        python_exe = os.path.join(venv_dir, "Scripts", "python.exe")
+        
+        if not os.path.exists(venv_dir) or not os.path.exists(python_exe):
+            print("\n[+] Creating virtual environment using uv...")
+            if shutil.which("uv"):
+                ret = run_command(["uv", "venv", ".venv"])
+            else:
+                print("[!] uv not found in PATH, falling back to standard venv module...")
+                ret = run_command([sys.executable, "-m", "venv", ".venv"])
+                
+            if ret != 0:
+                print("[-] Failed to create virtual environment. Exiting.")
+                sys.exit(1)
+                
+        # 2. Check and install dependencies
+        print("\n[+] Verifying and installing dependencies...")
+        dependencies = ["discord.py", "fastapi", "uvicorn", "websockets", "yt-dlp", "PyNaCl", "pydantic"]
         if shutil.which("uv"):
-            ret = run_command(["uv", "venv", ".venv"])
+            ret = run_command(["uv", "pip", "install"] + dependencies)
         else:
-            print("[!] uv not found in PATH, falling back to standard venv module...")
-            ret = run_command([sys.executable, "-m", "venv", ".venv"])
+            pip_exe = os.path.join(venv_dir, "Scripts", "pip.exe")
+            ret = run_command([pip_exe, "install"] + dependencies)
             
         if ret != 0:
-            print("[-] Failed to create virtual environment. Exiting.")
+            print("[-] Dependency installation failed. Exiting.")
             sys.exit(1)
-            
-    # 2. Check and install dependencies
-    print("\n[+] Verifying and installing dependencies...")
-    dependencies = ["discord.py", "fastapi", "uvicorn", "websockets", "yt-dlp", "PyNaCl", "pydantic"]
-    if shutil.which("uv"):
-        ret = run_command(["uv", "pip", "install"] + dependencies)
     else:
-        # Fallback to standard pip in the venv
-        pip_exe = os.path.join(venv_dir, "Scripts", "pip.exe")
-        ret = run_command([pip_exe, "install"] + dependencies)
-        
-    if ret != 0:
-        print("[-] Dependency installation failed. Exiting.")
-        sys.exit(1)
+        print("\n[+] Running as compiled EXE — all dependencies are bundled.")
+        # Set the working directory to the EXE's folder so config.json,
+        # .env.enc, and other data files are read/written next to the EXE.
+        os.chdir(app_root)
         
     # Check if FFmpeg is available
     if not shutil.which("ffmpeg"):
@@ -79,14 +102,15 @@ def main():
     # where the platform supplies secrets via environment variables.
     if not is_headless_cloud():
         try:
-            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            sys.path.insert(0, app_root)
             import first_run_wizard
             from pathlib import Path as _Path
 
-            _repo_root = _Path(__file__).resolve().parent
-            if not first_run_wizard.credentials_already_exist(_repo_root):
-                if not first_run_wizard.run_first_run_wizard(_repo_root):
+            _wizard_root = _Path(app_root)
+            if not first_run_wizard.credentials_already_exist(_wizard_root):
+                if not first_run_wizard.run_first_run_wizard(_wizard_root):
                     print("[-] First-run setup was not completed; aborting launch.")
+                    input("\nPress Enter to close...")
                     sys.exit(1)
         except Exception as _exc:
             print(f"[!] First-run wizard failed: {_exc}. Continuing; "
@@ -112,12 +136,28 @@ def main():
         print("[+] Headless cloud environment detected (RAILWAY_ENVIRONMENT or RENDER set). "
               "Skipping webbrowser.open.")
     
-    # Run uvicorn inside the virtual environment python
-    uvicorn_cmd = [python_exe, "-m", "uvicorn", "web_server:app", "--host", "127.0.0.1", "--port", "8000", "--log-level", "info"]
-    try:
-        run_command(uvicorn_cmd, shell=False)
-    except KeyboardInterrupt:
-        print("\n[+] Web server stopped. Goodbye!")
+    # Launch uvicorn — in-process for frozen EXE, subprocess for source runs.
+    if is_frozen_exe():
+        # In a frozen EXE, all modules are bundled. Run uvicorn directly
+        # in-process so we don't need a separate Python interpreter.
+        try:
+            import uvicorn
+            uvicorn.run("web_server:app", host="127.0.0.1", port=8000, log_level="info")
+        except KeyboardInterrupt:
+            print("\n[+] Web server stopped. Goodbye!")
+        except Exception as exc:
+            print(f"\n[-] Fatal error starting the web server: {exc}")
+            input("\nPress Enter to close...")
+            sys.exit(1)
+    else:
+        # Source run — use the venv's Python to launch uvicorn as a subprocess.
+        venv_dir = os.path.join(os.path.dirname(__file__), ".venv")
+        python_exe = os.path.join(venv_dir, "Scripts", "python.exe")
+        uvicorn_cmd = [python_exe, "-m", "uvicorn", "web_server:app", "--host", "127.0.0.1", "--port", "8000", "--log-level", "info"]
+        try:
+            run_command(uvicorn_cmd, shell=False)
+        except KeyboardInterrupt:
+            print("\n[+] Web server stopped. Goodbye!")
 
 if __name__ == "__main__":
     main()
