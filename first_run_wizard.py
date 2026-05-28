@@ -288,7 +288,38 @@ def run_first_run_wizard(repo_root: Path) -> bool:
         env_lines.append(f"BOT_API_URL={bot_api_url}")
     plaintext_blob = "\n".join(env_lines) + "\n"
 
+    # Persist the client_id to config.json as well so the dashboard's
+    # "Invite Bot" button can build its OAuth URL. The bot token, password
+    # hash, and JWT secret stay in .env / .env.enc only — config.json must
+    # never carry credentials per the managed-hosting-migration contract.
+    _persist_client_id_to_config(repo_root, client_id)
+
     return _persist_credentials(repo_root, plaintext_blob)
+
+
+def _persist_client_id_to_config(repo_root: Path, client_id: str) -> None:
+    """Write ``client_id`` into ``config.json`` so the dashboard sees it.
+
+    The dashboard's ``GET /api/config`` endpoint reads the client_id from
+    ``config.json`` (not the env), so the wizard has to mirror it there.
+    A failure here is non-fatal — the dashboard will still start, the
+    operator can paste the ID into the Settings tab manually.
+    """
+    import json
+    config_path = repo_root / "config.json"
+    try:
+        if config_path.is_file():
+            data = json.loads(config_path.read_text(encoding="utf-8"))
+        else:
+            data = {}
+        data["client_id"] = client_id
+        config_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        print(f"[+] Saved client_id to {config_path.name}.")
+    except Exception as exc:
+        print(
+            f"[!] Could not write client_id to {config_path.name}: {exc}. "
+            "You can set it later from the dashboard's settings panel."
+        )
 
 
 def _persist_credentials(repo_root: Path, plaintext_blob: str) -> bool:

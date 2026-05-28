@@ -4143,10 +4143,12 @@ function renderHostingModeBadge(mode, role) {
     if (badge.tagName === 'BUTTON') {
       badge.disabled = false;
     }
-    // Idempotent click handler — strip any prior bound handler then bind fresh
+    // Idempotent click handler — strip any prior bound handler then bind fresh.
+    // Clicking the badge re-opens the same Local PC vs Cloud chooser modal
+    // the user saw on first launch, so switching is a single click.
     badge.onclick = function (e) {
       e.preventDefault();
-      openHostingModeSettings();
+      openHostingModeSelector();
     };
   } else {
     badge.classList.add('read-only');
@@ -4195,12 +4197,18 @@ function openHostingModeSelector() {
   const cards = overlay.querySelectorAll('.option-card[data-mode]');
   const confirmBtn = document.getElementById('hosting-mode-selector-confirm');
   const errorEl = document.getElementById('hosting-mode-selector-error');
+  const cancelBtn = document.getElementById('hosting-mode-selector-cancel');
   if (errorEl) {
     errorEl.textContent = '';
     errorEl.classList.add('hidden');
   }
   
-  let selectedMode = null;
+  // Pre-select the active mode so reopening the chooser shows what's
+  // currently in effect. selectedMode starts as the persisted value
+  // when one exists (post-first-launch reopen), or null on first launch.
+  let selectedMode = (hostingMode.value === 'local_pc' || hostingMode.value === 'cloud')
+    ? hostingMode.value
+    : null;
   
   function _selectCard(card) {
     cards.forEach(c => {
@@ -4213,7 +4221,16 @@ function openHostingModeSelector() {
     if (confirmBtn) confirmBtn.disabled = false;
   }
   
+  // Apply the pre-selection visually on every reopen.
   cards.forEach(card => {
+    const cardMode = card.getAttribute('data-mode');
+    if (cardMode === selectedMode) {
+      card.classList.add('selected');
+      card.setAttribute('aria-selected', 'true');
+    } else {
+      card.classList.remove('selected');
+      card.setAttribute('aria-selected', 'false');
+    }
     card.onclick = () => _selectCard(card);
     card.onkeydown = (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
@@ -4225,9 +4242,24 @@ function openHostingModeSelector() {
     if (!card.hasAttribute('role')) card.setAttribute('role', 'radio');
   });
   
+  // Show the cancel button only when a hosting mode is already configured
+  // (i.e. the user is using the chooser to switch, not for first launch).
+  // On first launch the chooser is mandatory and cannot be dismissed.
+  if (cancelBtn) {
+    if (hostingMode.value === 'local_pc' || hostingMode.value === 'cloud') {
+      cancelBtn.classList.remove('hidden');
+      cancelBtn.onclick = () => {
+        overlay.classList.add('hidden');
+      };
+    } else {
+      cancelBtn.classList.add('hidden');
+      cancelBtn.onclick = null;
+    }
+  }
+  
   if (confirmBtn) {
-    // Confirm is disabled until a card is picked
-    confirmBtn.disabled = true;
+    // Enable confirm immediately when reopening with a pre-selected mode.
+    confirmBtn.disabled = (selectedMode !== 'local_pc' && selectedMode !== 'cloud');
     confirmBtn.onclick = async () => {
       if (selectedMode !== 'local_pc' && selectedMode !== 'cloud') return;
       confirmBtn.disabled = true;
@@ -4274,7 +4306,8 @@ function openHostingModeSelector() {
   }
   
   // The Selector must NOT be dismissable by Escape, outside-click, or back navigation
-  // before confirmation (Req 1.9). We do not bind any escape/outside-click handlers.
+  // BEFORE first-time confirmation (Req 1.9). After a hosting mode is set,
+  // the cancel button (above) provides the only dismiss path.
 }
 
 function openHostingModeSettings() {
