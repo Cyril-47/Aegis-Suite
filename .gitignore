@@ -5,6 +5,9 @@ __pycache__/
 .env
 .env.enc
 .env.enc.bak
+.env*
+*.backup
+*.bak
 config.json
 audit_log.json
 leveling_data.json
