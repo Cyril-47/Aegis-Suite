@@ -90,6 +90,32 @@ def main():
         "--name=AegisOptimizer",
         "--add-data", "static;static",
         "--add-data", "templates;templates",
+        # Hidden imports: uvicorn.run("web_server:app") does a dynamic import
+        # that PyInstaller cannot trace statically. List every project module
+        # and key third-party module that the app needs at runtime.
+        "--hidden-import", "web_server",
+        "--hidden-import", "bot_manager",
+        "--hidden-import", "auth",
+        "--hidden-import", "utils",
+        "--hidden-import", "audit_log",
+        "--hidden-import", "leveling",
+        "--hidden-import", "music_manager",
+        "--hidden-import", "secret_store",
+        "--hidden-import", "first_run_wizard",
+        "--hidden-import", "uvicorn.logging",
+        "--hidden-import", "uvicorn.loops",
+        "--hidden-import", "uvicorn.loops.auto",
+        "--hidden-import", "uvicorn.protocols",
+        "--hidden-import", "uvicorn.protocols.http",
+        "--hidden-import", "uvicorn.protocols.http.auto",
+        "--hidden-import", "uvicorn.protocols.websockets",
+        "--hidden-import", "uvicorn.protocols.websockets.auto",
+        "--hidden-import", "uvicorn.lifespan",
+        "--hidden-import", "uvicorn.lifespan.on",
+        "--hidden-import", "discord",
+        "--hidden-import", "fastapi",
+        "--hidden-import", "pydantic",
+        "--hidden-import", "websockets",
     ]
 
     # Bundle the encrypted secrets file when it exists. The plaintext .env
