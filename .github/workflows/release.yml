@@ -54,14 +54,6 @@ jobs:
           pip install -r requirements.txt
         shell: pwsh
 
-      - name: Install Windows-only build dependencies
-        # These are deliberately absent from `requirements.txt` so the
-        # Linux deploy workflow stays clean. The build step is the only
-        # place that needs PyInstaller, winshell, and pywin32.
-        run: |
-          pip install pyinstaller winshell pywin32
-        shell: pwsh
-
       - name: Build the EXE
         # `build_exe.py` calls PyInstaller --onefile and then attempts to
         # create a Desktop shortcut. The shortcut step is non-fatal in
