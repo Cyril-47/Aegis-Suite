@@ -1813,9 +1813,13 @@ input[type="color"]::-webkit-color-swatch {
    patterns; no new tokens or utilities are introduced.
    ========================================================================== */
 
-/* --------------------------------------------------------------------------
-   Hosting Mode Badge — pill in .top-header > .header-right
-   -------------------------------------------------------------------------- */
+/* The hosting-mode selector must render ABOVE the offline-notice overlay
+   so the first-launch chooser is accessible even when the bot is still
+   connecting or stopped. Both are .wizard-container (z-index: 9999) but
+   the selector needs to win the stacking contest. */
+#hosting-mode-selector-overlay {
+  z-index: 10001;
+}
 .hosting-mode-badge {
   display: inline-flex;
   align-items: center;
