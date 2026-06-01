@@ -78,25 +78,12 @@ class ConfigStore:
                     logger.warning(f"Could not parse existing config JSON: {e}. Starting from empty.")
                     on_disk_data = {}
             
-            # 2. Merge model fields over the on-disk data.
-            # Modeled keys are merged recursively if they are dicts on both sides.
+            # 2. Merge model fields over the on-disk data using a shallow top-level overlay.
+            # Preserve unmodeled top-level keys from the on-disk config.
+            # Modeled top-level keys are authoritative and replace their on-disk counterparts completely.
             model_data = self.as_dict()
             merged_data = on_disk_data.copy()
-            
-            def recursive_merge(target_dict: dict, source_dict: dict) -> dict:
-                merged = target_dict.copy()
-                for k, v in source_dict.items():
-                    if k in merged and isinstance(merged[k], dict) and isinstance(v, dict):
-                        merged[k] = recursive_merge(merged[k], v)
-                    else:
-                        merged[k] = v
-                return merged
-            
-            for key, val in model_data.items():
-                if key in merged_data and isinstance(merged_data[key], dict) and isinstance(val, dict):
-                    merged_data[key] = recursive_merge(merged_data[key], val)
-                else:
-                    merged_data[key] = val
+            merged_data.update(model_data)
 
             # Write to a temp file first in the same directory to allow atomic rename
             fd, temp_path_str = tempfile.mkstemp(dir=str(config_file.parent), prefix="config_", suffix=".tmp")

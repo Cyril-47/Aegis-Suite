@@ -205,3 +205,86 @@ def test_config_models_retain_extra_fields():
     assert dumped_config["unmodeled_toplevel_key"] == "survive_too"
     assert dumped_config["welcome_settings"]["extra_field_1"] == "survive"
     assert dumped_config["automod_settings"]["extra_field_3"] == "survive"
+
+
+def test_config_store_save_merge_contract_patch(paths_tmp):
+    # 1. Create a config.json file with a modeled dict field (custom_commands), some unmodeled keys, and some initial commands
+    config_file = paths_tmp.config_file
+    initial_data = {
+        "client_id": "123",
+        "setup_complete": False,
+        "ui_mode": "beginner",
+        "welcome_settings": {
+            "enabled": True,
+            "channel_id": "123",
+            "channel_name": "welcome",
+            "message_title": "Hello",
+            "message_description": "Welcome!",
+            "embed_color": "#6366F1",
+            "auto_assign_roles": []
+        },
+        "automod_settings": {
+            "enabled": False,
+            "block_profanity": False,
+            "block_links": False,
+            "max_mentions": 5,
+            "log_channel_id": None,
+            "log_channel_name": "mod-logs",
+            "profanity_words": []
+        },
+        "custom_commands": {
+            "!rules": "Rule 1: Be nice.",
+            "!website": "Visit our website at ...",
+            "!discord": "Join our discord at ..."
+        },
+        # Unmodeled keys at top-level
+        "giveaways": {"active_giveaway_id": "abc"},
+        "guild_configs": {"12345": {"prefix": "!"}}
+    }
+    
+    with open(config_file, "w", encoding="utf-8") as f:
+        json.dump(initial_data, f)
+        
+    # 2. Load the configuration
+    store = ConfigStore.load(paths_tmp)
+    
+    # Assert initial commands loaded
+    assert store._model.custom_commands == {
+        "!rules": "Rule 1: Be nice.",
+        "!website": "Visit our website at ...",
+        "!discord": "Join our discord at ..."
+    }
+    
+    # Requirement 1: Shrinking a modeled dict field removes deleted keys.
+    # Let's delete "!website" from custom_commands
+    del store._model.custom_commands["!website"]
+    
+    # Save the config
+    store.save()
+    
+    # Reload and assert that "!website" is removed and "!rules" and "!discord" remain,
+    # and unmodeled keys at the top-level are preserved.
+    with open(config_file, "r", encoding="utf-8") as f:
+        saved_data = json.load(f)
+    assert "!website" not in saved_data["custom_commands"]
+    assert saved_data["custom_commands"] == {
+        "!rules": "Rule 1: Be nice.",
+        "!discord": "Join our discord at ..."
+    }
+    assert saved_data["giveaways"] == {"active_giveaway_id": "abc"}
+    assert saved_data["guild_configs"] == {"12345": {"prefix": "!"}}
+    
+    # Reload store
+    store = ConfigStore.load(paths_tmp)
+    
+    # Requirement 2: Clearing a modeled dict field persists an empty dict.
+    store._model.custom_commands.clear()
+    store.save()
+    
+    # Reload and assert custom_commands is an empty dict, and unmodeled keys are still preserved.
+    with open(config_file, "r", encoding="utf-8") as f:
+        saved_data = json.load(f)
+    assert saved_data["custom_commands"] == {}
+    assert saved_data["giveaways"] == {"active_giveaway_id": "abc"}
+    assert saved_data["guild_configs"] == {"12345": {"prefix": "!"}}
+
