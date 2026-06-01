@@ -127,7 +127,7 @@ Complexity labels: **S** = one focused change, **M** = multiple edits + tests, *
   - Acceptance criteria: tests pass; grep assertion for removed literals in shipped code is empty
   - _Requirements: 6.1, 6.4_
 
-- [ ] 7. Secret storage hygiene (Complexity: M)
+- [x] 7. Secret storage hygiene (Complexity: M)
   - In `build_exe.py`: remove the conditional `--add-data .env.enc;.` (and any `.env`) block; replace with a build-log note that secrets are read from `%APPDATA%\Aegis` at runtime
   - In `AegisOptimizer.spec`: confirm `datas` has no `.env`/`.env.enc` entry; remove if present. Keep `static`, `templates`, `alembic.ini`, `aegis/db/migrations`
   - Verify (no change expected) that `utils.get_writeable_path(".env")` and `(".env.enc")` resolve under `Paths().root`; if not, STOP and report
@@ -140,7 +140,7 @@ Complexity labels: **S** = one focused change, **M** = multiple edits + tests, *
   - Regression risks: removing the wrong `--add-data` line; breaking the cloud env-var path (it does not use the bundle — confirm)
   - _Requirements: 7.1, 7.2, 7.3, 7.4_
 
-- [ ]* 7.1 Test secret path + bundle exclusion (Complexity: S)
+- [x]* 7.1 Test secret path + bundle exclusion (Complexity: S)
   - **Property 9:** assert `get_writeable_path(".env.enc")` resolves under the data root; assert the build command/spec data set no longer references `.env`/`.env.enc`
   - Files affected: `tests/`
   - Acceptance criteria: tests pass
