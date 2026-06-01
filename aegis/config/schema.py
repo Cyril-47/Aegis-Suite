@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field, ValidationError, ConfigDict
 from typing import List, Optional, Dict, Any
 
 class WelcomeSettingsModel(BaseModel):
+    model_config = ConfigDict(extra="allow")
     enabled: bool
     channel_id: Optional[str] = None
     channel_name: str
@@ -11,6 +12,7 @@ class WelcomeSettingsModel(BaseModel):
     auto_assign_roles: List[str] = Field(default_factory=list)
 
 class AutomodSettingsModel(BaseModel):
+    model_config = ConfigDict(extra="allow")
     enabled: bool
     block_profanity: bool
     block_links: bool
@@ -20,6 +22,7 @@ class AutomodSettingsModel(BaseModel):
     profanity_words: List[str] = Field(default_factory=list)
 
 class TicketSettingsModel(BaseModel):
+    model_config = ConfigDict(extra="allow")
     enabled: bool
     category_name: str
     staff_role_name: str

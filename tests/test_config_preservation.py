@@ -167,3 +167,41 @@ def test_config_store_save_failure_leaves_file_intact(paths_tmp):
     # Check that no temp files remain in config directory
     temp_files = list(config_file.parent.glob("config_*.tmp"))
     assert len(temp_files) == 0
+
+
+def test_config_models_retain_extra_fields():
+    # Test nested models retain extra fields in model_dump()
+    welcome = WelcomeSettingsModel(
+        enabled=True,
+        channel_name="welcome",
+        message_title="Hello",
+        message_description="Welcome",
+        embed_color="#6366F1",
+        extra_field_1="survive",
+        extra_field_2={"nested": "ok"}
+    )
+    dumped_welcome = welcome.model_dump()
+    assert dumped_welcome["extra_field_1"] == "survive"
+    assert dumped_welcome["extra_field_2"] == {"nested": "ok"}
+
+    automod = AutomodSettingsModel(
+        enabled=False,
+        block_profanity=False,
+        block_links=False,
+        max_mentions=5,
+        log_channel_name="logs",
+        extra_field_3="survive"
+    )
+    assert automod.model_dump()["extra_field_3"] == "survive"
+
+    # Test top-level ConfigModel with nested extra fields
+    config = ConfigModel(
+        client_id="123",
+        welcome_settings=welcome,
+        automod_settings=automod,
+        unmodeled_toplevel_key="survive_too"
+    )
+    dumped_config = config.model_dump()
+    assert dumped_config["unmodeled_toplevel_key"] == "survive_too"
+    assert dumped_config["welcome_settings"]["extra_field_1"] == "survive"
+    assert dumped_config["automod_settings"]["extra_field_3"] == "survive"
