@@ -402,6 +402,17 @@ def list_backups(request: Request):
 @router.post("/api/recovery/db/restore")
 def restore_database(request: Request, payload: RestorePayload):
     """Restores the SQLite database from a selected backup file."""
+    # Defense-in-depth admin session check
+    import auth
+    auth_header = request.headers.get("Authorization")
+    token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    if not token or not auth.validate_session(token):
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid or missing token")
+    if auth.get_session_role(token) != "admin":
+        raise HTTPException(status_code=403, detail="Forbidden: Admin privileges required")
+
     core = request.app.state.core
     backup_name = payload.backup_name
     
@@ -424,6 +435,17 @@ def restore_database(request: Request, payload: RestorePayload):
 @router.post("/api/recovery/db/rebuild")
 def rebuild_database(request: Request):
     """Destroys and rebuilds SQLite database schema from scratch, running Alembic migrations."""
+    # Defense-in-depth admin session check
+    import auth
+    auth_header = request.headers.get("Authorization")
+    token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    if not token or not auth.validate_session(token):
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid or missing token")
+    if auth.get_session_role(token) != "admin":
+        raise HTTPException(status_code=403, detail="Forbidden: Admin privileges required")
+
     core = request.app.state.core
     try:
         if core.db is not None:
@@ -481,6 +503,17 @@ async def retry_startup_checks(request: Request):
 @router.post("/api/recovery/restart")
 async def restart_application(request: Request):
     """Initiates a background task to perform a clean graceful process shutdown."""
+    # Defense-in-depth admin session check
+    import auth
+    auth_header = request.headers.get("Authorization")
+    token = None
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+    if not token or not auth.validate_session(token):
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid or missing token")
+    if auth.get_session_role(token) != "admin":
+        raise HTTPException(status_code=403, detail="Forbidden: Admin privileges required")
+
     core = request.app.state.core
     
     async def schedule_shutdown():

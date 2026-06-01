@@ -34,19 +34,37 @@ def build_app(core) -> FastAPI:
             
         # Hardening Wizard and Recovery Routes
         if path.startswith("/wizard/") or path.startswith("/api/recovery/"):
-            # Recovery routes are strictly restricted to SAFE_MODE only
-            if path.startswith("/api/recovery/"):
-                from aegis.core.state import LifecycleState
-                if core.state.current_state != LifecycleState.SAFE_MODE:
-                    return JSONResponse(status_code=403, content={"detail": "Forbidden: Recovery actions are only allowed in SAFE_MODE."})
+            # 1. CSRF/Origin check for state-changing POST/PUT/DELETE requests
+            if request.method in ("POST", "PUT", "DELETE"):
+                origin = request.headers.get("Origin")
+                if origin:
+                    web_port = getattr(core, "web_port", None)
+                    if web_port is not None:
+                        expected_origin = f"http://127.0.0.1:{web_port}"
+                        if origin != expected_origin:
+                            return JSONResponse(
+                                status_code=403,
+                                content={"detail": "Forbidden: Cross-Origin Request Blocked."}
+                            )
             
-            # Enforce admin authentication if setup is complete or admin hash is set
-            require_auth = False
-            if path.startswith("/wizard/") and setup_complete:
-                require_auth = True
-            elif path.startswith("/api/recovery/") and os.environ.get("ADMIN_PASSWORD_HASH"):
-                require_auth = True
+            # 2. Check if this is a destructive recovery endpoint
+            is_destructive = False
+            if path in ("/api/recovery/db/rebuild", "/api/recovery/db/restore", "/api/recovery/restart"):
+                is_destructive = True
                 
+            # 3. Check if we need to enforce auth
+            from aegis.core.state import LifecycleState
+            current_state = core.state.current_state if core.state else None
+            admin_pwd_set = bool(os.environ.get("ADMIN_PASSWORD_HASH"))
+            
+            # Destructive endpoints always require auth.
+            # Other wizard/recovery endpoints require auth only if we are NOT in SAFE_MODE and admin password is set.
+            # (i.e. if we are in SAFE_MODE or password is unset, we bypass auth).
+            require_auth = True
+            if not is_destructive:
+                if current_state == LifecycleState.SAFE_MODE or not admin_pwd_set:
+                    require_auth = False
+                    
             if require_auth:
                 auth_header = request.headers.get("Authorization")
                 token = None
