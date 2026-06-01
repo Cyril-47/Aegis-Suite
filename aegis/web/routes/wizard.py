@@ -205,17 +205,6 @@ async def wizard_guilds(request: Request):
     if not token:
         raise HTTPException(status_code=400, detail="No Discord token configured.")
 
-    # Mock/Testing environment check
-    if ("PYTEST_CURRENT_TEST" in os.environ or 
-            token.startswith("valid") or 
-            token.startswith("token") or 
-            "fake" in token or 
-            token == "ABC.DEF.GHI" or
-            token == "valid_token"):
-        return [
-            {"id": "123456789", "name": "Test Guild 1"},
-            {"id": "987654321", "name": "Test Guild 2"}
-        ]
 
     # Real Discord API call
     import aiohttp

@@ -12,6 +12,7 @@ from aegis.core.state import LifecycleState, ReasonCode
 from aegis.core.app_core import AppCore
 from aegis.core.lifecycle import run_startup_checks, RETRY_START
 from aegis.web.app import build_app
+import auth
 
 def get_valid_config_data() -> dict:
     return {
@@ -98,7 +99,11 @@ async def test_startup_checks_intent_recovery(paths_tmp, temp_appdata):
         
     os.environ["DISCORD_BOT_TOKEN"] = "intent_failed"
     
-    verdict, reason = await run_startup_checks(core)
+    from unittest.mock import patch
+    from aegis.bot.runner import TokenVerdict
+    with patch("aegis.bot.runner.validate_token", return_value=TokenVerdict.INTENT_FAILED):
+        verdict, reason = await run_startup_checks(core)
+        
     assert verdict == "FATAL-to-bot"
     assert reason == ReasonCode.INTENT_RECOVERY
     assert core.health.checks.get("intents") == "FATAL-to-bot"
@@ -116,7 +121,11 @@ async def test_startup_checks_happy_path(paths_tmp, temp_appdata):
     # Write valid token format (three dot-separated components)
     os.environ["DISCORD_BOT_TOKEN"] = "valid.discord.token"
     
-    verdict, reason = await run_startup_checks(core)
+    from unittest.mock import patch
+    from aegis.bot.runner import TokenVerdict
+    with patch("aegis.bot.runner.validate_token", return_value=TokenVerdict.OK):
+        verdict, reason = await run_startup_checks(core)
+        
     assert verdict == "OK"
     assert reason is None
     
@@ -165,14 +174,23 @@ def test_recovery_endpoint_token_submission(paths_tmp, temp_appdata, monkeypatch
     app = build_app(core)
     client = TestClient(app)
     
-    # Send invalid token
-    r1 = client.post("/api/recovery/token", json={"token": "bad_token"})
-    assert r1.status_code == 400
+    from unittest.mock import patch
+    from aegis.bot.runner import TokenVerdict
     
-    # Send valid format token
-    r2 = client.post("/api/recovery/token", json={"token": "token1.token2.token3"})
-    assert r2.status_code == 200
-    assert r2.json()["status"] == "success"
+    async def mock_val(token, timeout=10.0):
+        if token == "bad_token":
+            return TokenVerdict.AUTH_FAILED
+        return TokenVerdict.OK
+        
+    with patch("aegis.web.routes.wizard.validate_token", side_effect=mock_val):
+        # Send invalid token
+        r1 = client.post("/api/recovery/token", json={"token": "bad_token"})
+        assert r1.status_code == 400
+        
+        # Send valid format token
+        r2 = client.post("/api/recovery/token", json={"token": "token1.token2.token3"})
+        assert r2.status_code == 200
+        assert r2.json()["status"] == "success"
     
     # Verify environment variable and config files are updated
     assert os.environ.get("DISCORD_BOT_TOKEN") == "token1.token2.token3"
@@ -207,6 +225,7 @@ def test_recovery_endpoint_backups_list(paths_tmp, temp_appdata, monkeypatch):
 def test_recovery_endpoint_db_restore(paths_tmp, temp_appdata, monkeypatch):
     """Verify database file replacement on restore request."""
     monkeypatch.delenv("ADMIN_PASSWORD_HASH", raising=False)
+    monkeypatch.setenv("JWT_SECRET", "test_key")
     core = AppCore(paths=paths_tmp)
     core.state.transition(LifecycleState.SAFE_MODE, ReasonCode.DB_RECOVERY)
     paths_tmp.backups_db.mkdir(parents=True, exist_ok=True)
@@ -217,12 +236,15 @@ def test_recovery_endpoint_db_restore(paths_tmp, temp_appdata, monkeypatch):
     app = build_app(core)
     client = TestClient(app)
     
+    admin_token = auth.create_session(role="admin")
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    
     # Path traversal validation check
-    r1 = client.post("/api/recovery/db/restore", json={"backup_name": "../config/config.json"})
+    r1 = client.post("/api/recovery/db/restore", json={"backup_name": "../config/config.json"}, headers=headers)
     assert r1.status_code == 400
     
     # Valid restore
-    r2 = client.post("/api/recovery/db/restore", json={"backup_name": "aegis_baseline_v1_backup.db"})
+    r2 = client.post("/api/recovery/db/restore", json={"backup_name": "aegis_baseline_v1_backup.db"}, headers=headers)
     assert r2.status_code == 200
     assert r2.json()["status"] == "success"
     
@@ -235,13 +257,17 @@ def test_recovery_endpoint_db_restore(paths_tmp, temp_appdata, monkeypatch):
 def test_recovery_endpoint_db_rebuild(paths_tmp, temp_appdata, monkeypatch):
     """Verify database schema is rebuilt from scratch."""
     monkeypatch.delenv("ADMIN_PASSWORD_HASH", raising=False)
+    monkeypatch.setenv("JWT_SECRET", "test_key")
     core = AppCore(paths=paths_tmp)
     core.state.transition(LifecycleState.SAFE_MODE, ReasonCode.DB_RECOVERY)
     
     app = build_app(core)
     client = TestClient(app)
     
-    r = client.post("/api/recovery/db/rebuild")
+    admin_token = auth.create_session(role="admin")
+    headers = {"Authorization": f"Bearer {admin_token}"}
+    
+    r = client.post("/api/recovery/db/rebuild", headers=headers)
     assert r.status_code == 200
     assert r.json()["status"] == "success"
     
@@ -270,15 +296,16 @@ async def test_recovery_endpoint_retry_promotion(paths_tmp, temp_appdata, monkey
     app = build_app(core)
     client = TestClient(app)
     
-    # Mock loop wait since ASGI server task isn't actually started inside uvicorn in TestClient
-    core.web_port = 8000
+    from unittest.mock import patch
+    from aegis.bot.runner import TokenVerdict
     
-    # Post retry (which runs async, so we use TestClient)
-    # Note: TestClient handles running async routes on the event loop
-    r = client.post("/api/recovery/retry")
-    assert r.status_code == 200
-    assert r.json()["status"] == "running"
-    
+    with patch("aegis.bot.runner.validate_token", return_value=TokenVerdict.OK):
+        # Post retry (which runs async, so we use TestClient)
+        # Note: TestClient handles running async routes on the event loop
+        r = client.post("/api/recovery/retry")
+        assert r.status_code == 200
+        assert r.json()["status"] == "running"
+        
     assert core.state.current_state == LifecycleState.RUNNING
     # Should start bot task placeholders
     assert core._bot_task is not None
@@ -294,10 +321,14 @@ async def test_recovery_endpoint_restart(paths_tmp, temp_appdata):
     # Construct a mock Request
     mock_request = MagicMock()
     mock_request.app.state.core = core
+    mock_request.headers.get.return_value = "Bearer mock_token"
     
-    from aegis.web.routes.wizard import restart_application
-    response = await restart_application(mock_request)
-    
+    from unittest.mock import patch
+    with patch("auth.validate_session", return_value=True), \
+         patch("auth.get_session_role", return_value="admin"):
+        from aegis.web.routes.wizard import restart_application
+        response = await restart_application(mock_request)
+        
     assert response["status"] == "success"
     
     # Wait for the background task to run

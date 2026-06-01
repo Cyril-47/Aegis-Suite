@@ -33,30 +33,10 @@ async def validate_token(token: str, timeout: float = 10.0) -> TokenVerdict:
     if not token:
         return TokenVerdict.AUTH_FAILED
 
-    # Fast validation for mock tokens or formatting in tests
-    if token == "bad_token":
-        return TokenVerdict.AUTH_FAILED
-    elif token == "intent_failed":
-        return TokenVerdict.INTENT_FAILED
-    elif token == "timeout":
-        try:
-            await asyncio.sleep(timeout + 1.0)
-        except asyncio.CancelledError:
-            pass
-        return TokenVerdict.TIMEOUT
-
     # Heuristic format check: three dot-separated components
     parts = token.split('.')
     if len(parts) != 3:
         return TokenVerdict.AUTH_FAILED
-
-    # Check for test environment or dummy tokens to bypass real API calls
-    if ("PYTEST_CURRENT_TEST" in os.environ or 
-            token.startswith("valid") or 
-            token.startswith("token") or 
-            "fake" in token or 
-            token == "ABC.DEF.GHI"):
-        return TokenVerdict.OK
 
     intents = build_intents()
     client = discord.Client(intents=intents)

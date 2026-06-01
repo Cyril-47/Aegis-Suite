@@ -2,7 +2,7 @@ import os
 import json
 import pytest
 from fastapi.testclient import TestClient
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, AsyncMock
 
 from aegis.core.app_core import AppCore
 from aegis.core.state import LifecycleState, ReasonCode
@@ -102,7 +102,31 @@ def test_wizard_guilds_list(app_and_client, monkeypatch):
     
     os.environ["DISCORD_BOT_TOKEN"] = "valid_token.abc.def"
     
-    r = client.get("/wizard/guilds")
+    mock_response = MagicMock()
+    mock_response.status = 200
+    mock_response.json = AsyncMock(return_value=[
+        {"id": "123456789", "name": "Test Guild 1"},
+        {"id": "987654321", "name": "Test Guild 2"}
+    ])
+    
+    class MockClientSession:
+        def __init__(self, *args, **kwargs):
+            pass
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            pass
+        def get(self, url, headers=None, timeout=None):
+            class MockGetContext:
+                async def __aenter__(self):
+                    return mock_response
+                async def __aexit__(self, exc_type, exc_val, exc_tb):
+                    pass
+            return MockGetContext()
+            
+    with patch("aiohttp.ClientSession", MockClientSession):
+        r = client.get("/wizard/guilds")
+        
     assert r.status_code == 200
     guilds = r.json()
     assert len(guilds) == 2

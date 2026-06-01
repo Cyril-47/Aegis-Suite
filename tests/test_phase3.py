@@ -407,6 +407,11 @@ async def test_appcore_integration_happy_path(tmp_path):
     core._shutdown_event.set()
     
     # Override run_migrations programmatically in tests so it doesn't try to lock files during multiple test runs
-    exit_code = await core.run()
+    from unittest.mock import patch
+    from aegis.bot.runner import TokenVerdict
+    
+    with patch("aegis.bot.runner.validate_token", return_value=TokenVerdict.OK):
+        exit_code = await core.run()
+        
     assert exit_code == 0
     assert core.state.current_state == LifecycleState.RUNNING

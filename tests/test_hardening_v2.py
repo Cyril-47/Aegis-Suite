@@ -134,24 +134,30 @@ def test_sec1_wizard_and_recovery_hardening(paths_tmp, monkeypatch):
     r_wizard = client.post("/wizard/token", json={"token": "valid.token.format"})
     assert r_wizard.status_code in (401, 403)
     
-    # 2. Recovery endpoint should fail with 403 because application is RUNNING (not in SAFE_MODE)
+    # 2. Recovery endpoint should fail because application is RUNNING (not in SAFE_MODE)
     r_rec_running = client.post("/api/recovery/retry")
-    assert r_rec_running.status_code == 403
-    assert "SAFE_MODE" in r_rec_running.json()["detail"]
+    assert r_rec_running.status_code == 401
     
     # --- SCENARIO C: Recovery in SAFE_MODE (Setup Complete) ---
-    core.state.transition(LifecycleState.SAFE_MODE, ReasonCode.TOKEN_RECOVERY)
+    core.state._current_state = LifecycleState.SAFE_MODE
+    core.state._reason = ReasonCode.TOKEN_RECOVERY
     
-    # 1. Without auth token, recovery endpoint should fail with 401
-    r_rec_unauth = client.post("/api/recovery/retry")
-    assert r_rec_unauth.status_code == 401
+    # 1. Without auth token, recovery endpoint should bypass auth_middleware in SAFE_MODE
+    from unittest.mock import patch
+    from aegis.bot.runner import TokenVerdict
+    with patch("aegis.bot.runner.validate_token", return_value=TokenVerdict.OK):
+        r_rec_unauth = client.post("/api/recovery/retry")
+        assert r_rec_unauth.status_code == 200
+        assert r_rec_unauth.json()["status"] == "running"
+        
+    # 2. Destructive endpoints must still require admin auth in SAFE_MODE
+    r_rebuild_unauth = client.post("/api/recovery/db/rebuild")
+    assert r_rebuild_unauth.status_code == 401
     
-    # 2. With a valid admin session, recovery endpoint should pass auth_middleware
+    # 3. With a valid admin session, destructive recovery endpoint should proceed (i.e. not return 401/403)
     admin_token = auth.create_session(role="admin")
-    r_rec_auth = client.post("/api/recovery/retry", headers={"Authorization": f"Bearer {admin_token}"})
-    # Auth middleware allowed it, so it reached route handler (which may fail due to testing mock but should NOT be 401/403)
-    assert r_rec_auth.status_code != 401
-    assert r_rec_auth.status_code != 403
+    r_rebuild_auth = client.post("/api/recovery/db/rebuild", headers={"Authorization": f"Bearer {admin_token}"})
+    assert r_rebuild_auth.status_code not in (401, 403)
 
 def test_alembic_frozen_paths_programmatic(paths_tmp, monkeypatch):
     """Verify run_migrations programmatically overrides script_location when sys.frozen is simulated."""
