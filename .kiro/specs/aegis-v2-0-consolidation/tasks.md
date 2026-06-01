@@ -16,7 +16,7 @@ Complexity labels: **S** = one focused change, **M** = multiple edits + tests, *
 
 ## Tasks
 
-- [ ] 1. Make `ConfigStore.save()` non-destructive (read-merge-write) (Complexity: M)
+- [x] 1. Make `ConfigStore.save()` non-destructive (read-merge-write) (Complexity: M)
   - Modify `ConfigStore.save()` in `aegis/config/loader.py` to: import and acquire `utils.config_lock`; read the current on-disk Config_File into a dict (empty dict if absent); overlay `self.as_dict()` onto that dict (modeled keys replace, unmodeled keys retained verbatim); write the merged dict via the existing temp-file + `os.replace` atomic path; produce the existing `backups/config` snapshot and rotation
   - Preserve the existing JSON indentation/format used by the current `save()` exactly
   - On any failure after temp-file creation, delete the temp file and re-raise; never destroy or partially write the Config_File
@@ -30,14 +30,14 @@ Complexity labels: **S** = one focused change, **M** = multiple edits + tests, *
   - Regression risks: deadlock from a new lock; format change causing spurious diffs/backup churn; reading the file outside the lock
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6_
 
-- [ ]* 1.1 Test config write preservation (Complexity: S)
+- [x]* 1.1 Test config write preservation (Complexity: S)
   - **Property 1 + Property 2** support: write a Config_File containing unmodeled keys, load via ConfigStore, `save()`, reload raw JSON, assert all original keys/values persist and modeled fields updated
   - Add a failure-injection test asserting a write error leaves the original file intact and removes the temp file
   - Files affected: `tests/` (new test module)
   - Acceptance criteria: tests pass; intentionally removing the merge step makes the preservation test fail
   - _Requirements: 1.1, 1.3, 1.6_
 
-- [ ] 2. Add `extra="allow"` to config models (Complexity: S)
+- [x] 2. Add `extra="allow"` to config models (Complexity: S)
   - In `aegis/config/schema.py`, add `model_config = ConfigDict(extra="allow")` to `ConfigModel`, `WelcomeSettingsModel`, `AutomodSettingsModel`, and `TicketSettingsModel`; import `ConfigDict` from `pydantic`
   - Do not change any existing field name, type, or default; `validate_config` remains `ConfigModel(**data)`
   - Files affected: `aegis/config/schema.py`
@@ -47,13 +47,13 @@ Complexity labels: **S** = one focused change, **M** = multiple edits + tests, *
   - Regression risks: leaving `extra="forbid"` anywhere; wrong import of `ConfigDict`; breaking `validate_config`
   - _Requirements: 2.1, 2.2, 2.3_
 
-- [ ]* 2.1 Test extra-field retention (Complexity: S)
+- [x]* 2.1 Test extra-field retention (Complexity: S)
   - **Property 3:** pass extra keys into `ConfigModel` and each nested model; assert they survive `model_dump()`
   - Files affected: `tests/`
   - Acceptance criteria: test passes; reverting `extra="allow"` makes it fail
   - _Requirements: 2.1, 2.2_
 
-- [ ] 3. Consolidate the entrypoint (`run.py` → `aegis.__main__`) (Complexity: M)
+- [x] 3. Consolidate the entrypoint (`run.py` → `aegis.__main__`) (Complexity: M)
   - In `run.py`, replace the application launch (both the frozen `uvicorn.run("web_server:app", ...)` branch and the source subprocess uvicorn branch) with a call to `aegis.__main__.main()`
   - Remove the legacy console `first_run_wizard` invocation from the launch path; do NOT delete `first_run_wizard.py`
   - Retain source-only environment prep (venv creation, dependency install, FFmpeg PATH resolution) behind the existing frozen/headless guards
@@ -67,13 +67,13 @@ Complexity labels: **S** = one focused change, **M** = multiple edits + tests, *
   - Regression risks: double event loop; broken frozen-EXE detection; losing FFmpeg resolution
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_
 
-- [ ]* 3.1 Test entrypoint delegation (Complexity: S)
+- [x]* 3.1 Test entrypoint delegation (Complexity: S)
   - **Property 4:** assert the `run` module source does not reference `web_server` and that its launch function delegates to `aegis.__main__.main` (patch `aegis.__main__.main` and assert it is called; do not boot a real server)
   - Files affected: `tests/`
   - Acceptance criteria: test passes without starting uvicorn or the bot
   - _Requirements: 3.1, 3.2, 3.3_
 
-- [ ] 4. Secure recovery and wizard endpoints (Complexity: L)
+- [x] 4. Secure recovery and wizard endpoints (Complexity: L)
   - In `aegis/web/app.py` `auth_middleware`: narrow the `/api/recovery/` and `/wizard/` bypass. Pre_Auth_Recovery_Endpoints (wizard token/guilds/templates/finish, `/api/recovery/token`, `/api/recovery/retry`, `/api/recovery/backups`) are bypassable without a session ONLY when `request.app.state.core.state.current_state == SAFE_MODE` OR `os.environ.get("ADMIN_PASSWORD_HASH")` is unset; otherwise fall through to normal auth
   - Destructive_Recovery_Endpoints (`POST /api/recovery/db/rebuild`, `/api/recovery/db/restore`, `/api/recovery/restart`) ALWAYS require a valid Admin_Session in every state
   - Add an `Origin` check for state-changing wizard/recovery POSTs: if `Origin` is present and not equal to `http://127.0.0.1:{core.web_port}`, reject with 403; absent `Origin` → allow through to normal handling; if `core.web_port` is None, a present-but-mismatched Origin is rejected
@@ -88,14 +88,14 @@ Complexity labels: **S** = one focused change, **M** = multiple edits + tests, *
   - Regression risks: locking out first-run users; breaking existing recovery tests that assume open access; reading the wrong state attribute
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7_
 
-- [ ]* 4.1 Test recovery authorization (Complexity: M)
+- [x]* 4.1 Test recovery authorization (Complexity: M)
   - **Property 5 + Property 6:** (a) unauthenticated destructive POST in RUNNING → rejected, no side effect; (b) admin-authenticated destructive POST in SAFE_MODE → allowed; (c) wizard token endpoint reachable in `needs-setup` without a session; (d) cross-origin destructive POST → 403
   - Use the FastAPI test client with a mocked `AppCore`/state; do not perform a real DB rebuild
   - Files affected: `tests/`
   - Acceptance criteria: all four cases pass; reverting the middleware narrowing makes case (a) fail
   - _Requirements: 4.1, 4.2, 4.3, 4.5_
 
-- [ ] 5. Verify and lock leveling unification (Complexity: S)
+- [x] 5. Verify and lock leveling unification (Complexity: S)
   - Verify `leveling.py` is a pure re-export of `aegis.bot.leveling` (`leveling_system`, `LevelingSystem`) and that no second `LevelingSystem()` is constructed outside `aegis/bot/leveling.py`
   - Do NOT change leveling behavior. IF a second instantiation is found, STOP and report; do not refactor
   - Files affected: none for behavior; `tests/` (new test)
@@ -103,13 +103,13 @@ Complexity labels: **S** = one focused change, **M** = multiple edits + tests, *
   - Regression risks: none (verification); do not "improve" leveling here
   - _Requirements: 5.1, 5.2, 5.3_
 
-- [ ]* 5.1 Test leveling single-instance + DB round-trip (Complexity: S)
+- [x]* 5.1 Test leveling single-instance + DB round-trip (Complexity: S)
   - **Property 8:** assert object identity across both import paths; after `set_engine(engine)`, a write via the bot-facing import is readable via the DB-facing import (in-memory SQLite via the existing test fixtures)
   - Files affected: `tests/`
   - Acceptance criteria: identity and round-trip assertions pass
   - _Requirements: 5.1, 5.2_
 
-- [ ] 6. Remove production test bypasses (Complexity: L)
+- [x] 6. Remove production test bypasses (Complexity: L)
   - In `aegis/bot/runner.py` `validate_token`: remove the `"bad_token"`/`"intent_failed"`/`"timeout"` literals, the `startswith("valid")`/`startswith("token")`/`"fake" in token`/`== "ABC.DEF.GHI"` heuristics, and the `PYTEST_CURRENT_TEST` branch; keep the format check and the real `discord.Client.login` probe within `asyncio.wait_for`
   - In `aegis/web/routes/wizard.py` `/wizard/guilds`: remove the mock/test bypass block; always call the real Discord guilds API
   - Update any tests that relied on these shims to monkeypatch `validate_token` and the aiohttp guilds call (mock the Discord client / HTTP layer); do NOT re-introduce any bypass to make tests pass
@@ -121,7 +121,7 @@ Complexity labels: **S** = one focused change, **M** = multiple edits + tests, *
   - Regression risks: re-adding a bypass to pass tests; tests hitting the real Discord API
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
 
-- [ ]* 6.1 Test validation has no bypass (Complexity: S)
+- [x]* 6.1 Test validation has no bypass (Complexity: S)
   - **Property 7:** assert a well-formed-but-fake token returns a failure verdict when the login probe is mocked to fail; assert `PYTEST_CURRENT_TEST` no longer forces OK
   - Files affected: `tests/`
   - Acceptance criteria: tests pass; grep assertion for removed literals in shipped code is empty
