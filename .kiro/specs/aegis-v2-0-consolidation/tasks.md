@@ -146,7 +146,7 @@ Complexity labels: **S** = one focused change, **M** = multiple edits + tests, *
   - Acceptance criteria: tests pass
   - _Requirements: 7.1, 7.2_
 
-- [ ] 8. Phase exit gate (Complexity: S)
+- [x] 8. Phase exit gate (Complexity: S)
   - Run the full suite; confirm ≥170 baseline tests plus all new tests pass
   - Confirm: config round-trip preservation test green; destructive-endpoint-rejected-in-RUNNING test green; `run` does not import `web_server`; grep for removed bypass literals in `aegis/` (excluding `tests/`) is empty; build data set contains no `.env*`
   - Confirm each task landed as its own revertible commit
