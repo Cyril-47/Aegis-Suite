@@ -155,23 +155,10 @@ def main():
         "--hidden-import", "sqlalchemy",
     ]
 
-    # Bundle the encrypted secrets file when it exists. The plaintext .env
-    # is intentionally NOT bundled — secrets at rest must be DPAPI-encrypted
-    # so a copy of the EXE elsewhere on the same disk cannot harvest them.
-    if os.path.exists(".env.enc"):
-        cmd.extend(["--add-data", ".env.enc;."])
-        print("[+] Bundling DPAPI-encrypted secrets (.env.enc) with the EXE.")
-    elif os.path.exists(".env"):
-        print(
-            "[!] Plaintext .env present but no .env.enc was found. "
-            "Run `python -m secret_store encrypt --delete-source` before "
-            "shipping the EXE so secrets are not bundled in cleartext."
-        )
-    else:
-        print(
-            "[!] No .env or .env.enc present. The EXE will rely on "
-            "platform-injected environment variables at runtime."
-        )
+    # Secrets (.env or .env.enc) are intentionally NOT bundled with the executable.
+    # At runtime, secrets are read from the writeable path in the data directory
+    # (e.g. %APPDATA%\Aegis\.env or %APPDATA%\Aegis\.env.enc).
+    print("[+] Secrets (.env/.env.enc) are excluded from the bundle. At runtime, they are read from %APPDATA%\\Aegis.")
 
     cmd.append(os.path.join("aegis", "__main__.py"))
 
