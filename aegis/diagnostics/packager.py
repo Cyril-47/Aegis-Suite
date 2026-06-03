@@ -101,17 +101,21 @@ def generate_package(core) -> Path:
     
     # 4. Write zip archive
     # Packager must write ONLY under the diagnostics directory
+    from aegis.config.sanitizer import redact_text
+    
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
         # Write sanitized info.json
-        zipf.writestr("info.json", json.dumps(sanitized_info, indent=4))
+        info_json_str = json.dumps(sanitized_info, indent=4)
+        info_json_str = redact_text(info_json_str)
+        zipf.writestr("info.json", info_json_str)
         
         # Write tails of log files
         log_tail = get_tail(core.paths.log_file)
         if log_tail:
-            zipf.writestr("aegis.log", log_tail)
+            zipf.writestr("aegis.log", redact_text(log_tail))
             
         err_log_tail = get_tail(core.paths.err_log_file)
         if err_log_tail:
-            zipf.writestr("aegis.err.log", err_log_tail)
+            zipf.writestr("aegis.err.log", redact_text(err_log_tail))
             
     return zip_path

@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, ValidationError, ConfigDict
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Literal
 
 class WelcomeSettingsModel(BaseModel):
     model_config = ConfigDict(extra="allow")
@@ -20,6 +20,9 @@ class AutomodSettingsModel(BaseModel):
     log_channel_id: Optional[str] = None
     log_channel_name: str
     profanity_words: List[str] = Field(default_factory=list)
+    block_invites: bool = False
+    whitelisted_domains: List[str] = Field(default_factory=list)
+    whitelisted_invites: List[str] = Field(default_factory=list)
 
 class TicketSettingsModel(BaseModel):
     model_config = ConfigDict(extra="allow")
@@ -28,6 +31,17 @@ class TicketSettingsModel(BaseModel):
     staff_role_name: str
     ticket_channel_id: Optional[str] = None
     panel_message_id: Optional[str] = None
+
+class CommandPermissionRule(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    mode: Literal["everyone", "moderator", "admin", "owner", "role", "roles"]
+    role_id: Optional[str] = None      # Used if mode == "role"
+    role_ids: List[str] = Field(default_factory=list)  # Used if mode == "roles"
+
+class PermissionRoles(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    admin_role_id: Optional[str] = None
+    moderator_role_id: Optional[str] = None
 
 class ConfigModel(BaseModel):
     model_config = ConfigDict(extra='allow')
@@ -40,8 +54,11 @@ class ConfigModel(BaseModel):
     custom_commands: Optional[Dict[str, Any]] = Field(default_factory=dict)
     admin_password_hash: Optional[str] = ""
     hosting_mode: Optional[str] = ""
+    command_permissions: Dict[str, CommandPermissionRule] = Field(default_factory=dict)
+    permission_roles: PermissionRoles = Field(default_factory=PermissionRoles)
 
 def validate_config(data: Dict[str, Any]) -> ConfigModel:
     """Validates configuration dictionary against the schema."""
     return ConfigModel(**data)
+
 

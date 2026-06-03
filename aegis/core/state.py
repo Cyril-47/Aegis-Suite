@@ -24,6 +24,7 @@ ALLOWED: Dict[LifecycleState, Set[LifecycleState]] = {
         LifecycleState.SHUTTING_DOWN
     },
     LifecycleState.SAFE_MODE: {
+        LifecycleState.SAFE_MODE,
         LifecycleState.RUNNING,
         LifecycleState.SHUTTING_DOWN
     },

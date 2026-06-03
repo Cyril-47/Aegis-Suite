@@ -385,7 +385,7 @@ def list_backups(request: Request):
     if not backups_dir.exists():
         return []
     backups = list(backups_dir.glob("aegis_*.db"))
-    backups.sort(key=lambda p: p.name, reverse=True)
+    backups.sort(key=lambda p: (p.stat().st_mtime, p.name), reverse=True)
     return [p.name for p in backups]
 
 @router.post("/api/recovery/db/restore")

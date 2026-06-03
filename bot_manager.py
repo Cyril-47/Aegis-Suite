@@ -19,6 +19,17 @@ logger = logging.getLogger("DiscordBot")
 bot_instance = None
 bot_task = None
 
+# Regular Expressions for Safe AutoMod Enforcement (Backtracking Protected)
+DISCORD_INVITE_PATTERN = re.compile(
+    r'(?:https?://)?(?:www\.)?(?:discord\.(?:gg|io|me|li|club)|discord(?:app)?\.com/invite)/([a-zA-Z0-9-]{2,32})',
+    re.IGNORECASE
+)
+
+URL_DOMAIN_PATTERN = re.compile(
+    r'(?:https?://)?(?:www\.)?([a-zA-Z0-9][-a-zA-Z0-9]*[a-zA-Z0-9]\.[a-zA-Z]{2,24}(?:\.[a-zA-Z]{2,24})*)',
+    re.IGNORECASE
+)
+
 def get_bot():
     return bot_instance
 
@@ -265,6 +276,8 @@ class DiscordOptimizerBot(commands.Bot):
                         continue
                         
                     next_run = datetime.datetime.fromisoformat(next_run_str)
+                    if next_run.tzinfo is None:
+                        next_run = next_run.replace(tzinfo=datetime.timezone.utc)
                     if now >= next_run:
                         # Message is due! Send it.
                         guild_id = int(msg["guild_id"])
@@ -398,6 +411,26 @@ class DiscordOptimizerBot(commands.Bot):
                     f"Original message: {message.jump_url}"
                 )
 
+    async def on_command_error(self, ctx: commands.Context, error: Exception):
+        # Unwrap CommandInvokeError to get the original exception
+        if isinstance(error, commands.CommandInvokeError):
+            error = error.original
+
+        if isinstance(error, commands.MissingPermissions):
+            try:
+                msg = "❌ You do not have permission to run this command."
+                if error.missing_permissions:
+                    custom_msg = error.missing_permissions[0]
+                    if any(x in custom_msg for x in ["Missing permissions", "Universal Permission"]):
+                        msg = f"❌ {custom_msg}"
+                await ctx.send(msg, delete_after=5.0)
+            except Exception:
+                pass
+            return
+        
+        # Log other errors
+        logger.error(f"Error executing command: {error}", exc_info=error)
+
     async def on_ready(self):
         logger.info(f"Bot logged in successfully as {self.user} (ID: {self.user.id})")
         logger.info(f"Currently connected to {len(self.guilds)} guilds.")
@@ -500,17 +533,32 @@ class DiscordOptimizerBot(commands.Bot):
     async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
         # Clean up music player when bot leaves voice (Tier 4.2)
         if member.id == self.user.id and after.channel is None:
-            self.music_players.pop(member.guild.id, None)
+            player = self.music_players.pop(member.guild.id, None)
+            if player and player.disconnect_task and not player.disconnect_task.done():
+                player.disconnect_task.cancel()
             return
 
         # Handle auto-disconnect when bot is alone in a voice channel
-        for guild_id, player in list(self.music_players.items()):
-            if player.voice_client and player.voice_client.is_connected():
-                channel = player.voice_client.channel
-                human_members = [m for m in channel.members if not m.bot]
+        player = self.music_players.get(member.guild.id)
+        if player and player.voice_client and player.voice_client.is_connected():
+            bot_channel = player.voice_client.channel
+            
+            # Check if someone joined or left the bot's channel
+            member_joined = (after.channel == bot_channel and before.channel != bot_channel)
+            member_left = (before.channel == bot_channel and after.channel != bot_channel)
+            
+            if member_joined or member_left:
+                # Add a tiny delay to let the discord.py cache catch up with the voice state update
+                await asyncio.sleep(0.5)
+                
+                # Check current voice client and channel state again in case bot disconnected during sleep
+                if not player.voice_client or not player.voice_client.is_connected() or player.voice_client.channel != bot_channel:
+                    return
+                    
+                human_members = [m for m in bot_channel.members if not m.bot]
                 if len(human_members) == 0:
                     # Start auto-disconnect timer if not already active (Tier 1.6)
-                    if not hasattr(player, "disconnect_task") or player.disconnect_task is None or player.disconnect_task.done():
+                    if not player.disconnect_task or player.disconnect_task.done():
                         async def auto_disconnect(pl, ch):
                             await asyncio.sleep(300)
                             if pl.voice_client and pl.voice_client.channel == ch:
@@ -519,14 +567,14 @@ class DiscordOptimizerBot(commands.Bot):
                                     await pl.leave_channel()
                                     logger.info(f"Auto-disconnected from voice channel '{ch.name}' due to inactivity.")
                         
-                        player.disconnect_task = asyncio.create_task(auto_disconnect(player, channel))
-                        logger.info(f"Bot is alone in voice channel '{channel.name}'. Will auto-disconnect in 5 minutes.")
+                        player.disconnect_task = asyncio.create_task(auto_disconnect(player, bot_channel))
+                        logger.info(f"Bot is alone in voice channel '{bot_channel.name}'. Will auto-disconnect in 5 minutes.")
                 else:
-                    # Cancel disconnect timer if humans returned
-                    if hasattr(player, "disconnect_task") and player.disconnect_task is not None and not player.disconnect_task.done():
+                    # Cancel disconnect timer if humans returned/are present
+                    if player.disconnect_task and not player.disconnect_task.done():
                         player.disconnect_task.cancel()
                         player.disconnect_task = None
-                        logger.info(f"Cancelled auto-disconnect for voice channel '{channel.name}' because members joined.")
+                        logger.info(f"Cancelled auto-disconnect for voice channel '{bot_channel.name}' because members joined.")
 
     async def on_interaction(self, interaction: discord.Interaction):
         if interaction.type == discord.InteractionType.application_command:
@@ -737,16 +785,17 @@ class DiscordOptimizerBot(commands.Bot):
         if not automod.get("enabled", False):
             return
 
-        # Check if user is moderator/administrator to bypass filters
+        # Check if user is moderator/administrator or owner to bypass filters
         is_staff = False
         member = message.guild.get_member(message.author.id)
         if member:
-            is_staff = member.guild_permissions.manage_messages or member.guild_permissions.administrator
+            is_owner = member.id == message.guild.owner_id
+            is_staff = is_owner or member.guild_permissions.manage_messages or member.guild_permissions.administrator
 
         if is_staff:
             return
 
-        infraction_reason = None
+        infractions = []
 
         # 1. Profanity check
         if automod.get("block_profanity", False):
@@ -754,21 +803,57 @@ class DiscordOptimizerBot(commands.Bot):
             content_lower = message.content.lower()
             for word in words:
                 if word.lower() and re.search(r'\b' + re.escape(word.lower()) + r'\b', content_lower):
-                    infraction_reason = f"Contains blocked word: '{word}'"
+                    infractions.append(f"Contains blocked word: '{word}'")
                     break
 
-        # 2. Link check
-        if not infraction_reason and automod.get("block_links", False):
-            if "http://" in message.content or "https://" in message.content or "discord.gg/" in message.content:
-                infraction_reason = "Contains links (unauthorized)"
+        # 2. Invite check
+        invites_found = DISCORD_INVITE_PATTERN.findall(message.content)
+        if invites_found and automod.get("block_invites", False):
+            whitelisted_invites = [i.lower().strip() for i in automod.get("whitelisted_invites", [])]
+            for invite_code in invites_found:
+                if invite_code.lower().strip() not in whitelisted_invites:
+                    infractions.append("Contains Discord invite link (unauthorized)")
+                    break
 
-        # 3. Mention spam check
-        if not infraction_reason:
-            max_mentions = automod.get("max_mentions", 5)
-            if len(message.mentions) > max_mentions:
-                infraction_reason = f"Mention spam ({len(message.mentions)} mentions, max allowed {max_mentions})"
+        # 3. Link check
+        if automod.get("block_links", False):
+            url_matches = list(URL_DOMAIN_PATTERN.finditer(message.content))
+            if url_matches:
+                invite_matches = list(DISCORD_INVITE_PATTERN.finditer(message.content))
+                whitelisted_domains = [d.lower().strip() for d in automod.get("whitelisted_domains", [])]
+                for url_match in url_matches:
+                    domain = url_match.group(1)
+                    domain_lower = domain.lower().strip()
+                    # Skip if this domain match is part of a discord invite link
+                    is_invite_part = False
+                    for inv_match in invite_matches:
+                        if inv_match.start() <= url_match.start() and url_match.end() <= inv_match.end():
+                            is_invite_part = True
+                            break
+                    if is_invite_part:
+                        continue
+                    
+                    is_whitelisted = False
+                    for w_dom in whitelisted_domains:
+                        if domain_lower == w_dom or domain_lower.endswith("." + w_dom):
+                            is_whitelisted = True
+                            break
+                    if not is_whitelisted:
+                        infractions.append("Contains links (unauthorized)")
+                        break
 
-        if infraction_reason:
+        # 4. Mention spam check
+        user_mentions_count = len(re.findall(r'<@!?\d+>', message.content))
+        role_mentions_count = len(re.findall(r'<@&\d+>', message.content))
+        everyone_here_count = message.content.count("@everyone") + message.content.count("@here")
+        total_mentions = user_mentions_count + role_mentions_count + everyone_here_count
+        
+        max_mentions = automod.get("max_mentions", 5)
+        if total_mentions > max_mentions:
+            infractions.append(f"Mention spam ({total_mentions} mentions, max allowed {max_mentions})")
+
+        if infractions:
+            infraction_reason = "; ".join(infractions)
             try:
                 # Delete message
                 await message.delete()

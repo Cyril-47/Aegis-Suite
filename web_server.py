@@ -191,6 +191,8 @@ async def auth_middleware(request: Request, call_next):
 if not getattr(sys, 'frozen', False):
     os.makedirs(utils.get_writeable_path("static"), exist_ok=True)
 
+from typing import List, Optional, Dict, Any, Literal
+
 # Pydantic models for configuration
 class WelcomeSettingsModel(BaseModel):
     enabled: bool
@@ -209,6 +211,9 @@ class AutomodSettingsModel(BaseModel):
     log_channel_id: Optional[str] = None
     log_channel_name: str
     profanity_words: List[str] = Field(default_factory=list)
+    block_invites: bool = False
+    whitelisted_domains: List[str] = Field(default_factory=list)
+    whitelisted_invites: List[str] = Field(default_factory=list)
 
 class TicketSettingsModel(BaseModel):
     enabled: bool
@@ -217,6 +222,15 @@ class TicketSettingsModel(BaseModel):
     ticket_channel_id: Optional[str] = None
     panel_message_id: Optional[str] = None
 
+class CommandPermissionRule(BaseModel):
+    mode: Literal["everyone", "moderator", "admin", "owner", "role", "roles"]
+    role_id: Optional[str] = None
+    role_ids: List[str] = Field(default_factory=list)
+
+class PermissionRoles(BaseModel):
+    admin_role_id: Optional[str] = None
+    moderator_role_id: Optional[str] = None
+
 class ConfigModel(BaseModel):
     client_id: str
     welcome_settings: WelcomeSettingsModel
@@ -224,6 +238,8 @@ class ConfigModel(BaseModel):
     ticket_settings: Optional[TicketSettingsModel] = None
     custom_commands: Optional[dict] = Field(default_factory=dict)
     admin_password_hash: Optional[str] = ""
+    command_permissions: Dict[str, CommandPermissionRule] = Field(default_factory=dict)
+    permission_roles: PermissionRoles = Field(default_factory=PermissionRoles)
 
 class HostingModePutRequest(BaseModel):
     # Dedicated request body for PUT /api/hosting-mode. The handler enforces
@@ -269,6 +285,12 @@ class TemplateSaveRequest(BaseModel):
 class TemplateApplyRequest(BaseModel):
     guild_id: str
     name: str
+    confirm: bool = False
+    customizations: Optional[dict] = None
+
+class PermissionsPutRequest(BaseModel):
+    command_permissions: Dict[str, CommandPermissionRule]
+    permission_roles: PermissionRoles
 
 class MusicPlayRequest(BaseModel):
     query: str
@@ -531,6 +553,44 @@ async def put_hosting_mode(request: Request, body: dict = Body(...)):
 
     return {"status": "success", "hosting_mode": new_value}
 
+@app.get("/api/diagnostics/package")
+@app.get("/api/diagnostics/download")
+async def download_diagnostics_legacy(request: Request):
+    from aegis.core.paths import Paths
+    from aegis.diagnostics.packager import generate_package
+    import time
+
+    # Construct a core-like object for generate_package
+    class SimpleCore:
+        def __init__(self):
+            self.paths = Paths()
+            self.paths.ensure()
+            self.db = None
+            self._start_time = time.time()
+            
+            class State:
+                current_state = "running"
+                reason = None
+            self.state = State()
+            
+            class Config:
+                def as_dict(self):
+                    import utils
+                    return utils.load_config()
+            self.config = Config()
+            
+    core = SimpleCore()
+    try:
+        zip_path = generate_package(core)
+        return FileResponse(
+            zip_path,
+            media_type="application/zip",
+            filename=zip_path.name
+        )
+    except Exception as e:
+        logger.exception("Failed to generate diagnostics package")
+        raise HTTPException(status_code=500, detail=f"Failed to generate diagnostics package: {e}")
+
 @app.get("/api/config")
 async def get_config(request: Request):
     auth_header = request.headers.get("Authorization")
@@ -558,6 +618,11 @@ async def get_config(request: Request):
         config["automod_settings"] = guild_conf["automod_settings"]
         config["ticket_settings"] = guild_conf["ticket_settings"]
         config["custom_commands"] = guild_conf["custom_commands"]
+        config["command_permissions"] = guild_conf.get("command_permissions", {})
+        config["permission_roles"] = guild_conf.get("permission_roles", {
+            "admin_role_id": None,
+            "moderator_role_id": None
+        })
         
     return config
 
@@ -611,6 +676,10 @@ async def save_config(config_data: ConfigModel, request: Request):
             guild_conf["ticket_settings"] = new_data["ticket_settings"]
         if new_data.get("custom_commands"):
             guild_conf["custom_commands"] = new_data["custom_commands"]
+        if "command_permissions" in new_data:
+            guild_conf["command_permissions"] = new_data["command_permissions"]
+        if "permission_roles" in new_data:
+            guild_conf["permission_roles"] = new_data["permission_roles"]
             
         utils.save_guild_config(session_guild_id, guild_conf)
         
@@ -701,7 +770,8 @@ async def get_guild_channels(guild_id: str):
     for ch in guild.text_channels:
         channels_list.append({
             "id": str(ch.id),
-            "name": ch.name
+            "name": ch.name,
+            "type": "text"
         })
     return channels_list
 
@@ -1002,6 +1072,100 @@ async def save_template(request: TemplateSaveRequest, req_data: Request):
         logger.error(f"Error saving template {request.name}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/templates/{name}/preview")
+async def preview_template(name: str, guild_id: str, req_data: Request):
+    auth_header = req_data.headers.get("Authorization")
+    token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else ""
+    session_guild_id = auth.get_session_guild_id(token)
+    session_role = auth.get_session_role(token)
+    if session_role == "tenant" and session_guild_id:
+        if str(guild_id) != session_guild_id:
+            raise HTTPException(status_code=403, detail="Forbidden: Session not authorized for this server")
+            
+    bot = get_active_bot()
+    guild = bot.get_guild(parse_id(guild_id, "guild_id"))
+    if not guild:
+        raise HTTPException(status_code=404, detail="Guild not found.")
+
+    templates_dir = utils.get_writeable_path("templates")
+    import re
+    import json
+    safe_name = re.sub(r'[^a-zA-Z0-9_-]', '', name)
+    file_path = os.path.join(templates_dir, f"{safe_name}.json")
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail=f"Template '{name}' not found.")
+
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            template_data = json.load(f)
+            
+        roles_to_create = []
+        roles_to_skip = []
+        for r in template_data.get("roles", []):
+            role_name = r["name"]
+            existing = discord.utils.get(guild.roles, name=role_name)
+            if existing:
+                roles_to_skip.append(role_name)
+            else:
+                roles_to_create.append(role_name)
+
+        categories_to_create = []
+        categories_to_skip = []
+        channels_to_create = []
+        channels_to_skip = []
+
+        for cat in template_data.get("categories", []):
+            cat_name = cat["name"]
+            existing_cat = discord.utils.get(guild.categories, name=cat_name)
+            if existing_cat:
+                categories_to_skip.append(cat_name)
+            else:
+                categories_to_create.append(cat_name)
+
+            for ch in cat.get("channels", []):
+                ch_name = ch["name"]
+                ch_type = ch["type"]
+                existing_ch = None
+                if ch_type == "text":
+                    existing_ch = discord.utils.get(guild.text_channels, name=ch_name)
+                elif ch_type == "voice":
+                    existing_ch = discord.utils.get(guild.voice_channels, name=ch_name)
+
+                if existing_ch:
+                    channels_to_skip.append(f"{ch_name} ({ch_type})")
+                else:
+                    channels_to_create.append(f"{ch_name} ({ch_type})")
+
+        for ch in template_data.get("uncategorized_channels", []):
+            ch_name = ch["name"]
+            ch_type = ch["type"]
+            existing_ch = None
+            if ch_type == "text":
+                existing_ch = discord.utils.get(guild.text_channels, name=ch_name)
+            elif ch_type == "voice":
+                existing_ch = discord.utils.get(guild.voice_channels, name=ch_name)
+
+            if existing_ch:
+                channels_to_skip.append(f"{ch_name} ({ch_type})")
+            else:
+                channels_to_create.append(f"{ch_name} ({ch_type})")
+
+        return {
+            "template_name": name,
+            "summary": {
+                "categories_to_create": categories_to_create,
+                "categories_to_skip": categories_to_skip,
+                "channels_to_create": channels_to_create,
+                "channels_to_skip": channels_to_skip,
+                "roles_to_create": roles_to_create,
+                "roles_to_skip": roles_to_skip
+            },
+            "template_data": template_data
+        }
+    except Exception as e:
+        logger.error(f"Error previewing template {name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/api/templates/apply")
 async def apply_template(request: TemplateApplyRequest, req_data: Request):
     auth_header = req_data.headers.get("Authorization")
@@ -1017,6 +1181,9 @@ async def apply_template(request: TemplateApplyRequest, req_data: Request):
     if not guild:
         raise HTTPException(status_code=404, detail="Guild not found.")
         
+    if not request.confirm:
+        raise HTTPException(status_code=400, detail="Template deployment requires explicit confirmation.")
+        
     templates_dir = utils.get_writeable_path("templates")
     import re
     safe_name = re.sub(r'[^a-zA-Z0-9_-]', '', request.name)
@@ -1029,6 +1196,49 @@ async def apply_template(request: TemplateApplyRequest, req_data: Request):
         import json
         with open(file_path, "r", encoding="utf-8") as f:
             backup_data = json.load(f)
+            
+        if request.customizations:
+            disabled = request.customizations.get("disabled_elements", [])
+            renames = request.customizations.get("renames", {})
+
+            # Mutate categories and channels
+            new_categories = []
+            for cat in backup_data.get("categories", []):
+                if cat["name"] in disabled:
+                    continue
+                if cat["name"] in renames:
+                    cat["name"] = renames[cat["name"]]
+                
+                new_channels = []
+                for ch in cat.get("channels", []):
+                    if ch["name"] in disabled:
+                        continue
+                    if ch["name"] in renames:
+                        ch["name"] = renames[ch["name"]]
+                    new_channels.append(ch)
+                cat["channels"] = new_channels
+                new_categories.append(cat)
+            backup_data["categories"] = new_categories
+
+            # Mutate uncategorized
+            new_uncat = []
+            for ch in backup_data.get("uncategorized_channels", []):
+                if ch["name"] in disabled:
+                    continue
+                if ch["name"] in renames:
+                    ch["name"] = renames[ch["name"]]
+                new_uncat.append(ch)
+            backup_data["uncategorized_channels"] = new_uncat
+
+            # Mutate roles
+            new_roles = []
+            for role in backup_data.get("roles", []):
+                if role["name"] in disabled:
+                    continue
+                if role["name"] in renames:
+                    role["name"] = renames[role["name"]]
+                new_roles.append(role)
+            backup_data["roles"] = new_roles
             
         success = await bot_manager.restore_guild_layout(guild, backup_data)
         if success:
@@ -1059,6 +1269,52 @@ async def delete_template(name: str):
         logger.error(f"Error deleting template {name}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/guilds/{guild_id}/permissions")
+async def get_guild_permissions(guild_id: str, request: Request):
+    auth_header = request.headers.get("Authorization")
+    token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else ""
+    session_guild_id = auth.get_session_guild_id(token)
+    session_role = auth.get_session_role(token)
+    if session_role == "tenant" and session_guild_id:
+        if str(guild_id) != session_guild_id:
+            raise HTTPException(status_code=403, detail="Forbidden: Mismatched guild ID.")
+            
+    guild_conf = utils.get_guild_config(guild_id)
+    return {
+        "command_permissions": guild_conf.get("command_permissions", {}),
+        "permission_roles": guild_conf.get("permission_roles", {
+            "admin_role_id": None,
+            "moderator_role_id": None
+        })
+    }
+
+@app.put("/api/guilds/{guild_id}/permissions")
+async def update_guild_permissions(guild_id: str, payload: PermissionsPutRequest, request: Request):
+    auth_header = request.headers.get("Authorization")
+    token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else ""
+    session_guild_id = auth.get_session_guild_id(token)
+    session_role = auth.get_session_role(token)
+    if session_role == "tenant" and session_guild_id:
+        if str(guild_id) != session_guild_id:
+            raise HTTPException(status_code=403, detail="Forbidden: Mismatched guild ID.")
+            
+    guild_conf = utils.get_guild_config(guild_id)
+    
+    guild_conf["command_permissions"] = {
+        k: v.model_dump() for k, v in payload.command_permissions.items()
+    }
+    guild_conf["permission_roles"] = payload.permission_roles.model_dump()
+    
+    utils.save_guild_config(guild_id, guild_conf)
+    
+    # Update running bot configuration references
+    bot = bot_manager.get_bot()
+    if bot and bot.is_ready():
+        bot.config = utils.load_config()
+        
+    audit_log.log_action("admin", "CONFIG_CHANGE", f"Command permissions updated for server {guild_id}", guild_id)
+    return {"status": "success"}
+
 # Music Bot Endpoints
 
 @app.get("/api/guilds/{guild_id}/music/status")
@@ -1075,7 +1331,7 @@ async def get_voice_channels(guild_id: str):
     guild = bot.get_guild(parse_id(guild_id, "guild_id"))
     if not guild:
         raise HTTPException(status_code=404, detail="Guild not found.")
-    return [{"id": str(ch.id), "name": ch.name} for ch in guild.voice_channels]
+    return [{"id": str(ch.id), "name": ch.name, "type": "voice"} for ch in guild.voice_channels]
 
 @app.post("/api/guilds/{guild_id}/music/play")
 async def music_play_endpoint(guild_id: str, request: MusicPlayRequest):
@@ -1599,9 +1855,38 @@ async def websocket_logs(websocket: WebSocket, token: Optional[str] = None):
 async def get_giveaways(guild_id: str):
     giveaways = await utils.load_giveaways()
     
+    bot = get_active_bot()
+    guild = None
+    if bot:
+        try:
+            guild = bot.get_guild(int(guild_id))
+        except Exception:
+            pass
+            
     guild_gws = []
     for msg_id, gw in giveaways.items():
-        if gw.get("guild_id") == guild_id:
+        if str(gw.get("guild_id")) == str(guild_id):
+            resolved_winners = []
+            for w in gw.get("winners", []):
+                member = None
+                if guild:
+                    try:
+                        member = guild.get_member(int(w))
+                    except Exception:
+                        pass
+                if member:
+                    resolved_winners.append(member.name)
+                else:
+                    if bot:
+                        try:
+                            user = bot.get_user(int(w))
+                            if user:
+                                resolved_winners.append(user.name)
+                                continue
+                        except Exception:
+                            pass
+                    resolved_winners.append(str(w))
+            
             guild_gws.append({
                 "message_id": msg_id,
                 "channel_id": gw.get("channel_id"),
@@ -1609,7 +1894,7 @@ async def get_giveaways(guild_id: str):
                 "winners_count": gw.get("winners_count"),
                 "end_time": gw.get("end_time"),
                 "entrants_count": len(gw.get("entrants", [])),
-                "winners": gw.get("winners", []),
+                "winners": resolved_winners,
                 "ended": gw.get("ended", False),
                 "host_id": gw.get("host_id")
             })
@@ -1761,95 +2046,22 @@ async def get_index():
     return {"message": "Server online. Frontend assets missing in static/"}
 
 def init_default_templates():
-    import json
+    import shutil
     templates_dir = utils.get_writeable_path("templates")
     os.makedirs(templates_dir, exist_ok=True)
     
-    # 1. Gaming Template
-    gaming_path = os.path.join(templates_dir, "gaming.json")
-    if not os.path.exists(gaming_path):
-        gaming_tpl = {
-            "name": "gaming",
-            "verification_level": "medium",
-            "explicit_content_filter": "all_members",
-            "roles": [
-                {"name": "Admin", "color": 15671396, "hoist": True, "permissions": 8, "position": 3},
-                {"name": "Moderator", "color": 3900150, "hoist": True, "permissions": 268435486, "position": 2},
-                {"name": "Member", "color": 1096065, "hoist": False, "permissions": 104324673, "position": 1}
-            ],
-            "categories": [
-                {
-                    "name": "🏆 INFORMATION",
-                    "position": 1,
-                    "overwrites": [],
-                    "channels": [
-                        {"name": "welcome", "type": "text", "position": 1, "overwrites": [{"target_type": "role", "target_name": "@everyone", "allow": 0, "deny": 2048}]},
-                        {"name": "rules", "type": "text", "position": 2, "overwrites": [{"target_type": "role", "target_name": "@everyone", "allow": 0, "deny": 2048}]},
-                        {"name": "announcements", "type": "text", "position": 3, "overwrites": [{"target_type": "role", "target_name": "@everyone", "allow": 0, "deny": 2048}]}
-                    ]
-                },
-                {
-                    "name": "💬 TEXT CHANNELS",
-                    "position": 2,
-                    "overwrites": [],
-                    "channels": [
-                        {"name": "general", "type": "text", "position": 1, "overwrites": []},
-                        {"name": "clips-and-media", "type": "text", "position": 2, "overwrites": []},
-                        {"name": "looking-for-group", "type": "text", "position": 3, "overwrites": []}
-                    ]
-                },
-                {
-                    "name": "🔊 VOICE CHANNELS",
-                    "position": 3,
-                    "overwrites": [],
-                    "channels": [
-                        {"name": "Lobby 1", "type": "voice", "position": 1, "overwrites": []},
-                        {"name": "Lobby 2", "type": "voice", "position": 2, "overwrites": []},
-                        {"name": "Gaming Voice 1", "type": "voice", "position": 3, "overwrites": []}
-                    ]
-                }
-            ],
-            "uncategorized_channels": []
-        }
-        with open(gaming_path, "w", encoding="utf-8") as f:
-            json.dump(gaming_tpl, f, indent=2)
-            
-    # 2. Community Template
-    community_path = os.path.join(templates_dir, "community.json")
-    if not os.path.exists(community_path):
-        community_tpl = {
-            "name": "community",
-            "verification_level": "low",
-            "explicit_content_filter": "all_members",
-            "roles": [
-                {"name": "Staff", "color": 3900150, "hoist": True, "permissions": 268435486, "position": 3},
-                {"name": "VIP", "color": 15485081, "hoist": True, "permissions": 104324673, "position": 2},
-                {"name": "Member", "color": 9741240, "hoist": False, "permissions": 104324673, "position": 1}
-            ],
-            "categories": [
-                {
-                    "name": "📢 WELCOME & INFO",
-                    "position": 1,
-                    "overwrites": [],
-                    "channels": [
-                        {"name": "welcome", "type": "text", "position": 1, "overwrites": [{"target_type": "role", "target_name": "@everyone", "allow": 0, "deny": 2048}]},
-                        {"name": "rules-and-info", "type": "text", "position": 2, "overwrites": [{"target_type": "role", "target_name": "@everyone", "allow": 0, "deny": 2048}]}
-                    ]
-                },
-                {
-                    "name": "💬 DISCUSSION",
-                    "position": 2,
-                    "overwrites": [],
-                    "channels": [
-                        {"name": "general-chat", "type": "text", "position": 1, "overwrites": []},
-                        {"name": "off-topic", "type": "text", "position": 2, "overwrites": []},
-                        {"name": "memes-and-media", "type": "text", "position": 3, "overwrites": []}
-                    ]
-                }
-            ],
-            "uncategorized_channels": []
-        }
-        with open(community_path, "w", encoding="utf-8") as f:
-            json.dump(community_tpl, f, indent=2)
+    # Dynamically initialize default templates by copying all builtin JSON templates
+    builtin_dir = utils.get_resource_path(os.path.join("templates", "builtin"))
+    if os.path.exists(builtin_dir):
+        for filename in os.listdir(builtin_dir):
+            if filename.endswith(".json"):
+                src_path = os.path.join(builtin_dir, filename)
+                dest_path = os.path.join(templates_dir, filename)
+                if not os.path.exists(dest_path):
+                    try:
+                        shutil.copy2(src_path, dest_path)
+                        logger.info(f"Initialized template: {filename}")
+                    except Exception as e:
+                        logger.error(f"Failed to copy template {filename}: {e}")
 
 # Deprecated startup event removed (lifespan manager is used instead)

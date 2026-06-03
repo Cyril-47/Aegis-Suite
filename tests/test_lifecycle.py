@@ -86,7 +86,6 @@ def test_illegal_transitions_from_running(to_state, reason):
 
 @pytest.mark.parametrize("to_state,reason", [
     (LifecycleState.BOOTING, None),
-    (LifecycleState.SAFE_MODE, ReasonCode.DB_RECOVERY)
 ])
 def test_illegal_transitions_from_safe_mode(to_state, reason):
     """Verify illegal transitions from SAFE_MODE raise ValueError."""
@@ -94,6 +93,53 @@ def test_illegal_transitions_from_safe_mode(to_state, reason):
     sm.transition(LifecycleState.SAFE_MODE, ReasonCode.TOKEN_RECOVERY)
     with pytest.raises(ValueError):
         sm.transition(to_state, reason)
+
+
+def test_safe_mode_self_transition_invalid_reasons():
+    """Verify self-transitioning to SAFE_MODE with invalid/missing reason raises ValueError."""
+    sm = LifecycleStateMachine()
+    sm.transition(LifecycleState.SAFE_MODE, ReasonCode.TOKEN_RECOVERY)
+    with pytest.raises(ValueError):
+        sm.transition(LifecycleState.SAFE_MODE, None)
+    with pytest.raises(ValueError):
+        sm.transition(LifecycleState.SAFE_MODE, "invalid-reason")
+
+
+def test_safe_mode_self_transitions():
+    """Verify that SAFE_MODE to SAFE_MODE transitions are allowed and reason code can be updated."""
+    events = []
+
+    def hook(state, reason):
+        events.append((state, reason))
+
+    sm = LifecycleStateMachine(on_transition=hook)
+    
+    # 1. Initial transition to SAFE_MODE (e.g. setup failure)
+    sm.transition(LifecycleState.SAFE_MODE, ReasonCode.NEEDS_SETUP)
+    assert sm.current_state == LifecycleState.SAFE_MODE
+    assert sm.reason == ReasonCode.NEEDS_SETUP
+    
+    # 2. Repeated setup failure (self-transition)
+    sm.transition(LifecycleState.SAFE_MODE, ReasonCode.NEEDS_SETUP)
+    assert sm.current_state == LifecycleState.SAFE_MODE
+    assert sm.reason == ReasonCode.NEEDS_SETUP
+    
+    # 3. Transition to different reason (e.g., token recovery failure)
+    sm.transition(LifecycleState.SAFE_MODE, ReasonCode.TOKEN_RECOVERY)
+    assert sm.current_state == LifecycleState.SAFE_MODE
+    assert sm.reason == ReasonCode.TOKEN_RECOVERY
+
+    # 4. Another self-transition with another failure
+    sm.transition(LifecycleState.SAFE_MODE, ReasonCode.DB_RECOVERY)
+    assert sm.current_state == LifecycleState.SAFE_MODE
+    assert sm.reason == ReasonCode.DB_RECOVERY
+    
+    # Check that hook was triggered on each self-transition
+    assert len(events) == 4
+    assert events[0] == (LifecycleState.SAFE_MODE, ReasonCode.NEEDS_SETUP)
+    assert events[1] == (LifecycleState.SAFE_MODE, ReasonCode.NEEDS_SETUP)
+    assert events[2] == (LifecycleState.SAFE_MODE, ReasonCode.TOKEN_RECOVERY)
+    assert events[3] == (LifecycleState.SAFE_MODE, ReasonCode.DB_RECOVERY)
 
 
 @pytest.mark.parametrize("to_state,reason", [

@@ -212,8 +212,9 @@ def test_logging_unwritable_fallback():
     setup_logging(bad_p)
     
     root_logger = logging.getLogger()
-    assert len(root_logger.handlers) == 1  # Only Console handler should be present
-    assert isinstance(root_logger.handlers[0], logging.StreamHandler)
+    from logging.handlers import RotatingFileHandler
+    assert not any(isinstance(h, RotatingFileHandler) for h in root_logger.handlers)
+    assert any(isinstance(h, logging.StreamHandler) for h in root_logger.handlers)
 
 
 def test_logging_redaction(paths_tmp):

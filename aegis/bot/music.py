@@ -38,39 +38,98 @@ class MusicPlayer:
         self.current = None
         self.voice_client = None
         self.volume = 0.5
-        self.loop = asyncio.get_event_loop()
+        try:
+            self.loop = asyncio.get_running_loop()
+        except RuntimeError:
+            self.loop = asyncio.get_event_loop()
+        self.disconnect_task = None
 
     async def join_channel(self, channel_id: int):
         """Joins a voice channel."""
+        self.loop = asyncio.get_running_loop()
         channel = self.guild.get_channel(channel_id)
         if not isinstance(channel, discord.VoiceChannel):
             raise ValueError("Target channel is not a voice channel.")
+            
+        # Log and check bot permissions (Fix 4006 permissions issue)
+        permissions = channel.permissions_for(self.guild.me)
+        logger.info(f"Bot permissions in channel '{channel.name}' (ID: {channel_id}): "
+                    f"view_channel={permissions.view_channel}, connect={permissions.connect}, "
+                    f"speak={permissions.speak}, administrator={self.guild.me.guild_permissions.administrator}")
+        
+        if not permissions.view_channel:
+            raise ValueError("Bot does not have View Channel permission in the target voice channel.")
+        if not permissions.connect:
+            raise ValueError("Bot does not have Connect permission in the target voice channel.")
             
         try:
             import nacl
         except ImportError:
             raise RuntimeError("Voice support is disabled because PyNaCl library is not installed.")
             
-        if self.voice_client and self.voice_client.is_connected():
-            await self.voice_client.move_to(channel)
-        else:
+        # Authoritative voice client check (Fix 4006)
+        voice_client = self.guild.voice_client
+        if voice_client:
+            if voice_client.is_connected():
+                if voice_client.channel.id == channel_id:
+                    self.voice_client = voice_client
+                    return voice_client
+                try:
+                    await voice_client.move_to(channel)
+                    self.voice_client = voice_client
+                    return voice_client
+                except Exception as e:
+                    logger.warning(f"Failed to move voice channel: {e}. Reconnecting from scratch.")
+                    try:
+                        await voice_client.disconnect(force=True)
+                    except Exception:
+                        pass
+            else:
+                try:
+                    await voice_client.disconnect(force=True)
+                except Exception:
+                    pass
+
+        try:
+            self.voice_client = await channel.connect()
+        except Exception as e:
+            logger.warning(f"Initial connection failed ({e}), clearing voice state and retrying...")
+            try:
+                await self.guild.change_voice_state(channel=None)
+            except Exception:
+                pass
+            
+            # Check voice client again after state change
+            voice_client = self.guild.voice_client
+            if voice_client:
+                try:
+                    await voice_client.disconnect(force=True)
+                except Exception:
+                    pass
+            
+            await asyncio.sleep(1.5)
             try:
                 self.voice_client = await channel.connect()
-            except Exception as e:
-                logger.error(f"Failed to connect to voice channel: {e}")
-                raise e
+            except Exception as retry_err:
+                logger.error(f"Failed to connect to voice channel on retry: {retry_err}")
+                raise retry_err
         return self.voice_client
 
     async def leave_channel(self):
         """Leaves voice channel and clears queue."""
+        self.loop = asyncio.get_running_loop()
         if self.voice_client and self.voice_client.is_connected():
             await self.voice_client.disconnect()
         self.voice_client = None
         self.queue = []
         self.current = None
+        if self.disconnect_task and not self.disconnect_task.done():
+            self.disconnect_task.cancel()
+        self.disconnect_task = None
 
     async def play_next(self):
         """Plays the next song in queue."""
+        self.loop = asyncio.get_running_loop()
         if len(self.queue) == 0:
             self.current = None
             return
@@ -115,10 +174,11 @@ class MusicPlayer:
 
     async def add_to_queue(self, query: str) -> dict:
         """Searches YouTube and adds song to queue."""
+        self.loop = asyncio.get_running_loop()
         if not yt_dlp:
             raise RuntimeError("yt-dlp is not installed on this system.")
             
-        loop = asyncio.get_event_loop()
+        loop = self.loop
         try:
             data = await loop.run_in_executor(
                 None, 

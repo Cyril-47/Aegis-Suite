@@ -462,6 +462,15 @@ def get_guild_config(guild_id: str) -> dict:
             guild_conf[key] = DEFAULT_CONFIG[key].copy()
     if "custom_commands" not in guild_conf:
         guild_conf["custom_commands"] = {}
+    if "command_permissions" not in guild_conf:
+        guild_conf["command_permissions"] = {}
+    if "permission_roles" not in guild_conf:
+        guild_conf["permission_roles"] = {
+            "admin_role_id": None,
+            "moderator_role_id": None
+        }
+    if "music_settings" not in guild_conf:
+        guild_conf["music_settings"] = {}
         
     return guild_conf
 
@@ -494,7 +503,21 @@ def get_guild_custom_commands(config, guild_id: str) -> dict:
 
 # Isolated Giveaway Store (Tier 7.2)
 GIVEAWAYS_PATH = get_writeable_path("giveaways.json")
-giveaways_lock = asyncio.Lock()
+class ThreadSafeReentrantAsyncLock:
+    """A thread-safe and reentrant async-compatible lock wrapper around threading.RLock.
+    Avoids asyncio.Lock deadlock when nested or called across threads (FastAPI vs Bot threads).
+    """
+    def __init__(self):
+        self._lock = threading.RLock()
+
+    async def __aenter__(self):
+        self._lock.acquire()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        self._lock.release()
+
+giveaways_lock = ThreadSafeReentrantAsyncLock()
 
 async def load_giveaways() -> dict:
     async with giveaways_lock:

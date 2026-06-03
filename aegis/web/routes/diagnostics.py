@@ -7,6 +7,7 @@ logger = logging.getLogger("aegis.web.routes.diagnostics")
 router = APIRouter()
 
 @router.get("/api/diagnostics/package")
+@router.get("/api/diagnostics/download")
 def download_diagnostics(request: Request):
     """Generates a zip package containing logs and a sanitized system status snapshot using generate_package."""
     core = request.app.state.core

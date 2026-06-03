@@ -82,8 +82,8 @@ def rotate_backups(paths: Paths, keep: int = 10) -> None:
         return
         
     backups = list(paths.backups_db.glob("aegis_*.db"))
-    # Sort lexicographically by filename (lexicographical sorting of timestamp YYYYMMDD_HHMMSS works)
-    backups.sort(key=lambda p: p.name)
+    # Sort by filesystem modification time, using filename as tie-breaker (oldest first)
+    backups.sort(key=lambda p: (p.stat().st_mtime, p.name))
     
     if len(backups) > keep:
         to_delete = backups[:-keep]

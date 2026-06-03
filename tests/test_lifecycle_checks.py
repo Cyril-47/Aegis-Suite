@@ -208,8 +208,14 @@ def test_recovery_endpoint_backups_list(paths_tmp, temp_appdata, monkeypatch):
     
     # Create mock backup files
     paths_tmp.backups_db.mkdir(parents=True, exist_ok=True)
-    (paths_tmp.backups_db / "aegis_baseline_v1_20260531_120000.db").touch()
-    (paths_tmp.backups_db / "aegis_baseline_v1_20260531_140000.db").touch()
+    f1 = paths_tmp.backups_db / "aegis_baseline_v1_20260531_120000.db"
+    f2 = paths_tmp.backups_db / "aegis_baseline_v1_20260531_140000.db"
+    f1.touch()
+    f2.touch()
+    import time
+    now = time.time()
+    os.utime(f1, (now - 3600, now - 3600))
+    os.utime(f2, (now, now))
     
     app = build_app(core)
     client = TestClient(app)

@@ -5,6 +5,10 @@ import datetime
 from enum import Enum
 import discord
 from discord.ext import commands
+import discord.gateway
+import threading
+
+# Monkeypatch removed. Native discord.py v2.7.x now supports gateway v=8 and E2EE/DAVE protocol directly.
 
 from bot_manager import DiscordOptimizerBot as LegacyDiscordOptimizerBot
 
@@ -23,6 +27,7 @@ def build_intents() -> discord.Intents:
     intents.members = True
     intents.messages = True
     intents.message_content = True
+    intents.voice_states = True
     return intents
 
 async def validate_token(token: str, timeout: float = 10.0) -> TokenVerdict:

@@ -7,6 +7,10 @@ from typing import Optional
 import discord
 from discord.ext import commands
 from discord import app_commands
+from aegis.core.permissions.registry import CommandRegistry
+from aegis.bot.permissions import universal_permission_check
+from aegis.bot.music_permissions import music_permission_gate
+from aegis.core.permissions.resolver import PermissionResolver
 
 logger = logging.getLogger("aegis.bot.commands")
 
@@ -16,6 +20,7 @@ def register_commands(bot: commands.Bot) -> None:
     # linkdashboard command
     @bot.hybrid_command(name="linkdashboard", description="Generates a temporary linking code for the web dashboard.")
     @app_commands.default_permissions(administrator=True)
+    @universal_permission_check(CommandRegistry.LINK_DASHBOARD)
     async def slash_linkdashboard(ctx: commands.Context):
         if not ctx.guild:
             await ctx.send("This command can only be used inside a Discord server.", ephemeral=True)
@@ -56,6 +61,7 @@ def register_commands(bot: commands.Bot) -> None:
     @bot.hybrid_command(name="unlink", description="Revokes the web dashboard link for this server.")
     @app_commands.describe(purge="Whether to completely wipe this server's dashboard configurations from the bot.")
     @app_commands.default_permissions(administrator=True)
+    @universal_permission_check(CommandRegistry.UNLINK)
     async def slash_unlink(ctx: commands.Context, purge: bool = False):
         if not ctx.guild:
             await ctx.send("This command can only be used inside a Discord server.", ephemeral=True)
@@ -107,6 +113,7 @@ def register_commands(bot: commands.Bot) -> None:
     # audit command
     @bot.hybrid_command(name="audit", description="Scans and audits the server structure and permissions.")
     @app_commands.default_permissions(administrator=True)
+    @universal_permission_check(CommandRegistry.AUDIT_SERVER)
     async def slash_audit(ctx: commands.Context):
         await ctx.defer(ephemeral=True)
         try:
@@ -137,6 +144,7 @@ def register_commands(bot: commands.Bot) -> None:
     @bot.hybrid_command(name="optimize_server", description="Optimizes the server. Warning: will reorganize channels.")
     @app_commands.describe(preset="Select a preset layout (gaming, community, developer)", handling="How to handle existing channels (archive, keep, delete)")
     @app_commands.default_permissions(administrator=True)
+    @universal_permission_check(CommandRegistry.OPTIMIZE_SERVER)
     async def slash_optimize(ctx: commands.Context, preset: str, handling: str):
         if preset.lower() not in ["gaming", "community", "developer"]:
             await ctx.send("❌ Invalid preset. Use gaming, community, or developer.", ephemeral=True)
@@ -160,6 +168,7 @@ def register_commands(bot: commands.Bot) -> None:
     # Music Bot commands
     @bot.hybrid_command(name="play", description="Plays a song from YouTube URL or search query.")
     @app_commands.describe(query="Song URL or YouTube search keywords")
+    @music_permission_gate(CommandRegistry.MUSIC_PLAY)
     async def music_play(ctx: commands.Context, query: str):
         await ctx.defer()
         if not ctx.author.voice:
@@ -181,6 +190,7 @@ def register_commands(bot: commands.Bot) -> None:
             await ctx.send(f"❌ Error: {e}")
 
     @bot.hybrid_command(name="pause", description="Pauses current playback.")
+    @music_permission_gate(CommandRegistry.MUSIC_PAUSE)
     async def music_pause(ctx: commands.Context):
         player = bot.get_music_player(ctx.guild.id)
         if player and player.pause():
@@ -189,6 +199,7 @@ def register_commands(bot: commands.Bot) -> None:
             await ctx.send("❌ Music is not playing or already paused.")
 
     @bot.hybrid_command(name="resume", description="Resumes current playback.")
+    @music_permission_gate(CommandRegistry.MUSIC_RESUME)
     async def music_resume(ctx: commands.Context):
         player = bot.get_music_player(ctx.guild.id)
         if player and player.resume():
@@ -197,6 +208,7 @@ def register_commands(bot: commands.Bot) -> None:
             await ctx.send("❌ Playback is not paused.")
 
     @bot.hybrid_command(name="skip", description="Skips the current song.")
+    @music_permission_gate(CommandRegistry.MUSIC_SKIP)
     async def music_skip(ctx: commands.Context):
         player = bot.get_music_player(ctx.guild.id)
         if player and player.skip():
@@ -205,6 +217,7 @@ def register_commands(bot: commands.Bot) -> None:
             await ctx.send("❌ Nothing is playing.")
 
     @bot.hybrid_command(name="stop", description="Stops music and clears queue.")
+    @music_permission_gate(CommandRegistry.MUSIC_STOP)
     async def music_stop(ctx: commands.Context):
         player = bot.get_music_player(ctx.guild.id)
         if player and player.stop():
@@ -213,6 +226,7 @@ def register_commands(bot: commands.Bot) -> None:
             await ctx.send("❌ Nothing is playing.")
 
     @bot.hybrid_command(name="queue", description="Shows the current music queue.")
+    @music_permission_gate(CommandRegistry.MUSIC_QUEUE)
     async def music_queue(ctx: commands.Context):
         player = bot.get_music_player(ctx.guild.id)
         if not player or (not player.current and len(player.queue) == 0):
@@ -239,6 +253,7 @@ def register_commands(bot: commands.Bot) -> None:
 
     @bot.hybrid_command(name="volume", description="Adjusts player volume.")
     @app_commands.describe(level="Volume level from 0 to 100")
+    @music_permission_gate(CommandRegistry.MUSIC_VOLUME)
     async def music_volume(ctx: commands.Context, level: int):
         if level < 0 or level > 100:
             await ctx.send("❌ Volume must be between 0 and 100.")
@@ -251,6 +266,7 @@ def register_commands(bot: commands.Bot) -> None:
             await ctx.send("❌ Music player is not active.")
 
     @bot.hybrid_command(name="nowplaying", description="Shows details of the now playing song.")
+    @music_permission_gate(CommandRegistry.MUSIC_NOWPLAYING)
     async def music_nowplaying(ctx: commands.Context):
         player = bot.get_music_player(ctx.guild.id)
         if player and player.current:
@@ -266,6 +282,7 @@ def register_commands(bot: commands.Bot) -> None:
             await ctx.send("❌ Nothing is playing.")
 
     @bot.hybrid_command(name="shuffle", description="Shuffles the queue.")
+    @music_permission_gate(CommandRegistry.MUSIC_SHUFFLE)
     async def music_shuffle(ctx: commands.Context):
         player = bot.get_music_player(ctx.guild.id)
         if player and len(player.queue) > 1:
@@ -277,6 +294,7 @@ def register_commands(bot: commands.Bot) -> None:
     # Leveling System commands
     @bot.hybrid_command(name="rank", description="Shows rank information.")
     @app_commands.describe(member="Select a member (optional)")
+    @universal_permission_check(CommandRegistry.LEVEL_RANK)
     async def level_rank(ctx: commands.Context, member: Optional[discord.Member] = None):
         target = member or ctx.author
         from aegis.bot.leveling import leveling_system
@@ -297,6 +315,7 @@ def register_commands(bot: commands.Bot) -> None:
         await ctx.send(embed=embed)
 
     @bot.hybrid_command(name="leaderboard", description="Shows the server XP leaderboard.")
+    @universal_permission_check(CommandRegistry.LEVEL_LEADERBOARD)
     async def level_leaderboard(ctx: commands.Context):
         from aegis.bot.leveling import leveling_system
         leaderboard = leveling_system.get_leaderboard(ctx.guild.id, 10)
@@ -317,6 +336,7 @@ def register_commands(bot: commands.Bot) -> None:
     @bot.hybrid_command(name="setlevelrole", description="Configures role reward for reaching a level.")
     @app_commands.describe(level="Level required", role="Role to reward")
     @app_commands.default_permissions(administrator=True)
+    @universal_permission_check(CommandRegistry.LEVEL_SET_ROLE)
     async def level_setrole(ctx: commands.Context, level: int, role: discord.Role):
         import utils
         config = utils.load_config()
@@ -351,6 +371,28 @@ def register_commands(bot: commands.Bot) -> None:
     ):
         from bot_manager import parse_duration, start_giveaway_bot, reroll_giveaway_bot
         action = action.lower().strip()
+
+        # Giveaway command permission check mapping
+        action_map = {
+            "start": CommandRegistry.GIVEAWAY_CREATE,
+            "end": CommandRegistry.GIVEAWAY_STOP,
+            "reroll": CommandRegistry.GIVEAWAY_REROLL
+        }
+        gw_cmd = action_map.get(action, CommandRegistry.GIVEAWAY_CREATE)
+        user_roles = [str(role.id) for role in ctx.author.roles]
+        is_owner = ctx.author.id == ctx.guild.owner_id
+        has_admin = ctx.author.guild_permissions.administrator
+
+        allowed = await PermissionResolver.has_permission(
+            guild_id=str(ctx.guild.id),
+            user_id=str(ctx.author.id),
+            command_name=gw_cmd,
+            user_roles=user_roles,
+            is_owner=is_owner,
+            has_discord_admin=has_admin
+        )
+        if not allowed:
+            raise commands.MissingPermissions([f"Missing permissions to run command {gw_cmd}"])
         import utils
         if action == "start":
             if not prize:

@@ -86,6 +86,17 @@ If you want to run your **own** copy of Aegis Suite (Local PC mode), the easiest
 
 To re-run the wizard later (for example, to rotate credentials), delete `.env.enc` and re-launch the EXE. To inspect the encrypted contents, use `python -m secret_store decrypt --source .env.enc`.
 
+> [!IMPORTANT]
+> **Privileged Gateway Intents Required:**
+> While the token validation step verifies that your token is well-formed and can authenticate with Discord, it *cannot* detect if the required privileged Gateway Intents are enabled in the Discord Developer Portal.
+> 
+> You must navigate to the [Discord Developer Portal](https://discord.com/developers/applications), open your application, go to the **Bot** tab, scroll down to **Privileged Gateway Intents**, and toggle **ON** the following intents:
+> - **Presence Intent**
+> - **Server Members Intent**
+> - **Message Content Intent**
+> 
+> Failing to enable these intents will prevent the bot from receiving events (e.g., member joins, message-based auto-moderation) even if token validation succeeds.
+
 ---
 
 ## 🏠 Hosting Modes

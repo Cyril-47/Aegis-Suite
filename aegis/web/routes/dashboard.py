@@ -66,6 +66,8 @@ if not getattr(sys, 'frozen', False):
     os.makedirs(utils.get_writeable_path("static"), exist_ok=True)
 
 # Pydantic models for configuration
+from typing import List, Optional, Dict, Any, Literal
+
 class WelcomeSettingsModel(BaseModel):
     enabled: bool
     channel_id: Optional[str] = None
@@ -83,6 +85,9 @@ class AutomodSettingsModel(BaseModel):
     log_channel_id: Optional[str] = None
     log_channel_name: str
     profanity_words: List[str] = Field(default_factory=list)
+    block_invites: bool = False
+    whitelisted_domains: List[str] = Field(default_factory=list)
+    whitelisted_invites: List[str] = Field(default_factory=list)
 
 class TicketSettingsModel(BaseModel):
     enabled: bool
@@ -91,6 +96,15 @@ class TicketSettingsModel(BaseModel):
     ticket_channel_id: Optional[str] = None
     panel_message_id: Optional[str] = None
 
+class CommandPermissionRule(BaseModel):
+    mode: Literal["everyone", "moderator", "admin", "owner", "role", "roles"]
+    role_id: Optional[str] = None
+    role_ids: List[str] = Field(default_factory=list)
+
+class PermissionRoles(BaseModel):
+    admin_role_id: Optional[str] = None
+    moderator_role_id: Optional[str] = None
+
 class ConfigModel(BaseModel):
     client_id: str
     welcome_settings: WelcomeSettingsModel
@@ -98,6 +112,8 @@ class ConfigModel(BaseModel):
     ticket_settings: Optional[TicketSettingsModel] = None
     custom_commands: Optional[dict] = Field(default_factory=dict)
     admin_password_hash: Optional[str] = ""
+    command_permissions: Dict[str, CommandPermissionRule] = Field(default_factory=dict)
+    permission_roles: PermissionRoles = Field(default_factory=PermissionRoles)
 
 class HostingModePutRequest(BaseModel):
     # Dedicated request body for PUT /api/hosting-mode. The handler enforces
@@ -467,9 +483,22 @@ async def save_config(config_data: ConfigModel, request: Request):
         if not success:
             raise HTTPException(status_code=500, detail="Failed to save configuration file.")
             
+        # Update AppCore ConfigStore reference
+        core = getattr(request.app.state, "core", None)
+        if not core:
+            from aegis.core.app_core import _active_cores
+            if _active_cores:
+                core = _active_cores[-1]
+        if core:
+            from aegis.config.loader import ConfigStore
+            try:
+                core.config = ConfigStore.load(core.paths)
+            except Exception as e:
+                logger.error(f"Failed to reload AppCore config: {e}")
+
         # Dynamically update the running bot settings if running
         bot = bot_manager.get_bot()
-        if bot and bot.is_ready():
+        if bot:
             bot.config = current_config
             logger.info("Bot configuration updated in-memory.")
             
@@ -488,10 +517,24 @@ async def save_config(config_data: ConfigModel, request: Request):
             
         utils.save_guild_config(session_guild_id, guild_conf)
         
+        # Update AppCore ConfigStore reference
+        core = getattr(request.app.state, "core", None)
+        if not core:
+            from aegis.core.app_core import _active_cores
+            if _active_cores:
+                core = _active_cores[-1]
+        if core:
+            from aegis.config.loader import ConfigStore
+            try:
+                core.config = ConfigStore.load(core.paths)
+            except Exception as e:
+                logger.error(f"Failed to reload AppCore config: {e}")
+
         # Update running bot references
         bot = bot_manager.get_bot()
-        if bot and bot.is_ready():
+        if bot:
             bot.config = utils.load_config()
+            logger.info("Bot configuration updated in-memory for tenant.")
             
         audit_log.log_action("admin", "CONFIG_CHANGE", f"Dashboard configuration saved for server {session_guild_id}", session_guild_id)
         return {"status": "success", "token_changed": False}
@@ -575,7 +618,8 @@ async def get_guild_channels(guild_id: str):
     for ch in guild.text_channels:
         channels_list.append({
             "id": str(ch.id),
-            "name": ch.name
+            "name": ch.name,
+            "type": "text"
         })
     return channels_list
 
@@ -933,6 +977,55 @@ async def delete_template(name: str):
         logger.error(f"Error deleting template {name}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+class PermissionsPutRequest(BaseModel):
+    command_permissions: Dict[str, CommandPermissionRule]
+    permission_roles: PermissionRoles
+
+@router.get("/api/guilds/{guild_id}/permissions")
+async def get_guild_permissions(guild_id: str, request: Request):
+    auth_header = request.headers.get("Authorization")
+    token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else ""
+    session_guild_id = auth.get_session_guild_id(token)
+    session_role = auth.get_session_role(token)
+    if session_role == "tenant" and session_guild_id:
+        if str(guild_id) != session_guild_id:
+            raise HTTPException(status_code=403, detail="Forbidden: Mismatched guild ID.")
+            
+    guild_conf = utils.get_guild_config(guild_id)
+    return {
+        "command_permissions": guild_conf.get("command_permissions", {}),
+        "permission_roles": guild_conf.get("permission_roles", {
+            "admin_role_id": None,
+            "moderator_role_id": None
+        })
+    }
+
+@router.put("/api/guilds/{guild_id}/permissions")
+async def update_guild_permissions(guild_id: str, payload: PermissionsPutRequest, request: Request):
+    auth_header = request.headers.get("Authorization")
+    token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else ""
+    session_guild_id = auth.get_session_guild_id(token)
+    session_role = auth.get_session_role(token)
+    if session_role == "tenant" and session_guild_id:
+        if str(guild_id) != session_guild_id:
+            raise HTTPException(status_code=403, detail="Forbidden: Mismatched guild ID.")
+            
+    guild_conf = utils.get_guild_config(guild_id)
+    
+    guild_conf["command_permissions"] = {
+        k: v.model_dump() for k, v in payload.command_permissions.items()
+    }
+    guild_conf["permission_roles"] = payload.permission_roles.model_dump()
+    
+    utils.save_guild_config(guild_id, guild_conf)
+    
+    bot = bot_manager.get_bot()
+    if bot and bot.is_ready():
+        bot.config = utils.load_config()
+        
+    audit_log.log_action("admin", "CONFIG_CHANGE", f"Command permissions updated for server {guild_id}", guild_id)
+    return {"status": "success"}
+
 # Music Bot Endpoints
 
 @router.get("/api/guilds/{guild_id}/music/status")
@@ -949,7 +1042,7 @@ async def get_voice_channels(guild_id: str):
     guild = bot.get_guild(parse_id(guild_id, "guild_id"))
     if not guild:
         raise HTTPException(status_code=404, detail="Guild not found.")
-    return [{"id": str(ch.id), "name": ch.name} for ch in guild.voice_channels]
+    return [{"id": str(ch.id), "name": ch.name, "type": "voice"} for ch in guild.voice_channels]
 
 @router.post("/api/guilds/{guild_id}/music/play")
 async def music_play_endpoint(guild_id: str, request: MusicPlayRequest):
@@ -1473,9 +1566,38 @@ async def websocket_logs(websocket: WebSocket, token: Optional[str] = None):
 async def get_giveaways(guild_id: str):
     giveaways = await utils.load_giveaways()
     
+    bot = get_active_bot()
+    guild = None
+    if bot:
+        try:
+            guild = bot.get_guild(int(guild_id))
+        except Exception:
+            pass
+            
     guild_gws = []
     for msg_id, gw in giveaways.items():
-        if gw.get("guild_id") == guild_id:
+        if str(gw.get("guild_id")) == str(guild_id):
+            resolved_winners = []
+            for w in gw.get("winners", []):
+                member = None
+                if guild:
+                    try:
+                        member = guild.get_member(int(w))
+                    except Exception:
+                        pass
+                if member:
+                    resolved_winners.append(member.name)
+                else:
+                    if bot:
+                        try:
+                            user = bot.get_user(int(w))
+                            if user:
+                                resolved_winners.append(user.name)
+                                continue
+                        except Exception:
+                            pass
+                    resolved_winners.append(str(w))
+            
             guild_gws.append({
                 "message_id": msg_id,
                 "channel_id": gw.get("channel_id"),
@@ -1483,7 +1605,7 @@ async def get_giveaways(guild_id: str):
                 "winners_count": gw.get("winners_count"),
                 "end_time": gw.get("end_time"),
                 "entrants_count": len(gw.get("entrants", [])),
-                "winners": gw.get("winners", []),
+                "winners": resolved_winners,
                 "ended": gw.get("ended", False),
                 "host_id": gw.get("host_id")
             })

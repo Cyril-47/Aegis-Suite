@@ -309,6 +309,17 @@ def get_wizard_html(health_payload: dict) -> str:
             margin-top: 16px;
         }
 
+        .warning-box {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: #fde047;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            margin-top: 16px;
+        }
+
         /* Guild List Layout */
         .guild-list-container {
             max-height: 250px;
@@ -513,6 +524,9 @@ def get_wizard_html(health_payload: dict) -> str:
                 </div>
                 <div style="margin-top: 15px;">
                     <button class="btn btn-primary" onclick="verifyToken()" id="btn-verify-token">Validate & Save Token</button>
+                </div>
+                <div class="warning-box" style="margin-top: 16px;">
+                    ⚠️ <strong>Gateway Intents Notice:</strong> Successful token validation verifies bot credentials, but <em>cannot</em> verify if privileged Gateway Intents (Presence, Server Members, Message Content) are enabled in the <a href="https://discord.com/developers/applications" target="_blank" style="color: #818cf8; text-decoration: underline;">Discord Developer Portal</a>. Please ensure these intents are enabled under the "Bot" tab of your application settings.
                 </div>
                 <div id="token-error" class="error-box hidden"></div>
                 <div id="token-success" class="success-box hidden">✓ Token validation succeeded. Proceeding to server selection.</div>

@@ -58,6 +58,9 @@ def get_recovery_html(reason_code: str, health_payload: dict) -> str:
                     <button type="submit" class="btn btn-primary" id="token-submit-btn">Save & Validate Token</button>
                 </div>
             </form>
+            <div class="warning-box" style="margin-top: 16px;">
+                ⚠️ <strong>Gateway Intents Notice:</strong> Successful token validation verifies bot credentials, but <em>cannot</em> verify if privileged Gateway Intents (Presence, Server Members, Message Content) are enabled in the <a href="https://discord.com/developers/applications" target="_blank" class="link" style="color: #818cf8; text-decoration: underline;">Discord Developer Portal</a>. Please ensure these intents are enabled under the "Bot" tab of your application settings.
+            </div>
             <div id="token-error" class="error-box hidden"></div>
         </div>
         """
@@ -472,6 +475,17 @@ def get_recovery_html(reason_code: str, health_payload: dict) -> str:
             border-radius: 8px;
             padding: 12px 16px;
             color: #fca5a5;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            margin-top: 16px;
+        }
+
+        .warning-box {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: #fde047;
             font-size: 0.85rem;
             line-height: 1.5;
             margin-top: 16px;

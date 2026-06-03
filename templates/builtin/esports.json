@@ -1,0 +1,30 @@
+{
+  "name": "esports",
+  "verification_level": "high",
+  "explicit_content_filter": "all_members",
+  "roles": [
+    {"name": "Admin", "color": 15671396, "hoist": true, "permissions": 8, "position": 4},
+    {"name": "Manager", "color": 3900150, "hoist": true, "permissions": 268435486, "position": 3},
+    {"name": "Player", "color": 10181046, "hoist": true, "permissions": 104324673, "position": 2},
+    {"name": "Member", "color": 3447003, "hoist": false, "permissions": 104324673, "position": 1}
+  ],
+  "categories": [
+    {
+      "name": "📢 TOURNAMENTS",
+      "position": 1,
+      "channels": [
+        {"name": "schedule", "type": "text", "position": 1},
+        {"name": "roster-announcement", "type": "text", "position": 2}
+      ]
+    },
+    {
+      "name": "🎮 SCRIMS",
+      "position": 2,
+      "channels": [
+        {"name": "scrims-lobby", "type": "voice", "position": 1},
+        {"name": "Team A", "type": "voice", "position": 2},
+        {"name": "Team B", "type": "voice", "position": 3}
+      ]
+    }
+  ]
+}

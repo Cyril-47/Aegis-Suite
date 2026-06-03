@@ -107,6 +107,17 @@ def setup_logging(paths: Paths) -> None:
     console_handler.addFilter(redaction_filter)
     root_logger.addHandler(console_handler)
 
+    # Configure Web Console Handler
+    try:
+        from utils import WebConsoleHandler
+        web_handler = WebConsoleHandler()
+        web_handler.setLevel(logging.INFO)
+        web_handler.setFormatter(formatter)
+        web_handler.addFilter(redaction_filter)
+        root_logger.addHandler(web_handler)
+    except Exception as e:
+        print(f"Logging setup warning: Failed to initialize WebConsoleHandler ({e})")
+
     # Configure Rotating File Handlers (with fallback to console-only on failure)
     try:
         paths.log_file.parent.mkdir(parents=True, exist_ok=True)

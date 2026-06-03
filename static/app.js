@@ -819,6 +819,9 @@ function populateAutomodForm(settings) {
   document.getElementById('automod-links').checked = settings.block_links;
   document.getElementById('automod-max-mentions').value = settings.max_mentions;
   document.getElementById('automod-words').value = settings.profanity_words.join(', ');
+  document.getElementById('automod-invites').checked = settings.block_invites || false;
+  document.getElementById('automod-whitelisted-domains').value = (settings.whitelisted_domains || []).join('\n');
+  document.getElementById('automod-whitelisted-invites').value = (settings.whitelisted_invites || []).join('\n');
 }
 
 async function saveAutomodSettings(e) {
@@ -833,6 +836,16 @@ async function saveAutomodSettings(e) {
   const log_channel_name = logSelect.selectedIndex >= 0 ? logSelect.options[logSelect.selectedIndex].text : 'mod-logs';
   const wordsRaw = document.getElementById('automod-words').value;
   
+  const block_invites = document.getElementById('automod-invites').checked;
+  const whitelisted_domains = document.getElementById('automod-whitelisted-domains').value
+    .split('\n')
+    .map(d => d.trim())
+    .filter(d => d.length > 0);
+  const whitelisted_invites = document.getElementById('automod-whitelisted-invites').value
+    .split('\n')
+    .map(i => i.strip ? i.strip() : i.trim())
+    .filter(i => i.length > 0);
+  
   const profanity_words = wordsRaw.split(',')
     .map(w => w.trim())
     .filter(w => w.length > 0);
@@ -846,7 +859,10 @@ async function saveAutomodSettings(e) {
     max_mentions,
     log_channel_id,
     log_channel_name,
-    profanity_words
+    profanity_words,
+    block_invites,
+    whitelisted_domains,
+    whitelisted_invites
   };
   
   try {
@@ -933,8 +949,9 @@ function renderCustomCommands() {
 // Roles & Role Panels Operations
 // ==========================================================================
 function escapeHtml(str) {
-  if (!str) return '';
-  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+  if (str === null || str === undefined) return '';
+  const s = String(str);
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
 async function loadServerRoles() {
@@ -1113,38 +1130,137 @@ async function fetchTemplates() {
   }
 }
 
-async function applyCustomTemplate(name) {
+let currentPreviewTemplateName = null;
+let currentPreviewTemplateData = null;
+
+async function openTemplatePreview(name) {
   if (!activeGuildId) {
     showToast('Please select a Discord server first.', 'warning');
     return;
   }
-  const confirmApply = confirm(`⚠️ WARNING: Applying custom template "${name}" will structure your server, which will archive your current channels. Continue?`);
-  if (!confirmApply) return;
   
+  const safeName = name.toLowerCase().trim();
+
   try {
-    showToast(`Applying template "${name}"...`, 'info');
-    const res = await fetch('/api/templates/apply', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        guild_id: activeGuildId,
-        name: name
-      })
-    });
-    
-    if (res.ok) {
-      showToast('Template applied successfully!', 'success');
-      setTimeout(() => {
-        handleServerSelection(activeGuildId);
-        runServerAudit();
-      }, 2000);
-    } else {
+    showToast(`Loading template preview for "${name}"...`, 'info');
+    const res = await fetch(`/api/templates/${safeName}/preview?guild_id=${activeGuildId}`);
+    if (!res.ok) {
       const err = await res.json();
-      showToast(err.detail || 'Failed to apply template.', 'error');
+      showToast(err.detail || 'Failed to load template preview.', 'error');
+      return;
+    }
+    const data = await res.json();
+    currentPreviewTemplateName = safeName;
+    currentPreviewTemplateData = data;
+
+    document.getElementById('template-preview-overlay').classList.remove('hidden');
+    document.getElementById('template-confirm-checkbox').checked = false;
+    document.getElementById('btn-deploy-template-preview').disabled = true;
+
+    const sum = data.summary;
+    const summaryDiv = document.getElementById('template-preview-summary');
+    summaryDiv.innerHTML = `
+      <h4 style="font-weight: 600; margin-bottom: 8px;"><i class="fa-solid fa-clipboard-list"></i> Deployment Summary</h4>
+      <ul style="list-style: none; padding-left: 0; margin-bottom: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <li>🟢 <strong>Roles to Create:</strong> ${sum.roles_to_create.length} (${sum.roles_to_create.join(', ') || 'None'})</li>
+        <li>⚪ <strong>Roles to Skip:</strong> ${sum.roles_to_skip.length} (${sum.roles_to_skip.join(', ') || 'None'})</li>
+        <li>🟢 <strong>Categories to Create:</strong> ${sum.categories_to_create.length} (${sum.categories_to_create.join(', ') || 'None'})</li>
+        <li>⚪ <strong>Categories to Skip:</strong> ${sum.categories_to_skip.length} (${sum.categories_to_skip.join(', ') || 'None'})</li>
+        <li>🟢 <strong>Channels to Create:</strong> ${sum.channels_to_create.length}</li>
+        <li>⚪ <strong>Channels to Skip:</strong> ${sum.channels_to_skip.length} (${sum.channels_to_skip.join(', ') || 'None'})</li>
+      </ul>
+    `;
+
+    const treeDiv = document.getElementById('template-tree-customizer');
+    treeDiv.innerHTML = '';
+
+    const tpl = data.template_data;
+    
+    // Roles Section
+    if (tpl.roles && tpl.roles.length > 0) {
+      const section = document.createElement('div');
+      section.className = 'tree-section mb-3';
+      section.innerHTML = `<h4 style="font-size: 0.95rem; font-weight: 600; color: #818cf8; margin-bottom: 6px;">Roles</h4>`;
+      tpl.roles.forEach(role => {
+        const item = createTreeItem(role.name, 'role', sum.roles_to_skip.includes(role.name));
+        section.appendChild(item);
+      });
+      treeDiv.appendChild(section);
+    }
+
+    // Categories & Channels Section
+    if (tpl.categories && tpl.categories.length > 0) {
+      const section = document.createElement('div');
+      section.className = 'tree-section mb-3';
+      section.innerHTML = `<h4 style="font-size: 0.95rem; font-weight: 600; color: #818cf8; margin-bottom: 6px;">Categories & Channels</h4>`;
+      
+      tpl.categories.forEach(cat => {
+        const catItem = createTreeItem(cat.name, 'category', sum.categories_to_skip.includes(cat.name));
+        section.appendChild(catItem);
+
+        if (cat.channels && cat.channels.length > 0) {
+          const subList = document.createElement('div');
+          subList.style.paddingLeft = '24px';
+          cat.channels.forEach(ch => {
+            const chFullName = `${ch.name} (${ch.type})`;
+            const chItem = createTreeItem(ch.name, 'channel', sum.channels_to_skip.includes(chFullName));
+            subList.appendChild(chItem);
+          });
+          section.appendChild(subList);
+        }
+      });
+      treeDiv.appendChild(section);
     }
   } catch (err) {
-    showToast('Network error applying template.', 'error');
+    showToast('Network error loading template preview.', 'error');
   }
+}
+
+function createTreeItem(name, type, isSkipped) {
+  const container = document.createElement('div');
+  container.className = 'tree-item';
+  container.style.display = 'flex';
+  container.style.alignItems = 'center';
+  container.style.gap = '10px';
+  container.style.marginBottom = '6px';
+
+  const check = document.createElement('input');
+  check.type = 'checkbox';
+  check.className = 'tree-item-toggle';
+  check.checked = !isSkipped;
+  check.style.cursor = 'pointer';
+  check.setAttribute('data-original-name', name);
+  check.setAttribute('data-type', type);
+  container.appendChild(check);
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'tree-item-name glass-input';
+  input.value = name;
+  input.style.padding = '4px 8px';
+  input.style.fontSize = '0.85rem';
+  input.style.border = '1px solid rgba(255,255,255,0.1)';
+  input.style.borderRadius = '4px';
+  input.style.width = '200px';
+  input.setAttribute('data-original-name', name);
+  container.appendChild(input);
+
+  const label = document.createElement('span');
+  label.style.fontSize = '0.75rem';
+  label.style.padding = '2px 6px';
+  label.style.borderRadius = '4px';
+  if (isSkipped) {
+    label.textContent = 'Will Skip (Already Exists)';
+    label.style.background = 'rgba(239, 68, 68, 0.2)';
+    label.style.color = '#ef4444';
+  } else {
+    label.textContent = type.toUpperCase();
+    label.style.background = 'rgba(16, 185, 129, 0.2)';
+    label.style.color = '#10b981';
+  }
+  container.appendChild(label);
+
+  return container;
 }
 
 async function deleteCustomTemplate(name) {
@@ -1990,41 +2106,92 @@ function setupEventListeners() {
 
   // Built-in Presets Apply Buttons
   document.querySelectorAll('.btn-apply-builtin').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
+    btn.addEventListener('click', (e) => {
       if (!activeGuildId) {
         showToast('Please select a Discord server first.', 'warning');
         return;
       }
       const preset = e.currentTarget.getAttribute('data-preset');
-      const confirmApply = confirm(`⚠️ WARNING: Applying the "${preset}" layout preset will archive your current channels. Continue?`);
-      if (!confirmApply) return;
-      
+      const presetNameMap = {
+        'Gaming': 'gaming',
+        'Community': 'community',
+        'Developer': 'creator'
+      };
+      const safeName = presetNameMap[preset] || preset.toLowerCase();
+      openTemplatePreview(safeName);
+    });
+  });
+
+  // Template Preview & Deployment Listeners
+  const cancelTemplatePreviewBtn = document.getElementById('btn-cancel-template-preview');
+  if (cancelTemplatePreviewBtn) {
+    cancelTemplatePreviewBtn.addEventListener('click', () => {
+      document.getElementById('template-preview-overlay').classList.add('hidden');
+    });
+  }
+
+  const templateConfirmCheckbox = document.getElementById('template-confirm-checkbox');
+  const deployTemplatePreviewBtn = document.getElementById('btn-deploy-template-preview');
+  if (templateConfirmCheckbox && deployTemplatePreviewBtn) {
+    templateConfirmCheckbox.addEventListener('change', (e) => {
+      deployTemplatePreviewBtn.disabled = !e.target.checked;
+    });
+  }
+
+  if (deployTemplatePreviewBtn) {
+    deployTemplatePreviewBtn.addEventListener('click', async () => {
+      if (!currentPreviewTemplateName || !activeGuildId) return;
+
+      const disabledElements = [];
+      const renames = {};
+
+      document.querySelectorAll('#template-tree-customizer .tree-item').forEach(item => {
+        const toggle = item.querySelector('.tree-item-toggle');
+        const input = item.querySelector('.tree-item-name');
+        const origName = toggle.getAttribute('data-original-name');
+
+        if (!toggle.checked) {
+          disabledElements.push(origName);
+        }
+        const val = input.value.trim();
+        if (val !== origName) {
+          renames[origName] = val;
+        }
+      });
+
       try {
-        showToast(`Applying "${preset}" preset...`, 'info');
-        const res = await fetch(`/api/guilds/${activeGuildId}/optimize`, {
+        showToast(`Deploying template "${currentPreviewTemplateName}"...`, 'info');
+        document.getElementById('template-preview-overlay').classList.add('hidden');
+
+        const res = await fetch('/api/templates/apply', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            preset: preset,
-            handling: 'archive'
+            guild_id: activeGuildId,
+            name: currentPreviewTemplateName,
+            confirm: true,
+            customizations: {
+              disabled_elements: disabledElements,
+              renames: renames
+            }
           })
         });
-        
+
         if (res.ok) {
-          showToast(`Preset layout "${preset}" applied successfully!`, 'success');
+          showToast('Template applied successfully!', 'success');
           setTimeout(() => {
             handleServerSelection(activeGuildId);
             runServerAudit();
           }, 2000);
         } else {
           const err = await res.json();
-          showToast(err.detail || 'Failed to apply preset layout.', 'error');
+          showToast(err.detail || 'Failed to apply template.', 'error');
         }
       } catch (err) {
-        showToast('Network error applying preset.', 'error');
+        showToast('Network error applying template.', 'error');
       }
     });
-  });
+  }
 
   // --- Embed Builder Pro Listeners ---
   const embedForm = document.getElementById('embed-builder-form');
@@ -2639,10 +2806,12 @@ async function populateMusicVoiceChannels(guildId) {
     
     select.innerHTML = '<option value="">Choose voice channel...</option>';
     channels.forEach(ch => {
-      const opt = document.createElement('option');
-      opt.value = ch.id;
-      opt.textContent = ch.name;
-      select.appendChild(opt);
+      if (ch.type === 'voice') {
+        const opt = document.createElement('option');
+        opt.value = ch.id;
+        opt.textContent = ch.name;
+        select.appendChild(opt);
+      }
     });
   } catch (err) {
     console.error('Error fetching voice channels:', err);

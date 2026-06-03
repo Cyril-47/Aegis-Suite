@@ -1,0 +1,37 @@
+{
+  "name": "business",
+  "verification_level": "high",
+  "explicit_content_filter": "all_members",
+  "roles": [
+    {"name": "Admin/Owner", "color": 15671396, "hoist": true, "permissions": 8, "position": 3},
+    {"name": "Manager", "color": 3900150, "hoist": true, "permissions": 268435486, "position": 2},
+    {"name": "Employee", "color": 10181046, "hoist": true, "permissions": 104324673, "position": 1}
+  ],
+  "categories": [
+    {
+      "name": "🏢 COMPANY BOARD",
+      "position": 1,
+      "channels": [
+        {"name": "announcements", "type": "text", "position": 1},
+        {"name": "resource-sharing", "type": "text", "position": 2}
+      ]
+    },
+    {
+      "name": "💬 DEPARTMENTS",
+      "position": 2,
+      "channels": [
+        {"name": "general-workspace", "type": "text", "position": 1},
+        {"name": "marketing-discussion", "type": "text", "position": 2},
+        {"name": "dev-scrum", "type": "text", "position": 3}
+      ]
+    },
+    {
+      "name": "🔊 MEETING SPACE",
+      "position": 3,
+      "channels": [
+        {"name": "Conference Room", "type": "voice", "position": 1},
+        {"name": "Quiet Workspace", "type": "voice", "position": 2}
+      ]
+    }
+  ]
+}
