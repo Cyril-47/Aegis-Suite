@@ -1,0 +1,19 @@
+{
+  "name": "minimal",
+  "verification_level": "low",
+  "explicit_content_filter": "disabled",
+  "roles": [
+    {"name": "Admin", "color": 15671396, "hoist": true, "permissions": 8, "position": 2},
+    {"name": "Member", "color": 10181046, "hoist": false, "permissions": 104324673, "position": 1}
+  ],
+  "categories": [
+    {
+      "name": "💬 GENERAL CHAT",
+      "position": 1,
+      "channels": [
+        {"name": "general", "type": "text", "position": 1},
+        {"name": "Main Lobby", "type": "voice", "position": 2}
+      ]
+    }
+  ]
+}

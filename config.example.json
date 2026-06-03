@@ -22,7 +22,10 @@
     "profanity_words": [
       "badword1",
       "badword2"
-    ]
+    ],
+    "block_invites": false,
+    "whitelisted_domains": [],
+    "whitelisted_invites": []
   },
   "custom_commands": {
     "!website": "Visit our official website at https://example.com!",

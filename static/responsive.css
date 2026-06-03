@@ -1,0 +1,148 @@
+/* Mobile-First Responsive Stylesheet for Aegis Suite Dashboard */
+
+@media (max-width: 768px) {
+  /* Stack application layout */
+  .app-layout {
+    flex-direction: column;
+    height: auto !important;
+    overflow-x: hidden;
+  }
+
+  /* Make sidebar horizontal/wrapping at the top */
+  .sidebar {
+    width: 100% !important;
+    height: auto !important;
+    padding: 15px !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--card-border) !important;
+    gap: 15px !important;
+  }
+
+  .app-brand {
+    margin-bottom: 15px !important;
+    justify-content: center;
+  }
+
+  .nav-menu {
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    justify-content: center;
+    margin-bottom: 15px;
+  }
+
+  .nav-item {
+    width: auto !important;
+    padding: 8px 12px !important;
+    font-size: 0.85rem !important;
+  }
+
+  .nav-item.active::before {
+    display: none !important;
+  }
+
+  .bot-badge-container {
+    margin-top: 0 !important;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .bot-badge {
+    width: 100%;
+    max-width: 320px;
+    justify-content: center;
+  }
+
+  #btn-logout {
+    max-width: 320px;
+    margin: 0 auto;
+  }
+
+  /* Allow main content area to take full natural height */
+  .content-area {
+    height: auto !important;
+    overflow-y: visible !important;
+  }
+
+  /* Stack header elements */
+  .top-header {
+    height: auto !important;
+    padding: 20px 15px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 15px !important;
+  }
+
+  .header-left {
+    text-align: center;
+  }
+
+  .header-right {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  .server-selector-wrapper {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 6px !important;
+  }
+
+  .server-selector-wrapper select {
+    width: 100% !important;
+  }
+
+  /* Tab content container padding adjustment */
+  .tab-content-container {
+    padding: 20px 15px !important;
+  }
+
+  /* Collapse all grid columns to stack vertically */
+  .grid-layout {
+    grid-template-columns: 1fr !important;
+    gap: 15px !important;
+  }
+
+  .span-1, .span-2, .span-3, .span-4 {
+    grid-column: span 1 !important;
+  }
+
+  /* Ensure tables can scroll horizontally on small screens */
+  .table-container {
+    width: 100%;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Touch-friendly target scaling for buttons and select inputs */
+  .btn {
+    min-height: 44px;
+    padding: 12px 20px !important;
+    font-size: 0.95rem !important;
+    width: 100% !important; /* Stack buttons to take full width */
+    box-sizing: border-box;
+  }
+
+  .btn-icon-only {
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  input[type="text"], input[type="password"], select, textarea {
+    min-height: 44px;
+  }
+
+  /* Custom grid layout helpers */
+  .grid-4-col, .grid-3-col, .backup-grid, .preset-selector-grid {
+    grid-template-columns: 1fr !important;
+    gap: 15px !important;
+  }
+
+  .bot-details-grid {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+  }
+}

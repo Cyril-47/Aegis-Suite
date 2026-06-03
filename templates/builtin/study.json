@@ -1,0 +1,29 @@
+{
+  "name": "study",
+  "verification_level": "medium",
+  "explicit_content_filter": "all_members",
+  "roles": [
+    {"name": "Teacher/Admin", "color": 15671396, "hoist": true, "permissions": 8, "position": 3},
+    {"name": "Tutor", "color": 3900150, "hoist": true, "permissions": 268435486, "position": 2},
+    {"name": "Student", "color": 10181046, "hoist": false, "permissions": 104324673, "position": 1}
+  ],
+  "categories": [
+    {
+      "name": "📚 CLASS BOARD",
+      "position": 1,
+      "channels": [
+        {"name": "class-announcements", "type": "text", "position": 1},
+        {"name": "syllabus-info", "type": "text", "position": 2}
+      ]
+    },
+    {
+      "name": "✍️ STUDY ROOMS",
+      "position": 2,
+      "channels": [
+        {"name": "general-q-and-a", "type": "text", "position": 1},
+        {"name": "Group Study 1", "type": "voice", "position": 2},
+        {"name": "Silent Room", "type": "voice", "position": 3}
+      ]
+    }
+  ]
+}

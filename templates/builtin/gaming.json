@@ -1,0 +1,127 @@
+{
+  "name": "gaming",
+  "verification_level": "medium",
+  "explicit_content_filter": "all_members",
+  "roles": [
+    {
+      "name": "Admin",
+      "color": 15671396,
+      "hoist": true,
+      "permissions": 8,
+      "position": 3
+    },
+    {
+      "name": "Moderator",
+      "color": 3900150,
+      "hoist": true,
+      "permissions": 268435486,
+      "position": 2
+    },
+    {
+      "name": "Member",
+      "color": 1096065,
+      "hoist": false,
+      "permissions": 104324673,
+      "position": 1
+    }
+  ],
+  "categories": [
+    {
+      "name": "🏆 INFORMATION",
+      "position": 1,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "welcome",
+          "type": "text",
+          "position": 1,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        },
+        {
+          "name": "rules",
+          "type": "text",
+          "position": 2,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        },
+        {
+          "name": "announcements",
+          "type": "text",
+          "position": 3,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "💬 TEXT CHANNELS",
+      "position": 2,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "general",
+          "type": "text",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "clips-and-media",
+          "type": "text",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "looking-for-group",
+          "type": "text",
+          "position": 3,
+          "overwrites": []
+        }
+      ]
+    },
+    {
+      "name": "🔊 VOICE CHANNELS",
+      "position": 3,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "Lobby 1",
+          "type": "voice",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "Lobby 2",
+          "type": "voice",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "Gaming Voice 1",
+          "type": "voice",
+          "position": 3,
+          "overwrites": []
+        }
+      ]
+    }
+  ],
+  "uncategorized_channels": []
+}

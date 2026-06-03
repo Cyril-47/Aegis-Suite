@@ -1,0 +1,90 @@
+{
+  "name": "creator",
+  "verification_level": "low",
+  "explicit_content_filter": "all_members",
+  "roles": [
+    {
+      "name": "Creator",
+      "color": 15548997,
+      "hoist": true,
+      "permissions": 8,
+      "position": 4
+    },
+    {
+      "name": "Moderator",
+      "color": 3447003,
+      "hoist": true,
+      "permissions": 268435486,
+      "position": 3
+    },
+    {
+      "name": "VIP",
+      "color": 10181046,
+      "hoist": true,
+      "permissions": 104324673,
+      "position": 2
+    },
+    {
+      "name": "Subscriber",
+      "color": 15844367,
+      "hoist": true,
+      "permissions": 104324673,
+      "position": 1
+    }
+  ],
+  "categories": [
+    {
+      "name": "📢 ANNOUNCEMENTS",
+      "position": 1,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "announcements",
+          "type": "text",
+          "position": 1,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        },
+        {
+          "name": "live-notifications",
+          "type": "text",
+          "position": 2,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "💬 COMMUNITY",
+      "position": 2,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "general-chat",
+          "type": "text",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "video-ideas",
+          "type": "text",
+          "position": 2,
+          "overwrites": []
+        }
+      ]
+    }
+  ],
+  "uncategorized_channels": []
+}

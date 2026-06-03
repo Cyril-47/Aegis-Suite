@@ -1,0 +1,28 @@
+{
+  "name": "support",
+  "verification_level": "medium",
+  "explicit_content_filter": "all_members",
+  "roles": [
+    {"name": "Admin", "color": 15671396, "hoist": true, "permissions": 8, "position": 3},
+    {"name": "Support Staff", "color": 3900150, "hoist": true, "permissions": 268435486, "position": 2},
+    {"name": "User", "color": 10181046, "hoist": false, "permissions": 104324673, "position": 1}
+  ],
+  "categories": [
+    {
+      "name": "🎫 TICKETS GATEWAY",
+      "position": 1,
+      "channels": [
+        {"name": "open-a-ticket", "type": "text", "position": 1},
+        {"name": "faq-and-docs", "type": "text", "position": 2}
+      ]
+    },
+    {
+      "name": "💬 STAFF INTERACTIVE",
+      "position": 2,
+      "channels": [
+        {"name": "staff-chat", "type": "text", "position": 1},
+        {"name": "Staff Meeting", "type": "voice", "position": 2}
+      ]
+    }
+  ]
+}
