@@ -1,2 +1,3 @@
-# Redirect legacy music_manager.py to the relocated module
-from aegis.bot.music import MusicPlayer
+import sys
+import aegis.bot.music
+sys.modules[__name__] = aegis.bot.music
