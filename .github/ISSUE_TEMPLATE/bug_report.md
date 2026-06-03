@@ -25,7 +25,7 @@ If applicable, add screenshots or console/terminal output to help explain your p
 
 **System & Environment (please complete the following information):**
 - OS: [e.g. Windows 11, Ubuntu 22.04]
-- Deployment Target: [e.g. Local PC Mode, Cloud Mode (Railway/Render)]
+- Deployment Target: [e.g. Local PC Mode, Cloud Mode (Render/Self-hosted)]
 - Python Version: [e.g. 3.12.3]
 - Aegis Suite Version: [e.g. 2.1.0-RC1]
 

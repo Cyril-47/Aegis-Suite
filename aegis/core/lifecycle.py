@@ -19,7 +19,7 @@ def _bootstrap_hosting_mode_from_env() -> None:
 
     Honored only when ``config.json`` does not already carry a valid
     ``hosting_mode``. A pre-existing persisted value is never overwritten so
-    a stale Railway / Render env var cannot silently stomp an explicit
+    a stale Render / self-hosted env var cannot silently stomp an explicit
     Maintainer choice.
     """
     valid = ("local_pc", "cloud")

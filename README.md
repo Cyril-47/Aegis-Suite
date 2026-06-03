@@ -2,7 +2,6 @@
 
 [![Build & Publish Windows EXE Release](https://github.com/Cyril-47/Aegis-Suite/actions/workflows/release.yml/badge.svg)](https://github.com/Cyril-47/Aegis-Suite/actions/workflows/release.yml)
 [![Verify Security Layering](https://github.com/Cyril-47/Aegis-Suite/actions/workflows/verify.yml/badge.svg)](https://github.com/Cyril-47/Aegis-Suite/actions/workflows/verify.yml)
-[![Deploy to Railway](https://github.com/Cyril-47/Aegis-Suite/actions/workflows/deploy.yml/badge.svg)](https://github.com/Cyril-47/Aegis-Suite/actions/workflows/deploy.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Python Version: 3.12](https://img.shields.io/badge/Python-3.12-blue.svg)](https://www.python.org/)
 
@@ -161,8 +160,7 @@ Local PC mode runs the Windows EXE on the Maintainer's own desktop or laptop. Th
 
 ### Cloud Mode
 
-Cloud mode runs the same repository on a paid third-party host that the Maintainer provisions, pays for, and configures themselves. **Aegis does not provision the host for you** — the dashboard's only role in Cloud mode is to record your choice and silence the Local-PC-only warnings. There are three supported deployment paths:
-- **Railway** — One-click deploy via the existing **Deploy on Railway** button.
+Cloud mode runs the same repository on a paid third-party host that the Maintainer provisions, pays for, and configures themselves. **Aegis does not provision the host for you** — the dashboard's only role in Cloud mode is to record your choice and silence the Local-PC-only warnings. There are two supported deployment paths:
 - **Render** — Create a new **Web Service** from the GitHub repo.
 - **Generic VPS** — Clone the repo onto your host and run dependencies.
 
@@ -199,7 +197,7 @@ The features in the **Impacted** list will not run while the host PC is offline,
 
 ### `AEGIS_HOSTING_MODE` environment variable
 
-For headless deploys (Railway, Render) where no human can click the first-launch chooser, you can pre-select the hosting mode by setting `AEGIS_HOSTING_MODE` in the platform's environment-variable panel. This sits alongside the other environment variables Aegis reads at startup — `DISCORD_BOT_TOKEN`, `JWT_SECRET`, `ADMIN_PASSWORD_HASH`, and `BOT_API_URL` — and follows these rules:
+For headless deploys (Render, self-hosted deployment) where no human can click the first-launch chooser, you can pre-select the hosting mode by setting `AEGIS_HOSTING_MODE` in the platform's environment-variable panel. This sits alongside the other environment variables Aegis reads at startup — `DISCORD_BOT_TOKEN`, `JWT_SECRET`, `ADMIN_PASSWORD_HASH`, and `BOT_API_URL` — and follows these rules:
 
 - **Accepted values**: exactly `local_pc` or `cloud`. The value is matched case-insensitively after stripping leading and trailing whitespace, so `Cloud`, ` LOCAL_PC `, and `cloud` are all accepted.
 - **First boot, no value persisted**: the env var's value is written to `config.json` under `hosting_mode` and becomes the active mode.

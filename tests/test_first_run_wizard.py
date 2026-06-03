@@ -11,7 +11,7 @@ focused on that surface.
 Validates the launcher integration described in the
 ``managed-hosting-migration`` Secrets at Rest section:
   * The wizard never runs when ``DISCORD_BOT_TOKEN`` is already set in
-    the environment (cloud / Railway / Render path).
+    the environment (cloud / Render path).
   * The wizard never runs when ``.env`` already carries a non-empty
     ``DISCORD_BOT_TOKEN`` line (legacy plaintext install).
   * The wizard never runs when ``.env.enc`` is present (encrypted install).
@@ -46,10 +46,10 @@ def test_detection_returns_false_on_clean_install(tmp_path, monkeypatch):
 
 
 def test_detection_returns_true_when_env_var_set(tmp_path, monkeypatch):
-    """Cloud / Railway path: env var present means wizard must NOT run.
+    """Cloud / Render path: env var present means wizard must NOT run.
 
     Even on an empty filesystem, a platform-injected ``DISCORD_BOT_TOKEN``
-    wins. This is the primary path on Railway and Render where the wizard
+    wins. This is the primary path on Render and other cloud hosts where the wizard
     would have nothing to do anyway.
     """
     monkeypatch.setenv("DISCORD_BOT_TOKEN", "platform-injected-fake-token")

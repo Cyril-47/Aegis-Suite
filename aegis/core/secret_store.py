@@ -38,11 +38,11 @@ in `utils.load_env_file` can be reused after decryption.
 
 Cross-platform fallback
 =======================
-On non-Windows hosts (Railway/Render Linux containers, CI runners), DPAPI
+On non-Windows hosts (Render Linux containers, CI runners), DPAPI
 is unavailable. ``encrypt_env_file`` raises ``DPAPIUnavailableError``,
 ``decrypt_env_file`` returns ``None`` so the loader silently falls back
 to ``.env`` plaintext or, in cloud deployments, the platform-injected
-environment variables. This keeps the Railway path completely unchanged.
+environment variables. This keeps the deployment path completely unchanged.
 """
 
 from __future__ import annotations
@@ -86,7 +86,7 @@ def _dpapi_encrypt(plaintext: bytes) -> bytes:
         raise DPAPIUnavailableError(
             "Windows DPAPI is not available on this host. Install pywin32 "
             "(`pip install pywin32`) on a Windows machine to use encrypted "
-            "secret storage. On Railway/Render, set the secrets via the "
+            "secret storage. On Render / self-hosted environments, set the secrets via the "
             "platform's environment variable UI instead."
         )
     import win32crypt  # type: ignore
@@ -274,7 +274,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         prog="python -m secret_store",
         description=(
             "Encrypt and decrypt the Aegis Suite local .env file using "
-            "Windows DPAPI. Cloud deployments (Railway/Render) should use "
+            "Windows DPAPI. Cloud deployments (Render / self-hosted) should use "
             "the platform's environment variable UI instead and ignore this "
             "module."
         ),
