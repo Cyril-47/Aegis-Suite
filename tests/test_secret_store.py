@@ -1,6 +1,6 @@
 """Tests for the DPAPI-backed encrypted secret store.
 
-Tests are skipped on non-Windows hosts (CI Linux runners, Railway, Render)
+Tests are skipped on non-Windows hosts (CI Linux runners, Render, etc.)
 where DPAPI is unavailable. The skip is intentional: the cloud deploy path
 uses platform-injected environment variables and never touches the
 encryption module.
@@ -161,11 +161,11 @@ def test_load_env_file_prefers_encrypted_over_plaintext(
 def test_load_env_file_platform_env_takes_precedence(
     tmp_path: Path, monkeypatch
 ) -> None:
-    """Platform-injected environment variables (Railway / Render) must win
+    """Platform-injected environment variables (Render / other cloud) must win
     over both file-based sources. The file values may still populate keys
     that are absent from the environment, but they must never overwrite a
     pre-existing non-empty environment value."""
-    platform_token = "RAILWAY-PROVIDED-TOKEN"
+    platform_token = "CLOUD-PROVIDED-TOKEN"
     file_token = "FILE-PROVIDED-TOKEN"
 
     env_dir = tmp_path

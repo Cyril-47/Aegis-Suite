@@ -774,7 +774,7 @@ def test_bootstrap_does_not_overwrite_persisted_value(
     """Persisted ``local_pc`` + env=``cloud`` → persisted value wins.
 
     R6.3 is the single most important guarantee in this section: a stale
-    Railway / Render env var must never silently stomp an explicit
+    Render or other cloud env var must never silently stomp an explicit
     Maintainer choice. Without this rule, an admin who switched modes
     from the dashboard could see their preference reverted on every
     cloud restart.
@@ -1158,7 +1158,7 @@ def test_readme_documents_aegis_hosting_mode_env_var():
     name, (b) the two accepted values, and (c) the rule that a persisted
     ``config.json`` value wins over the env var on subsequent boots. The
     third point is the most operationally important — without it, an
-    operator could expect a stale Railway env var to override a dashboard
+    operator could expect a stale cloud env var to override a dashboard
     switch and be surprised when it doesn't.
 
     Validates: Requirements 6.4, 10.5
@@ -1185,7 +1185,7 @@ def test_readme_documents_aegis_hosting_mode_env_var():
         "README.md must explicitly state that AEGIS_HOSTING_MODE is "
         "ignored (or 'will not overwrite') when a value is already "
         "persisted in config.json. Without this line, operators may "
-        "expect a stale Railway env var to override their dashboard "
+        "expect a stale cloud env var to override their dashboard "
         "choice on the next boot (R6.4, R10.5)."
     )
 

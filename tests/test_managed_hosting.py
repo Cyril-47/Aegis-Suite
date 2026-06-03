@@ -643,85 +643,15 @@ def test_t11_requirements_txt_pins_required_runtime_deps() -> None:
 
 
 # ---------------------------------------------------------------------------
-# T12: deploy.yml structure and verify.yml preservation
+# T12: verify.yml preservation
 # ---------------------------------------------------------------------------
 
 
-def test_t12_deploy_workflow_structure_and_verify_preserved() -> None:
-    """Parse ``.github/workflows/deploy.yml`` and assert its trigger,
-    job structure, ``needs`` wiring, and ``RAILWAY_TOKEN`` reference. Also
-    assert that ``.github/workflows/verify.yml`` still exists on disk.
+def test_t12_verify_workflow_preserved() -> None:
+    """Assert that ``.github/workflows/verify.yml`` still exists on disk.
 
-    Validates: Requirements 9.1, 9.2, 9.4, 9.5, 9.7
+    Validates: Requirements 9.7
     """
-    yaml = pytest.importorskip(
-        "yaml",
-        reason="PyYAML is required to parse the deploy workflow. Install with "
-        "`pip install pyyaml` (the deploy workflow's CI step already does).",
-    )
-
-    assert DEPLOY_YML.is_file(), (
-        f"Expected {DEPLOY_YML} to exist; the managed-hosting migration "
-        "ships a Railway deploy workflow (R9.1)."
-    )
-
-    with DEPLOY_YML.open("r", encoding="utf-8") as handle:
-        workflow = yaml.safe_load(handle)
-
-    assert isinstance(workflow, dict), (
-        f"deploy.yml did not parse to a mapping; got {type(workflow).__name__}."
-    )
-
-    # NOTE: PyYAML interprets the unquoted YAML key ``on`` as the Python
-    # boolean ``True``. Fall back to that key when the literal string is
-    # missing so the test works against either representation.
-    on_block = workflow.get("on", workflow.get(True))
-    assert isinstance(on_block, dict), (
-        f"deploy.yml's `on:` block must be a mapping with a `push` trigger; "
-        f"got {on_block!r} (R9.2)."
-    )
-    push = on_block.get("push")
-    assert isinstance(push, dict), (
-        f"deploy.yml's `on.push:` must be a mapping; got {push!r} (R9.2)."
-    )
-    assert push.get("branches") == ["master"], (
-        f"deploy.yml must trigger on push to `master` only; got "
-        f"on.push.branches={push.get('branches')!r} (R9.2)."
-    )
-
-    jobs = workflow.get("jobs")
-    assert isinstance(jobs, dict), (
-        f"deploy.yml must declare a top-level `jobs:` mapping; got {jobs!r}."
-    )
-    assert "test" in jobs, (
-        f"deploy.yml must define a `test` job; jobs present: "
-        f"{sorted(jobs.keys())!r} (R9.4)."
-    )
-    assert "deploy" in jobs, (
-        f"deploy.yml must define a `deploy` job; jobs present: "
-        f"{sorted(jobs.keys())!r} (R9.4)."
-    )
-
-    deploy_job = jobs["deploy"]
-    assert isinstance(deploy_job, dict), (
-        f"`jobs.deploy` must be a mapping; got {deploy_job!r}."
-    )
-    assert deploy_job.get("needs") == "test", (
-        "`jobs.deploy.needs` must equal the string 'test' so the deploy "
-        "job is gated on a successful test job; got "
-        f"{deploy_job.get('needs')!r} (R9.4)."
-    )
-
-    # The deploy job must reference the RAILWAY_TOKEN secret somewhere in
-    # its YAML body. Re-serialize the job to YAML so the search is robust
-    # against differing structures (env block, run script, with: keys).
-    deploy_yaml = yaml.safe_dump(deploy_job)
-    assert "secrets.RAILWAY_TOKEN" in deploy_yaml, (
-        "The deploy job must reference `secrets.RAILWAY_TOKEN` so the "
-        "Railway CLI can authenticate non-interactively. Job body did "
-        f"not contain the substring. Job YAML:\n{deploy_yaml}\n(R9.5)."
-    )
-
     # The pre-existing verify workflow must still be on disk untouched.
     assert VERIFY_YML.is_file(), (
         f"Expected {VERIFY_YML} to still exist; the managed-hosting "
@@ -837,17 +767,15 @@ def test_t13_readme_discord_bot_setup_section_rewritten() -> None:
 
 
 # ---------------------------------------------------------------------------
-# T14: is_headless_cloud() returns False when neither var is set
+# T14: is_headless_cloud() returns False when RENDER is not set
 # ---------------------------------------------------------------------------
 
 
 def test_t14_is_headless_cloud_false_without_env_vars(monkeypatch) -> None:
-    """``run.is_headless_cloud()`` must return ``False`` when neither
-    ``RAILWAY_ENVIRONMENT`` nor ``RENDER`` is present in the environment.
+    """``run.is_headless_cloud()`` must return ``False`` when RENDER is not present in the environment.
 
     Validates: Requirements 7.1
     """
-    monkeypatch.delenv("RAILWAY_ENVIRONMENT", raising=False)
     monkeypatch.delenv("RENDER", raising=False)
 
     # ``run.py`` is guarded by ``if __name__ == "__main__":`` so importing
@@ -858,39 +786,25 @@ def test_t14_is_headless_cloud_false_without_env_vars(monkeypatch) -> None:
     importlib.reload(run)
 
     assert run.is_headless_cloud() is False, (
-        "is_headless_cloud() must return False when neither "
-        "RAILWAY_ENVIRONMENT nor RENDER is set; the local launcher "
+        "is_headless_cloud() must return False when RENDER is unset; the local launcher "
         "should still open a browser tab (R7.1)."
     )
 
 
 # ---------------------------------------------------------------------------
-# T15: is_headless_cloud() returns True when either var is set
+# T15: is_headless_cloud() returns True when RENDER is set
 # ---------------------------------------------------------------------------
 
 
-def test_t15_is_headless_cloud_true_when_railway_or_render_set(
+def test_t15_is_headless_cloud_true_when_render_set(
     monkeypatch,
 ) -> None:
-    """``run.is_headless_cloud()`` must return ``True`` when either
-    ``RAILWAY_ENVIRONMENT`` or ``RENDER`` is set to a non-empty value.
+    """``run.is_headless_cloud()`` must return ``True`` when RENDER is set to a non-empty value.
 
     Validates: Requirements 7.2
     """
     import run  # noqa: WPS433 (test-time import is intentional)
 
-    # --- Case A: RAILWAY_ENVIRONMENT set, RENDER unset ---
-    monkeypatch.setenv("RAILWAY_ENVIRONMENT", "production")
-    monkeypatch.delenv("RENDER", raising=False)
-    importlib.reload(run)
-    assert run.is_headless_cloud() is True, (
-        "is_headless_cloud() must return True when "
-        "RAILWAY_ENVIRONMENT is set to a non-empty value; the launcher "
-        "must skip webbrowser.open on Railway (R7.2)."
-    )
-
-    # --- Case B: RAILWAY_ENVIRONMENT unset, RENDER set ---
-    monkeypatch.delenv("RAILWAY_ENVIRONMENT", raising=False)
     monkeypatch.setenv("RENDER", "true")
     importlib.reload(run)
     assert run.is_headless_cloud() is True, (

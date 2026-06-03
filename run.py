@@ -11,7 +11,7 @@ def run_command(command, shell=True):
 
 def is_headless_cloud() -> bool:
     """Returns True when running on a cloud host where webbrowser.open would fail or be useless."""
-    return bool(os.getenv("RAILWAY_ENVIRONMENT")) or bool(os.getenv("RENDER"))
+    return bool(os.getenv("RENDER"))
 
 def is_frozen_exe() -> bool:
     """Returns True when running inside a PyInstaller --onefile bundle."""

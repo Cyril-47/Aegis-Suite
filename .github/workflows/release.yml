@@ -12,11 +12,10 @@ name: Build & Publish Windows EXE Release
 # GitHub-hosted runner whenever a version tag is pushed, then attach the
 # resulting `AegisOptimizer.exe` to a GitHub Release named after the tag.
 #
-# The `verify.yml` and `deploy.yml` workflows are intentionally NOT
-# The `verify.yml` and `deploy.yml` workflows are intentionally NOT
-# touched: they run on every push to `master`, while this workflow runs
+# The `verify.yml` workflow is intentionally NOT
+# touched: it runs on every push to `master`, while this workflow runs
 # only on tags. Operators tag a vetted commit, this workflow ships the
-# binary, and the existing test/deploy gates continue to protect master.
+# binary, and the existing verify gates continue to protect master.
 
 on:
   push:

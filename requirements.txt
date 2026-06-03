@@ -11,7 +11,7 @@ pydantic==2.10.3
 httpx==0.28.1
 
 # Build-only (Windows EXE packaging). Listed here so CI test job has a complete env;
-# Railway will install them but they are inert at runtime.
+# Non-Windows environments will install them but they are inert at runtime.
 Pillow==11.0.0
 pyinstaller==6.14.1
 

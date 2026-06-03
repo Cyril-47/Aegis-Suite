@@ -40,8 +40,7 @@ Detection contract
 The launcher calls ``credentials_already_exist(repo_root)`` which returns
 ``True`` when at least one of:
 
-  * ``os.environ["DISCORD_BOT_TOKEN"]`` is set and non-empty (Railway /
-    Render path), or
+  * ``os.environ["DISCORD_BOT_TOKEN"]`` is set and non-empty (Render or other cloud path), or
   * ``.env`` exists and contains a non-empty ``DISCORD_BOT_TOKEN=`` line
     (legacy plaintext install), or
   * ``.env.enc`` exists and is a valid DPAPI envelope (encrypted install).

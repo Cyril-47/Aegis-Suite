@@ -45,7 +45,7 @@ def load_env_file():
     # plaintext as if it had been read from .env. The plaintext is parsed
     # in-memory only — it is never materialized to disk. This is the
     # release-mode path for the local Windows EXE deployment; cloud
-    # deployments (Railway/Render) skip this branch because no .env.enc
+    # deployments (Render / self-hosted) skip this branch because no .env.enc
     # ships with the platform-provisioned image and DPAPI is unavailable
     # on Linux.
     encrypted_lines = None
@@ -88,7 +88,7 @@ def load_env_file():
             if (val.startswith('"') and val.endswith('"')) or (val.startswith("'") and val.endswith("'")):
                 val = val[1:-1]
             env_data[key] = val
-            # Platform-provided env vars (Railway/Render) take precedence
+            # Platform-provided env vars (Render / self-hosted) take precedence
             # over file-loaded values to preserve the cloud secrets path.
             if key not in os.environ or not os.environ.get(key):
                 os.environ[key] = val
