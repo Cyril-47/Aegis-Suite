@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import MagicMock
 from discord.ext import commands
-from aegis.bot.music_permissions import check_music_permission, music_permission_gate
+from aegis.bot.music_permissions import check_music_permission
 from aegis.bot.permissions import universal_permission_check
 from aegis.core.permissions.resolver import PermissionResolver
 from aegis.core.permissions.registry import CommandRegistry

@@ -1,5 +1,4 @@
 import os
-import sys
 from utils import get_writeable_path
 from aegis.core.paths import Paths
 

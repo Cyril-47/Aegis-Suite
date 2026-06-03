@@ -1,9 +1,7 @@
 import json
 import pytest
-from pathlib import Path
 from aegis.config.loader import ConfigStore
 from aegis.core.encryption import DPAPIEncryption
-from aegis.core.paths import Paths
 
 pytestmark = pytest.mark.skipif(
     not DPAPIEncryption.is_available(),

@@ -1,12 +1,7 @@
-import os
-import json
 import zipfile
 import re
-import pytest
-from pathlib import Path
 from unittest.mock import MagicMock
 
-from aegis.core.paths import Paths
 from aegis.diagnostics.packager import generate_package
 
 class MockConfig:

@@ -3,12 +3,11 @@ import ast
 import builtins
 import logging
 import os
-import re
 from pathlib import Path
 import pytest
 import discord
 from aegis.core.paths import Paths, UnwritableDataDirError
-from aegis.core.logging_setup import setup_logging, register_secret, redact_string, RedactionFilter
+from aegis.core.logging_setup import setup_logging, register_secret, RedactionFilter
 
 
 
@@ -248,7 +247,7 @@ def test_logging_redaction(paths_tmp):
     # Log a raised exception with secret
     try:
         raise ValueError(f"Crash due to secret value: {live_secret}")
-    except ValueError as e:
+    except ValueError:
         logger.exception("An exception occurred")
 
     # Flush loggers to ensure write completion

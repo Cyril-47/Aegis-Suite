@@ -235,10 +235,13 @@ def run_first_run_wizard(repo_root: Path) -> bool:
     print()
     print(
         "You will need:\n"
-        "  1. Your Discord bot token (Discord Developer Portal -> Your "
-        "App -> Bot tab).\n"
-        "  2. Your application's Client ID (OAuth2 tab; a 17-20 digit "
-        "number).\n"
+        "  1. Your Discord bot token (Discord Developer Portal -> Your\n"
+        "     App -> Bot tab). IMPORTANT: Under the 'Bot' tab, you MUST\n"
+        "     enable all 'Privileged Gateway Intents' (Presence Intent,\n"
+        "     Server Members Intent, and Message Content Intent) or the bot\n"
+        "     will fail to start or respond to commands.\n"
+        "  2. Your application's Client ID (OAuth2 tab; a 17-20 digit\n"
+        "     number).\n"
         "  3. A password you will use to log into the dashboard."
     )
     print()

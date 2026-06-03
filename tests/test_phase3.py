@@ -1,12 +1,6 @@
-import os
 import json
-import sqlite3
-import datetime
 import pytest
-import asyncio
-from pathlib import Path
 from unittest import mock
-from unittest.mock import MagicMock
 from sqlalchemy import text, inspect
 from alembic.config import Config
 from alembic.script import ScriptDirectory
@@ -14,19 +8,15 @@ from alembic.script import ScriptDirectory
 from aegis.core.paths import Paths
 from aegis.core.state import LifecycleState, ReasonCode
 from aegis.core.app_core import AppCore
-from aegis.db.engine import make_engine, make_sessionmaker
-from aegis.db.models import Base, SchemaMeta, ConfigKV, Template, Server, ApplyHistory, MigrationLog
+from aegis.db.engine import make_engine
+from aegis.db.models import Base
 from aegis.db.maintenance import (
-    integrity_check,
     backup_db,
     restore_db,
     rotate_backups,
-    is_db_ahead,
-    run_migrations,
-    get_current_revision
+    run_migrations
 )
-from aegis.config.schema import validate_config, ConfigModel, WelcomeSettingsModel, AutomodSettingsModel
-from aegis.config.loader import ConfigStore, ConfigInvalidError
+from aegis.config.loader import ConfigStore
 from aegis.config.sanitizer import sanitize
 
 # -----------------------------------------------------------------------------

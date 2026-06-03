@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, ValidationError, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, Dict, Any, Literal
 
 class WelcomeSettingsModel(BaseModel):

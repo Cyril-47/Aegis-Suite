@@ -1,6 +1,6 @@
 import pytest
 import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from aegis.bot.runner import validate_token, TokenVerdict
 
 @pytest.mark.asyncio

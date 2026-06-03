@@ -1,6 +1,5 @@
 import logging
 import os
-import asyncio
 from typing import Tuple, Optional
 
 from aegis.core.state import ReasonCode
@@ -84,7 +83,7 @@ async def run_startup_checks(core, start_at: int = 0, end_at: Optional[int] = No
             if not core.config.is_setup_complete():
                 raise ValueError("Setup not complete")
             core.health.record_check("config", "OK")
-        except Exception as exc:
+        except Exception:
             logger.info("Config Check: needs-setup")
             core.health.record_check("config", "FATAL-to-bot")
             return "FATAL-to-bot", ReasonCode.NEEDS_SETUP
@@ -129,7 +128,7 @@ async def run_startup_checks(core, start_at: int = 0, end_at: Optional[int] = No
                     run_legacy_import(session, core.paths)
                 
                 leveling_system.set_engine(core.db)
-            except Exception as e:
+            except Exception:
                 logger.exception("Failed to run legacy importer or bind leveling system")
                 
             core.health.record_check("migrations", "OK")

@@ -1,16 +1,13 @@
 import os
 import json
-import sqlite3
 import pytest
 import asyncio
-from pathlib import Path
 from fastapi.testclient import TestClient
 
 from unittest.mock import AsyncMock, MagicMock
-from aegis.core.paths import Paths
 from aegis.core.state import LifecycleState, ReasonCode
 from aegis.core.app_core import AppCore
-from aegis.core.lifecycle import run_startup_checks, RETRY_START
+from aegis.core.lifecycle import run_startup_checks
 from aegis.web.app import build_app
 import auth
 

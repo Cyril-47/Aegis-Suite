@@ -1,11 +1,8 @@
 import logging
 import os
-import asyncio
 import discord
 import sys
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Body, Request
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse, HTMLResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import utils
@@ -16,7 +13,6 @@ import audit_log
 # Configure logging
 logger = logging.getLogger("WebServer")
 
-from contextlib import asynccontextmanager
 from collections import defaultdict
 import time
 import threading
@@ -66,7 +62,7 @@ if not getattr(sys, 'frozen', False):
     os.makedirs(utils.get_writeable_path("static"), exist_ok=True)
 
 # Pydantic models for configuration
-from typing import List, Optional, Dict, Any, Literal
+from typing import Dict, Literal
 
 class WelcomeSettingsModel(BaseModel):
     enabled: bool

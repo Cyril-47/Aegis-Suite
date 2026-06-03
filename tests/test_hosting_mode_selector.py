@@ -20,7 +20,6 @@ Design:    §Testing Strategy — "Backend unit tests (FastAPI handlers)"
 from __future__ import annotations
 
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -35,7 +34,6 @@ _REPO_ROOT_STR = str(REPO_ROOT)
 if _REPO_ROOT_STR not in sys.path:
     sys.path.insert(0, _REPO_ROOT_STR)
 
-import audit_log  # noqa: E402  (import after sys.path mutation)
 import auth  # noqa: E402
 import utils  # noqa: E402
 from aegis.web.app import build_app
@@ -1004,13 +1002,13 @@ def test_hosting_mode_not_in_secret_store_or_env():
     if ENV_PATH.is_file():
         env_text = ENV_PATH.read_text(encoding="utf-8", errors="replace")
         assert "HOSTING_MODE=" not in env_text, (
-            f".env contains 'HOSTING_MODE=' — the hosting mode must not be "
-            f"persisted to the .env file (R5.6, R9.2). Move the value to "
-            f"config.json instead."
+            ".env contains 'HOSTING_MODE=' — the hosting mode must not be "
+            "persisted to the .env file (R5.6, R9.2). Move the value to "
+            "config.json instead."
         )
         assert "hosting_mode=" not in env_text, (
-            f".env contains 'hosting_mode=' — the hosting mode must not be "
-            f"persisted to the .env file (R5.6, R9.2)."
+            ".env contains 'hosting_mode=' — the hosting mode must not be "
+            "persisted to the .env file (R5.6, R9.2)."
         )
 
     # 3. .env.enc (DPAPI-encrypted JSON wrapper) — the wrapper itself is a

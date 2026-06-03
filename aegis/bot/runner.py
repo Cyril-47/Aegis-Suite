@@ -1,12 +1,8 @@
-import os
 import asyncio
 import logging
-import datetime
 from enum import Enum
 import discord
-from discord.ext import commands
 import discord.gateway
-import threading
 
 # Monkeypatch removed. Native discord.py v2.7.x now supports gateway v=8 and E2EE/DAVE protocol directly.
 

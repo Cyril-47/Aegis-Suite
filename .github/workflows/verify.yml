@@ -1,4 +1,4 @@
-name: Verify Security Layering
+name: Aegis CI/CD Verification
 
 on:
   push:
@@ -7,13 +7,14 @@ on:
     branches: [ master ]
 
 jobs:
-  verify:
+  lint-and-test:
+    name: Lint and Test (Ubuntu)
     runs-on: ubuntu-latest
     steps:
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    - name: Set up Python
+    - name: Set up Python 3.12
       uses: actions/setup-python@v5
       with:
         python-version: '3.12'
@@ -22,8 +23,43 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
-        pip install pytest
+        pip install ruff pytest-cov
 
-    - name: Run Hardening Verification Tests
+    - name: Lint Validation
       run: |
-        python -m pytest tests/test_hardening.py -v
+        ruff check .
+
+    - name: Run Full Pytest Suite with Coverage
+      run: |
+        python -m pytest --cov=aegis tests/ -v
+
+  build-validation:
+    name: Build Validation (Windows)
+    runs-on: windows-latest
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+      shell: pwsh
+
+    - name: Validate PyInstaller Build
+      run: |
+        python build_exe.py
+      shell: pwsh
+
+    - name: Verify Executable Built
+      run: |
+        if (-not (Test-Path "dist/AegisOptimizer.exe")) {
+          Write-Error "AegisOptimizer.exe was not produced"
+          exit 1
+        }
+      shell: pwsh

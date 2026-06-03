@@ -1,4 +1,3 @@
-import os
 import re
 import json
 import logging
@@ -7,10 +6,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
 import discord
 
-from aegis.core.paths import Paths
 from aegis.core.app_core import AppCore
 from aegis.config.loader import ConfigStore
-from aegis.config.schema import validate_config
 from aegis.core.logging_setup import setup_logging
 import utils
 import bot_manager
@@ -346,7 +343,6 @@ async def test_music_player_dynamic_loop_update(monkeypatch):
 # --- 9. VOICE STATE UPDATE SCOPING & TIMERS TEST ---
 @pytest.mark.asyncio
 async def test_on_voice_state_update_scoping_and_timers():
-    import asyncio
     from bot_manager import DiscordOptimizerBot
     
     # Construct mock bot

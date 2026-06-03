@@ -2,7 +2,6 @@ import logging
 import random
 import string
 import time
-import re
 from typing import Optional
 import discord
 from discord.ext import commands

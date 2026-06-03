@@ -1,5 +1,4 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 import leveling
 import aegis.bot.leveling
 from aegis.db.models import Base

@@ -1,6 +1,5 @@
 import os
 import time
-from pathlib import Path
 from unittest.mock import MagicMock
 from aegis.core.paths import Paths
 from aegis.db.maintenance import rotate_backups

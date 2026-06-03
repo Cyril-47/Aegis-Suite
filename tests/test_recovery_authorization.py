@@ -1,9 +1,6 @@
-import os
-import json
 import pytest
 from fastapi.testclient import TestClient
 
-from aegis.core.paths import Paths
 from aegis.config.schema import validate_config
 from aegis.core.state import LifecycleState, ReasonCode
 from aegis.web.app import build_app

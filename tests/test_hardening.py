@@ -9,7 +9,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 import auth
 import utils
-import audit_log
 
 # Setup environment variables for stateless testing
 os.environ["JWT_SECRET"] = "super-secret-validation-key-1234567890"

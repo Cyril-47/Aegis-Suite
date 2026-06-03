@@ -1,14 +1,9 @@
-import os
 import json
-import pytest
-from pathlib import Path
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
 
-from aegis.core.paths import Paths
-from aegis.db.models import Base, SchemaMeta
-from aegis.db.maintenance import run_migrations, is_db_ahead, get_current_revision
-from aegis.core.state import LifecycleState, ReasonCode
+from aegis.db.models import Base
+from aegis.db.maintenance import is_db_ahead
+from aegis.core.state import ReasonCode
 from aegis.core.app_core import AppCore
 
 def test_installer_upgrade_path(paths_tmp):

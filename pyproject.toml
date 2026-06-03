@@ -40,3 +40,23 @@ dev = [
 
 [project.scripts]
 aegis = "aegis.__main__:main"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = [
+    "E402", # Module level import not at top of file
+    "F401", # Unused imports
+    "F841", # Local variable assigned but unused
+    "F811", # Redefinition of unused name
+    "E501", # Line too long
+    "W291", # Trailing whitespace
+    "W293", # Blank line contains whitespace
+]
+
+[tool.black]
+line-length = 120
+target-version = ['py312']

@@ -1,4 +1,3 @@
-import os
 import zipfile
 import json
 import logging
@@ -6,9 +5,7 @@ import datetime
 import time
 from pathlib import Path
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import text
 
-from aegis.core.paths import Paths
 from aegis.config.sanitizer import sanitize
 from aegis.db.maintenance import integrity_check, get_current_revision
 from aegis.db.models import SchemaMeta

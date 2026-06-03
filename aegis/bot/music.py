@@ -1,7 +1,6 @@
 import discord
 import asyncio
 import logging
-import os
 
 logger = logging.getLogger("aegis.bot.music")
 

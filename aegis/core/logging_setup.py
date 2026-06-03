@@ -1,7 +1,6 @@
 import logging
 import re
 from logging.handlers import RotatingFileHandler
-from pathlib import Path
 from aegis.core.paths import Paths
 
 # Thread-safe or simple global set of registered secrets

@@ -1,14 +1,10 @@
-import os
 import json
-import pytest
 import sys
-from pathlib import Path
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 
 from aegis.core.paths import Paths
-from aegis.config.schema import validate_config, ConfigModel
+from aegis.config.schema import validate_config
 from aegis.core.state import LifecycleState, ReasonCode
 from aegis.web.app import build_app
 from aegis.core.app_core import AppCore

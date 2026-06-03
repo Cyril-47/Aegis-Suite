@@ -1,5 +1,3 @@
-import json
-import pytest
 import utils
 
 def test_guild_config_persistence_audit(paths_tmp, monkeypatch):

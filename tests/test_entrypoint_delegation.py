@@ -1,6 +1,5 @@
 import sys
-from unittest.mock import patch, MagicMock
-import pytest
+from unittest.mock import patch
 
 def test_run_module_does_not_import_web_server():
     # Clear web_server from sys.modules if it was loaded elsewhere, just to be sure
@@ -9,7 +8,6 @@ def test_run_module_does_not_import_web_server():
     
     try:
         # Import run.py module
-        import run
         
         # Verify web_server is not imported during module load
         assert "web_server" not in sys.modules

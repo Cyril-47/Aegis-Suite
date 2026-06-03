@@ -1,7 +1,6 @@
 import os
 import pytest
 import asyncio
-import logging
 from unittest.mock import MagicMock
 from hypothesis import given, settings, strategies as st
 from aegis.core.state import LifecycleState, ReasonCode, LifecycleStateMachine, ALLOWED

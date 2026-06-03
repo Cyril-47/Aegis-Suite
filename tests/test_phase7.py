@@ -4,9 +4,8 @@ from unittest.mock import MagicMock, AsyncMock
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from aegis.core.paths import Paths
-from aegis.db.models import Base, Template, Server, ApplyHistory
-from aegis.templates_engine.model import validate, TemplateInvalid, TemplateModel
+from aegis.db.models import Base, Template, ApplyHistory
+from aegis.templates_engine.model import validate, TemplateInvalid
 from aegis.templates_engine.io import import_json, export_json
 from aegis.templates_engine.apply import apply_to_server, clone_from_server
 from aegis.templates_engine.registry import TEMPLATE_REGISTRY

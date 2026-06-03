@@ -186,7 +186,6 @@ async def test_uvicorn_startup_failure(paths_tmp, temp_appdata):
     
     # Mock serve to raise an error
     from aegis.web.app import build_app
-    from aegis.web.server import serve
     app = build_app(core)
     
     # Setup mock uvicorn server that crashes
@@ -196,7 +195,6 @@ async def test_uvicorn_startup_failure(paths_tmp, temp_appdata):
     mock_server.serve = crash_serve
     
     # Trigger serve which will use mock server
-    orig_Server = uvicorn.Server if 'uvicorn' in globals() else None
     import uvicorn
     orig_Server = uvicorn.Server
     

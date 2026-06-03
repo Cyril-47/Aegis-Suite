@@ -5,7 +5,6 @@ from discord.ext import commands
 from discord import app_commands
 import utils
 import re
-import math
 import time
 import json
 import datetime
@@ -1525,7 +1524,6 @@ def parse_duration(duration_str: str) -> Optional[int]:
     return None
 
 async def start_giveaway_bot(channel, prize, winners_count, duration_seconds, host_id):
-    import time
     end_time = time.time() + duration_seconds
     
     embed = discord.Embed(
@@ -1537,7 +1535,7 @@ async def start_giveaway_bot(channel, prize, winners_count, duration_seconds, ho
     embed.add_field(name="🏆 Winners", value=str(winners_count), inline=True)
     embed.add_field(name="⏳ Ends", value=f"<t:{int(end_time)}:R> (<t:{int(end_time)}:f>)", inline=False)
     embed.add_field(name="👥 Participants (0)", value="Click the button below to join!\nTotal: **0** entrant(s)", inline=True)
-    embed.set_footer(text=f"Hosted by Aegis Suite")
+    embed.set_footer(text="Hosted by Aegis Suite")
     
     view = GiveawayJoinView()
     message = await channel.send(embed=embed, view=view)
@@ -1644,7 +1642,6 @@ async def start_bot_service(token):
         
         import random
         import string
-        import time
         
         # Generate 6 character alphanumeric code
         code = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
