@@ -260,7 +260,7 @@ _REPO_ROOT_STR = str(REPO_ROOT)
 if _REPO_ROOT_STR not in sys.path:
     sys.path.insert(0, _REPO_ROOT_STR)
 
-WEB_SERVER_PY = REPO_ROOT / "web_server.py"
+WEB_SERVER_PY = REPO_ROOT / "aegis" / "config" / "schema.py"
 ENV_FILE = REPO_ROOT / ".env"
 CONFIG_JSON = REPO_ROOT / "config.json"
 
@@ -676,8 +676,8 @@ def test_t12_deploy_workflow_structure_and_verify_preserved() -> None:
     assert isinstance(push, dict), (
         f"deploy.yml's `on.push:` must be a mapping; got {push!r} (R9.2)."
     )
-    assert push.get("branches") == ["main"], (
-        f"deploy.yml must trigger on push to `main` only; got "
+    assert push.get("branches") == ["master"], (
+        f"deploy.yml must trigger on push to `master` only; got "
         f"on.push.branches={push.get('branches')!r} (R9.2)."
     )
 

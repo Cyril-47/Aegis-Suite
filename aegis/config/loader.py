@@ -35,6 +35,15 @@ class ConfigStore:
         except Exception as e:
             raise ConfigInvalidError(f"Failed to load config JSON: {e}") from e
             
+        # Decrypt sensitive keys if DPAPI encrypted
+        from aegis.core.encryption import DPAPIEncryption
+        for key in ["discord_token", "bot_token"]:
+            if key in data and isinstance(data[key], str) and data[key].startswith(DPAPIEncryption._PREFIX):
+                try:
+                    data[key] = DPAPIEncryption.decrypt(data[key])
+                except Exception as e:
+                    logger.error(f"Failed to decrypt config key {key}: {e}")
+
         try:
             model = validate_config(data)
             return cls(paths, model)
@@ -84,6 +93,16 @@ class ConfigStore:
             model_data = self.as_dict()
             merged_data = on_disk_data.copy()
             merged_data.update(model_data)
+
+            # Encrypt sensitive keys on write via DPAPI if available
+            from aegis.core.encryption import DPAPIEncryption
+            for key in ["discord_token", "bot_token"]:
+                if key in merged_data and isinstance(merged_data[key], str) and merged_data[key]:
+                    if not merged_data[key].startswith(DPAPIEncryption._PREFIX):
+                        try:
+                            merged_data[key] = DPAPIEncryption.encrypt(merged_data[key])
+                        except Exception as e:
+                            logger.error(f"Failed to encrypt config key {key}: {e}")
 
             # Write to a temp file first in the same directory to allow atomic rename
             fd, temp_path_str = tempfile.mkstemp(dir=str(config_file.parent), prefix="config_", suffix=".tmp")

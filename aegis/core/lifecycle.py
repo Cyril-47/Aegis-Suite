@@ -15,6 +15,37 @@ RETRY_START = {
     ReasonCode.INTENT_RECOVERY: 6,   # intents check
 }
 
+def _bootstrap_hosting_mode_from_env() -> None:
+    """One-time AEGIS_HOSTING_MODE bootstrap for headless cloud deploys.
+
+    Honored only when ``config.json`` does not already carry a valid
+    ``hosting_mode``. A pre-existing persisted value is never overwritten so
+    a stale Railway / Render env var cannot silently stomp an explicit
+    Maintainer choice.
+    """
+    valid = ("local_pc", "cloud")
+    import utils
+    config = utils.load_config()
+    if config.get("hosting_mode") in valid:
+        return
+    env_val = os.environ.get("AEGIS_HOSTING_MODE", "").strip().lower()
+    if not env_val:
+        return
+    if env_val not in valid:
+        logger.warning(
+            f"AEGIS_HOSTING_MODE={env_val!r} is not a valid hosting mode "
+            f"(expected 'local_pc' or 'cloud'); ignoring."
+        )
+        return
+    with utils.config_lock:
+        cfg = utils.load_config()
+        if cfg.get("hosting_mode") in valid:
+            return
+        cfg["hosting_mode"] = env_val
+        utils.save_config(cfg)
+    logger.info(f"Hosting mode bootstrapped from AEGIS_HOSTING_MODE: {env_val}")
+
+
 async def run_startup_checks(core, start_at: int = 0, end_at: Optional[int] = None) -> Tuple[str, Optional[ReasonCode]]:
     """Runs the 7 startup checks in order starting from start_at index, up to end_at index (inclusive).
     Returns (verdict, reason_code). Verdict is one of 'OK', 'FATAL-to-bot', 'FATAL-to-app'.
@@ -44,6 +75,10 @@ async def run_startup_checks(core, start_at: int = 0, end_at: Optional[int] = No
     # 2. Config Check
     if start_at <= 2 and (end_at is None or end_at >= 2):
         try:
+            try:
+                _bootstrap_hosting_mode_from_env()
+            except Exception as e:
+                logger.error(f"Hosting mode bootstrap failed: {e}")
             from aegis.config.loader import ConfigStore
             core.config = ConfigStore.load(core.paths)
             if not core.config.is_setup_complete():

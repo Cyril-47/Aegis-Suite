@@ -127,7 +127,6 @@ def main():
         "--hidden-import", "aegis.templates_engine.io",
         "--hidden-import", "aegis.templates_engine.apply",
         "--hidden-import", "aegis.diagnostics.packager",
-        "--hidden-import", "web_server",
         "--hidden-import", "bot_manager",
         "--hidden-import", "auth",
         "--hidden-import", "utils",

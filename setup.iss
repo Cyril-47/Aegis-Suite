@@ -30,3 +30,13 @@ Name: "{userdesktop}\Aegis Optimizer"; Filename: "{app}\AegisOptimizer.exe"; Tas
 
 [Run]
 Filename: "{app}\AegisOptimizer.exe"; Description: "{cm:LaunchProgram,Aegis Optimizer}"; Flags: nowait postinstall skipifsilent
+
+[Code]
+function InitializeSetup(): Boolean;
+var
+  ResultCode: Integer;
+begin
+  Result := True;
+  // Kill any running instances of AegisOptimizer.exe before proceeding
+  Exec('taskkill.exe', '/f /im AegisOptimizer.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
