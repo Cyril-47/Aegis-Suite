@@ -38,7 +38,9 @@ if _REPO_ROOT_STR not in sys.path:
 import audit_log  # noqa: E402  (import after sys.path mutation)
 import auth  # noqa: E402
 import utils  # noqa: E402
-import web_server  # noqa: E402
+from aegis.web.app import build_app
+from aegis.config.schema import ConfigModel
+from aegis.core.lifecycle import _bootstrap_hosting_mode_from_env
 
 CONFIG_JSON = Path(utils.get_writeable_path("config.json"))
 AUDIT_LOG_JSON = Path(utils.get_writeable_path("audit_log.json"))
@@ -153,6 +155,9 @@ def stubbed_app(monkeypatch):
     not 403 every request through the password-not-yet-set branch.
     """
     import bot_manager
+    from unittest.mock import MagicMock
+    from aegis.core.paths import Paths
+    from aegis.core.state import LifecycleStateMachine
 
     async def _noop_start(_token):  # pragma: no cover - trivial stub
         return None
@@ -174,7 +179,12 @@ def stubbed_app(monkeypatch):
     # actually exercising.
     monkeypatch.setenv("ADMIN_PASSWORD_HASH", auth.hash_password("test-pw"))
 
-    return web_server.app
+    mock_core = MagicMock()
+    mock_core.paths = Paths()
+    mock_core.state = LifecycleStateMachine()
+    mock_core.config = None
+
+    return build_app(mock_core)
 
 
 @pytest.fixture
@@ -689,7 +699,7 @@ def test_bootstrap_writes_local_pc_when_unset_and_env_valid(
     _seed_hosting_mode("")  # explicit empty string — the on-disk default
     monkeypatch.setenv("AEGIS_HOSTING_MODE", "local_pc")
 
-    web_server._bootstrap_hosting_mode_from_env()
+    _bootstrap_hosting_mode_from_env()
 
     assert _read_config().get("hosting_mode") == "local_pc", (
         "Bootstrap must write the env-provided value when config.json has "
@@ -707,7 +717,7 @@ def test_bootstrap_writes_cloud_when_unset_and_env_valid(
     _seed_hosting_mode("")
     monkeypatch.setenv("AEGIS_HOSTING_MODE", "cloud")
 
-    web_server._bootstrap_hosting_mode_from_env()
+    _bootstrap_hosting_mode_from_env()
 
     assert _read_config().get("hosting_mode") == "cloud", (
         "Bootstrap must accept 'cloud' as a valid env-var value and write "
@@ -735,7 +745,7 @@ def test_bootstrap_ignores_invalid_env_value(
     # module's logger explicitly captures even when the root logger is
     # configured higher than WARNING.
     with caplog.at_level(logging.WARNING, logger="WebServer"):
-        web_server._bootstrap_hosting_mode_from_env()
+        _bootstrap_hosting_mode_from_env()
 
     # config.json must NOT have been written — the empty string seeded
     # above is preserved verbatim.
@@ -776,7 +786,7 @@ def test_bootstrap_does_not_overwrite_persisted_value(
     _seed_hosting_mode("local_pc")  # the Maintainer's explicit choice
     monkeypatch.setenv("AEGIS_HOSTING_MODE", "cloud")
 
-    web_server._bootstrap_hosting_mode_from_env()
+    _bootstrap_hosting_mode_from_env()
 
     assert _read_config().get("hosting_mode") == "local_pc", (
         "Bootstrap must NOT overwrite a pre-existing valid persisted "
@@ -794,7 +804,7 @@ def test_bootstrap_no_env_var_no_change(monkeypatch, config_state_snapshot):
     _seed_hosting_mode("")
     monkeypatch.delenv("AEGIS_HOSTING_MODE", raising=False)
 
-    web_server._bootstrap_hosting_mode_from_env()
+    _bootstrap_hosting_mode_from_env()
 
     persisted = _read_config().get("hosting_mode")
     assert persisted in ("", None), (
@@ -814,7 +824,7 @@ def test_bootstrap_case_insensitive(monkeypatch, config_state_snapshot):
     _seed_hosting_mode("")
     monkeypatch.setenv("AEGIS_HOSTING_MODE", "LOCAL_PC")
 
-    web_server._bootstrap_hosting_mode_from_env()
+    _bootstrap_hosting_mode_from_env()
 
     assert _read_config().get("hosting_mode") == "local_pc", (
         "Bootstrap must lowercase the env-var value before persisting so "
@@ -917,7 +927,7 @@ def test_config_model_has_no_bot_token():
 
     Validates: Requirement 11.2
     """
-    fields = web_server.ConfigModel.model_fields  # Pydantic v2 introspection
+    fields = ConfigModel.model_fields  # Pydantic v2 introspection
     assert "bot_token" not in fields, (
         f"ConfigModel.model_fields contains 'bot_token'; the "
         f"managed-hosting-migration spec removed this field and the "
@@ -938,7 +948,15 @@ def test_no_bot_start_stop_endpoints_registered():
     """
     forbidden_paths = {"/api/bot/start", "/api/bot/stop"}
     registered = []
-    for route in web_server.app.routes:
+    from unittest.mock import MagicMock
+    from aegis.core.paths import Paths
+    from aegis.core.state import LifecycleStateMachine
+    mock_core = MagicMock()
+    mock_core.paths = Paths()
+    mock_core.state = LifecycleStateMachine()
+    mock_core.config = None
+    app = build_app(mock_core)
+    for route in app.routes:
         path = getattr(route, "path", None)
         if path in forbidden_paths:
             registered.append(path)

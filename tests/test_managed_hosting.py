@@ -283,7 +283,10 @@ def stubbed_app(monkeypatch):
     lifespan).
     """
     import bot_manager
-    import web_server
+    from aegis.web.app import build_app
+    from unittest.mock import MagicMock
+    from aegis.core.paths import Paths
+    from aegis.core.state import LifecycleStateMachine
 
     async def _noop_start(_token):  # pragma: no cover - trivial stub
         return None
@@ -298,7 +301,12 @@ def stubbed_app(monkeypatch):
     # bot via the (already-stubbed) service.
     monkeypatch.setattr(bot_manager, "bot_instance", None, raising=False)
 
-    return web_server.app
+    mock_core = MagicMock()
+    mock_core.paths = Paths()
+    mock_core.state = LifecycleStateMachine()
+    mock_core.config = None
+
+    return build_app(mock_core)
 
 
 @pytest.fixture

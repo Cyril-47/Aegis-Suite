@@ -91,24 +91,4 @@ async def cleanup_active_cores():
     _active_cores.clear()
 
 
-# Create mock web_server module so legacy tests that import web_server still pass
-import sys
-from types import ModuleType
-
-web_server_mock = ModuleType("web_server")
-sys.modules["web_server"] = web_server_mock
-
-from aegis.web.app import build_app
-from aegis.config.schema import ConfigModel
-from aegis.core.paths import Paths
-from aegis.core.state import LifecycleStateMachine
-from aegis.core.lifecycle import _bootstrap_hosting_mode_from_env
-
-mock_core = MagicMock()
-mock_core.paths = Paths()
-mock_core.state = LifecycleStateMachine()
-mock_core.config = None
-
-web_server_mock.app = build_app(mock_core)
-web_server_mock.ConfigModel = ConfigModel
-web_server_mock._bootstrap_hosting_mode_from_env = _bootstrap_hosting_mode_from_env
+# Create mock web_server module is no longer needed since legacy tests are modernized
