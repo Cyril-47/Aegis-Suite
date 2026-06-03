@@ -1,0 +1,35 @@
+{
+  "name": "streamer",
+  "verification_level": "medium",
+  "explicit_content_filter": "all_members",
+  "roles": [
+    {"name": "Admin", "color": 15671396, "hoist": true, "permissions": 8, "position": 3},
+    {"name": "Moderator", "color": 3900150, "hoist": true, "permissions": 268435486, "position": 2},
+    {"name": "Subscriber", "color": 10181046, "hoist": true, "permissions": 104324673, "position": 1}
+  ],
+  "categories": [
+    {
+      "name": "📢 ANNOUNCEMENTS",
+      "position": 1,
+      "channels": [
+        {"name": "live-status", "type": "text", "position": 1},
+        {"name": "videos-and-clips", "type": "text", "position": 2}
+      ]
+    },
+    {
+      "name": "💬 COMMUNITY LOBBY",
+      "position": 2,
+      "channels": [
+        {"name": "general-chat", "type": "text", "position": 1},
+        {"name": "meme-zone", "type": "text", "position": 2}
+      ]
+    },
+    {
+      "name": "🔊 SUBSCRIBER CHANNELS",
+      "position": 3,
+      "channels": [
+        {"name": "Sub Lounge", "type": "voice", "position": 1}
+      ]
+    }
+  ]
+}

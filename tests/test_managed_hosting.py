@@ -260,7 +260,7 @@ _REPO_ROOT_STR = str(REPO_ROOT)
 if _REPO_ROOT_STR not in sys.path:
     sys.path.insert(0, _REPO_ROOT_STR)
 
-WEB_SERVER_PY = REPO_ROOT / "web_server.py"
+WEB_SERVER_PY = REPO_ROOT / "aegis" / "config" / "schema.py"
 ENV_FILE = REPO_ROOT / ".env"
 CONFIG_JSON = REPO_ROOT / "config.json"
 
@@ -283,7 +283,10 @@ def stubbed_app(monkeypatch):
     lifespan).
     """
     import bot_manager
-    import web_server
+    from aegis.web.app import build_app
+    from unittest.mock import MagicMock
+    from aegis.core.paths import Paths
+    from aegis.core.state import LifecycleStateMachine
 
     async def _noop_start(_token):  # pragma: no cover - trivial stub
         return None
@@ -298,7 +301,12 @@ def stubbed_app(monkeypatch):
     # bot via the (already-stubbed) service.
     monkeypatch.setattr(bot_manager, "bot_instance", None, raising=False)
 
-    return web_server.app
+    mock_core = MagicMock()
+    mock_core.paths = Paths()
+    mock_core.state = LifecycleStateMachine()
+    mock_core.config = None
+
+    return build_app(mock_core)
 
 
 @pytest.fixture
@@ -676,8 +684,8 @@ def test_t12_deploy_workflow_structure_and_verify_preserved() -> None:
     assert isinstance(push, dict), (
         f"deploy.yml's `on.push:` must be a mapping; got {push!r} (R9.2)."
     )
-    assert push.get("branches") == ["main"], (
-        f"deploy.yml must trigger on push to `main` only; got "
+    assert push.get("branches") == ["master"], (
+        f"deploy.yml must trigger on push to `master` only; got "
         f"on.push.branches={push.get('branches')!r} (R9.2)."
     )
 

@@ -1,61 +1,142 @@
 # Aegis Server Optimizer
 
-Aegis Server Optimizer is an interactive server operations suite written in Python containing a Discord bot and a FastAPI web dashboard designed to automatically scan, analyze, audit, and optimize Discord servers with single-click layout configurations, welcome greeting embeds, custom command responses, support tickets, layouts backup/restore, and auto-moderation.
+[![Build & Publish Windows EXE Release](https://github.com/Cyril-47/Aegis-Suite/actions/workflows/release.yml/badge.svg)](https://github.com/Cyril-47/Aegis-Suite/actions/workflows/release.yml)
+[![Verify Security Layering](https://github.com/Cyril-47/Aegis-Suite/actions/workflows/verify.yml/badge.svg)](https://github.com/Cyril-47/Aegis-Suite/actions/workflows/verify.yml)
+[![Deploy to Railway](https://github.com/Cyril-47/Aegis-Suite/actions/workflows/deploy.yml/badge.svg)](https://github.com/Cyril-47/Aegis-Suite/actions/workflows/deploy.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Python Version: 3.12](https://img.shields.io/badge/Python-3.12-blue.svg)](https://www.python.org/)
+
+Aegis Server Optimizer is an interactive operations suite featuring a Discord bot and a FastAPI web dashboard designed to automatically scan, analyze, audit, and optimize Discord servers.
 
 ---
 
 ## 🚀 Features
 
-- **Circular Server Health Score Indicator**: Runs an automated audit scanning server verification levels, content filters, public administrator rights, and insecure roles.
-- **One-Click Server Layout Optimizations**: Choose from three professional layouts (`Gaming Guild`, `Social Community`, or `Developer Hub`) to instantly restructure channels and categories.
-- **Safe Channel Handling**: Offers options to safely move existing channels into an `📦 ARCHIVED CHANNELS` category to prevent chat history loss, rather than delete them.
-- **Automated Welcoming Module**: Configures customizable welcome cards, color themes, embed headers, and auto-assigns roles (e.g. `Verified Member`) upon user joins.
-- **Robust Auto-Moderation Suite**: Filters links, prevents mention raid spam, blocks toxic profanity using a custom word blocklist, and logs violations to a staff `#mod-logs` channel.
-- **Live Terminal Logging Console**: Real-time websocket feed displaying server logs and bot actions directly on the dashboard page.
+- **Automated Server Health Scan**: Runs an automated audit scanning server verification levels, content filters, and administrator role security.
+- **One-Click Server Layouts**: Choose from professional templates (`Gaming Guild`, `Social Community`, `Developer Hub`) to restructure channels and categories.
+- **Safe Channel Archiving**: Move old text/voice channels into an archived category to prevent chat history loss instead of deleting them.
+- **Automated Welcomer & Auto-Roles**: Assign roles (e.g. `Verified Member`) and post welcoming embeds upon new member joins.
+- **Robust Auto-Moderation Suite**: Filters links, prevents mention raid spam, blocks toxic words via custom lists, and logs violations to `#mod-logs`.
+- **Live Terminal Logging Console**: Real-time WebSocket log streaming directly on the dashboard panel.
+- **Music & Inactivity Timers**: Play audio streams with automated voice-client reconnects and 5-minute inactivity timeouts.
+- **Persistent Database Backups**: Multi-version database rotation utilizing SQLite Online Backup API.
 
 ---
 
-## ⚙️ Deployment Targets
+## 🏗️ Architecture & Connection Flows
 
-Aegis Server Optimizer supports two deployment models depending on your target audience:
+Aegis Suite is designed as a **unified desktop service application** running within a **single process** on a **single asyncio event loop**. FastAPI (Uvicorn) and the Discord.py client operate in-process sharing memory structures and direct database access.
 
-### Target A: Local Desktop App (Standalone / Private Server)
-Ideal for single server owners running the dashboard locally.
-1. **Compilation**: Run the build script to compile the application as a directory:
-   ```cmd
-   python build_exe.py
-   ```
-   *This compiles the python scripts into binary bytecode (.pyc) inside `dist/AegisOptimizer/`, bundling static frontend assets, and directs shortcut creation to installer scripts (e.g. Inno Setup).*
-2. **Execution**: Run `dist/AegisOptimizer/AegisOptimizer.exe`. It resolves writeable config databases (such as `config.json` and `.env`) inside the application directory.
+### 1. Hosted Mode (Multi-Tenant SaaS Setup)
+Allows multiple server administrators to manage their respective servers through a single hosted bot deployment using link authorization.
 
-### Target B: Hosted Multi-Tenant Service (Public / SaaS Bot)
-Ideal for public deployment where multiple server admins connect via a single hosted bot.
-1. **Hosting**: Run the web server and bot processes concurrently on a Linux VPS, Docker container, or platform like Railway.
-2. **Reverse Proxy (TLS)**: Front the application with a reverse proxy like Caddy (see `Caddyfile` for automated LetsEncrypt SSL certificate configuration) to encrypt WebSocket handshakes and API tokens.
-3. **Linking Flow**: Server owners run the `!linkdashboard` prefix command or `/linkdashboard` slash command inside their Discord server to receive a temporary 6-digit linking code to unlock their server's panel on the dashboard.
+```mermaid
+sequenceDiagram
+    actor Owner as Discord Owner
+    participant Web as FastAPI Web App
+    participant Bot as Discord.py Bot
+    participant Discord as Discord Gateway
+
+    Owner->>Web: Visit Public Dashboard Login
+    Owner->>Discord: Click "Invite Bot" & Authorize to Guild
+    Owner->>Bot: Run /linkdashboard in Text Channel
+    Bot-->>Owner: Generate temporary 6-digit linking code (10m expiry)
+    Owner->>Web: Enter 6-digit code on dashboard
+    Web->>Bot: Verify code in-process
+    Web-->>Owner: Authenticated session established (JWT)
+```
+
+### 2. Self-Hosted Mode (Private Standalone Setup)
+Ideal for single server owners running the application locally on a private PC or private VPS.
+
+```mermaid
+flowchart TD
+    Start([Launch AegisOptimizer.exe / run.py]) --> CheckEnv{Credentials Exist?}
+    CheckEnv -- No --> ShowWizard[Launch First-Run Console Wizard]
+    ShowWizard --> GetSecrets[Prompt for Token, Client ID, Admin Password]
+    GetSecrets --> Encrypt[Encrypt with Win32 DPAPI & Write .env.enc]
+    Encrypt --> Reboot[Reboot Application]
+    CheckEnv -- Yes --> Decrypt[Decrypt Secrets in Memory]
+    Decrypt --> DB[Initialize SQLite Engine & Alembic Migrations]
+    DB --> Web[Start FastAPI Server on Port 8000]
+    Web --> Browser[Auto-Open Web Browser to Dashboard]
+    Web --> DiscordBot[Authenticate & Start Discord Bot Task]
+```
+
+### 3. Dashboard ↔ Bot Communication
+Illustrates how subsystems communicate directly via a shared memory layer on a single asyncio event loop.
+
+```mermaid
+graph LR
+    subgraph Single Process Concurrency Event Loop
+        Uvicorn[Uvicorn ASGI Web Server] <--> SharedState[AppCore Concurrency State]
+        DiscordClient[Discord.py Bot Task] <--> SharedState
+        SharedState <--> SQLAlchemy[SQLAlchemy Engine & Locks]
+    end
+    SQLAlchemy <--> SQLite[(SQLite Database)]
+```
+
+### 4. First-Run Onboarding Flow
+Detailed logic executed when the console wizard runs for first-run setups:
+
+```mermaid
+flowchart TD
+    SetupWizard[first_run_wizard.py] --> InputToken[Prompt for Discord Bot Token]
+    InputToken --> ValidateToken{Validate Shape & Auth?}
+    ValidateToken -- Invalid --> InputToken
+    ValidateToken -- Valid --> InputClient[Prompt for Discord Client ID]
+    InputClient --> ValidateClient{Validate Shape?}
+    ValidateClient -- Invalid --> InputClient
+    ValidateClient -- Valid --> InputPass[Prompt for Admin Password]
+    InputPass --> HashPass[Hash Password via PBKDF2-SHA256]
+    HashPass --> SaveSecrets[Write secrets to encrypted .env.enc]
+```
+
+### 5. Safe Mode Recovery Flow
+When startup checks fail (e.g. database corruptions, invalid credentials), Aegis enters Safe Mode to serve an administrative recovery panel.
+
+```mermaid
+sequenceDiagram
+    participant Core as AppCore
+    participant State as State Machine
+    participant DB as SQLite DB
+    participant Web as FastAPI Server
+    participant Bot as Discord.py Bot
+
+    Core->>DB: Run PRAGMA integrity_check
+    alt DB Corrupted / Connection Fails
+        Core->>State: Transition to SAFE_MODE (Reason: DB_RECOVERY)
+        Core->>Bot: Cancel / Suspend Bot Task
+        Core->>Web: Start ASGI Server & Serve /wizard/ and /api/recovery/ (Bypassing Auth)
+        Note over Web: Owner recovers config or restores DB backups via Web UI
+    end
+```
 
 ---
 
-## 🚀 Getting Started (Run from Source)
+## ⚙️ Getting Started
 
-To run the application directly from the source code (without needing a compiled `.exe`):
-
+### Quick Start (Run from Source)
 1. **Clone the Repository**:
    ```cmd
    git clone https://github.com/Cyril-47/Aegis-Suite.git
    cd Aegis-Suite
    ```
-
-2. **Launch the Application**:
-   Simply run the automated launcher script using Python:
+2. **Launch Application**:
    ```cmd
    python run.py
    ```
-   *The launcher script will automatically:*
-   - Create a local Python virtual environment (`.venv/`) using `uv` (falls back to standard `venv` if `uv` is not installed).
-   - Install all required dependencies (`discord.py`, `fastapi`, `uvicorn`, `websockets`, `yt-dlp`, `PyNaCl`, `pydantic`).
-   - Automatically search and configure the path for FFmpeg (required for music playback).
-   - Launch the FastAPI web server on `http://127.0.0.1:8000` and automatically open your default web browser.
+   *The launcher automatically configures a local Python virtual environment, installs standard dependencies, resolves `FFmpeg` for voice/music, and launches the web interface at `http://127.0.0.1:8000`.*
+
+### Installation via pip
+To install Aegis Suite as an editable developer package:
+```cmd
+pip install -e .
+```
+You can now start the application from anywhere using the `aegis` console entry point command:
+```cmd
+aegis
+```
 
 ---
 
@@ -70,24 +151,6 @@ The Aegis bot is hosted by us — you do not need to create a Discord applicatio
 
 ---
 
-## 📦 Self-Hosting Quick Start (Windows EXE)
-
-If you want to run your **own** copy of Aegis Suite (Local PC mode), the easiest path is the prebuilt Windows EXE:
-
-1. Go to the [Releases page](https://github.com/Cyril-47/Aegis-Suite/releases) and download the latest `AegisOptimizer.exe`.
-2. Place the EXE in any folder you can write to (it stores its config next to itself).
-3. Double-click the EXE. The first launch shows a one-time **first-run console wizard** that asks for:
-   - Your **Discord bot token** (Discord Developer Portal → Your App → Bot tab).
-   - Your application's **Client ID** (OAuth2 tab; a 17-20 digit number).
-   - A **password** for the dashboard admin login.
-   - Optionally, a public dashboard URL if you've put a reverse proxy in front of it.
-4. The wizard hashes the password (PBKDF2-SHA256), generates a JWT secret, and writes everything to a DPAPI-encrypted `.env.enc` file bound to your Windows user account. The plaintext copy is deleted as soon as encryption succeeds.
-5. The dashboard launches automatically at `http://127.0.0.1:8000` and a Desktop shortcut is created for future launches.
-
-To re-run the wizard later (for example, to rotate credentials), delete `.env.enc` and re-launch the EXE. To inspect the encrypted contents, use `python -m secret_store decrypt --source .env.enc`.
-
----
-
 ## 🏠 Hosting Modes
 
 Aegis Suite can be run two different ways, and the right choice depends on **where the bot process lives** and **how continuously it stays online**. In Local PC mode the bot runs on the Maintainer's own Windows machine and is online only while that PC is awake and connected. In Cloud mode the same repository runs on a paid third-party host that the Maintainer provisions themselves, with continuous 24/7 uptime expected. The dashboard's first-launch chooser, the header badge, and the Feature Availability Warning panel all surface this choice. Pick your hosting model first, then read the Secrets at Rest section below for the credential-handling rules that apply to the local path.
@@ -99,10 +162,9 @@ Local PC mode runs the Windows EXE on the Maintainer's own desktop or laptop. Th
 ### Cloud Mode
 
 Cloud mode runs the same repository on a paid third-party host that the Maintainer provisions, pays for, and configures themselves. **Aegis does not provision the host for you** — the dashboard's only role in Cloud mode is to record your choice and silence the Local-PC-only warnings. There are three supported deployment paths:
-
-- **Railway** — One-click deploy via the existing **Deploy on Railway** button (or follow the equivalent text instructions in the repo). The shipping `.github/workflows/deploy.yml` handles the rest. You'll need a `RAILWAY_TOKEN` secret on the GitHub repository for the deploy workflow to authenticate.
-- **Render** — Create a new **Web Service** from the GitHub repo via the Render dashboard. Set the start command to `python -m uvicorn web_server:app --host 0.0.0.0 --port $PORT` and configure the required environment variables (`DISCORD_BOT_TOKEN`, `JWT_SECRET`, `ADMIN_PASSWORD_HASH`, `BOT_API_URL`, plus optionally `AEGIS_HOSTING_MODE=cloud`).
-- **Generic Docker / VPS** — Clone the repo onto your host, install dependencies with `pip install -r requirements.txt`, set the same environment variables, and run via `python -m uvicorn web_server:app --host 0.0.0.0 --port 8000` (or wrap it in a `systemd` unit for restart-on-failure).
+- **Railway** — One-click deploy via the existing **Deploy on Railway** button.
+- **Render** — Create a new **Web Service** from the GitHub repo.
+- **Generic VPS** — Clone the repo onto your host and run dependencies.
 
 ### Feature availability
 
@@ -141,14 +203,14 @@ For headless deploys (Railway, Render) where no human can click the first-launch
 
 - **Accepted values**: exactly `local_pc` or `cloud`. The value is matched case-insensitively after stripping leading and trailing whitespace, so `Cloud`, ` LOCAL_PC `, and `cloud` are all accepted.
 - **First boot, no value persisted**: the env var's value is written to `config.json` under `hosting_mode` and becomes the active mode.
-- **A value is already persisted**: the env var is **ignored**. Once a Maintainer (or a previous boot) has recorded a choice, `AEGIS_HOSTING_MODE` will never silently overwrite it. Change the mode from the dashboard's Settings panel instead.
+- **A value is already persisted**: the env var is **ignored**. Once a Maintainer (or a previous boot) has recorded a choice, `AEGIS_HOSTING_MODE` will never silently overwrite it or override a dashboard switch. Change the mode from the dashboard's Settings panel instead.
 - **Invalid values**: anything other than `local_pc` or `cloud` is logged at WARNING level (naming the offending value) and ignored. Startup continues normally.
 
 The hosting mode is a non-sensitive deployment preference, so unlike the four secrets above it lives in `config.json` rather than the DPAPI-encrypted Secret Store.
 
 ---
 
-## 🔐 Secrets at Rest (Local EXE Deployment)
+## 🔐 Secrets at Rest
 
 For the local Windows EXE flow, the bot's secrets — `DISCORD_BOT_TOKEN`, `JWT_SECRET`, `ADMIN_PASSWORD_HASH`, `BOT_API_URL` — are stored encrypted at rest using **Windows DPAPI** (Data Protection API). The encrypted blob (`.env.enc`) is bound to your Windows user account and your machine; copying it to another user, another PC, or off the disk yields ciphertext that cannot be decrypted.
 
@@ -158,18 +220,31 @@ python -m secret_store encrypt --source .env --dest .env.enc --delete-source
 
 # Decrypt to stdout (or to a file with --dest)
 python -m secret_store decrypt --source .env.enc
-
-# Re-wrap the ciphertext under the current Windows user (after a credential change)
-python -m secret_store rotate --source .env.enc
 ```
 
-Loader precedence at startup:
+---
 
-1. **Platform environment variables** (Railway / Render injected secrets) — wins over everything.
-2. **`.env.enc`** — DPAPI-decrypted at startup if present.
-3. **`.env`** — plaintext fallback so legacy installs keep working.
+## 🛠️ Development & Release Pipelines
 
-On Railway and other Linux hosts, DPAPI is unavailable; the `.env.enc` step is silently skipped and the platform-injected env vars are used directly. No file-based secrets are written.
+- **Code Styling**: Standardized using `black` and linter via `ruff`.
+- **Testing**: Run pytest: `python -m pytest`
+- **Standalone Builds**: Compiles the standalone executable `AegisOptimizer.exe` under `dist/`:
+  ```cmd
+  python build_exe.py
+  ```
+
+---
+
+## ❓ FAQ & Troubleshooting
+
+### 1. Bot is online but commands do not respond?
+Verify that **Privileged Gateway Intents** are toggled **ON** in your [Discord Developer Portal](https://discord.com/developers/applications):
+* Presence Intent
+* Server Members Intent
+* Message Content Intent
+
+### 2. "Another instance is already running" error?
+Aegis enforces single-instance execution. Check your system tray for running processes or delete `temp_appdata/aegis.lock` if the application terminated abruptly.
 
 ---
 
@@ -177,3 +252,8 @@ On Railway and other Linux hosts, DPAPI is unavailable; the `.env.enc` step is s
 
 - **JSON Configuration Contention**: The current version uses local JSON files (`config.json`, `giveaways.json`, `audit_log.json`) for mutable configurations. While sufficient for small-scale local deployments, concurrent writes on large multi-tenant servers under high load can cause file corruptions or race conditions.
 - **SQLite Migration Roadmap**: If scaling up for public SaaS usage, it is highly recommended to migrate the configurations, custom commands, leveling stats, backups, and pairings data to a structured SQLite database (using `aiosqlite`) to support transactional integrity and concurrent locks.
+
+---
+
+## 📄 License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

@@ -17,4 +17,10 @@ dist/
 build/
 *.spec
 *.db
-*.log
+
+.hypothesis/
+.pytest_cache/
+temp_appdata/
+temp_appdata_test/
+temp_test/
+*.db-journal

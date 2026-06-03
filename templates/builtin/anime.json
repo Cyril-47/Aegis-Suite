@@ -1,0 +1,29 @@
+{
+  "name": "anime",
+  "verification_level": "medium",
+  "explicit_content_filter": "all_members",
+  "roles": [
+    {"name": "Admin", "color": 15671396, "hoist": true, "permissions": 8, "position": 3},
+    {"name": "Staff", "color": 3900150, "hoist": true, "permissions": 268435486, "position": 2},
+    {"name": "Weeb", "color": 10181046, "hoist": false, "permissions": 104324673, "position": 1}
+  ],
+  "categories": [
+    {
+      "name": "🌸 ANIME DISCUSSIONS",
+      "position": 1,
+      "channels": [
+        {"name": "general-anime", "type": "text", "position": 1},
+        {"name": "manga-chat", "type": "text", "position": 2},
+        {"name": "fan-art", "type": "text", "position": 3}
+      ]
+    },
+    {
+      "name": "🍿 WATCH PARTY",
+      "position": 2,
+      "channels": [
+        {"name": "schedule", "type": "text", "position": 1},
+        {"name": "Watch Room 1", "type": "voice", "position": 2}
+      ]
+    }
+  ]
+}

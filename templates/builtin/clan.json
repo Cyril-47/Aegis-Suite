@@ -1,0 +1,30 @@
+{
+  "name": "clan",
+  "verification_level": "medium",
+  "explicit_content_filter": "all_members",
+  "roles": [
+    {"name": "Clan Leader", "color": 15671396, "hoist": true, "permissions": 8, "position": 4},
+    {"name": "Officer", "color": 3900150, "hoist": true, "permissions": 268435486, "position": 3},
+    {"name": "Raider", "color": 10181046, "hoist": true, "permissions": 104324673, "position": 2},
+    {"name": "Recruit", "color": 3447003, "hoist": false, "permissions": 104324673, "position": 1}
+  ],
+  "categories": [
+    {
+      "name": "🛡️ CLAN ANNOUNCEMENTS",
+      "position": 1,
+      "channels": [
+        {"name": "raid-planning", "type": "text", "position": 1},
+        {"name": "recruits-board", "type": "text", "position": 2}
+      ]
+    },
+    {
+      "name": "⚔️ RAID DEPLOYMENT",
+      "position": 2,
+      "channels": [
+        {"name": "Raid Room 1", "type": "voice", "position": 1},
+        {"name": "Raid Room 2", "type": "voice", "position": 2},
+        {"name": "Officers Room", "type": "voice", "position": 3}
+      ]
+    }
+  ]
+}

@@ -13,6 +13,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- Style Sheet -->
   <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/responsive.css">
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -163,6 +164,57 @@
         <button type="button" id="hosting-mode-selector-cancel" class="btn btn-secondary mt-2 w-100 hidden">
           <i class="fa-solid fa-xmark"></i> Cancel
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TEMPLATE PREVIEW & CUSTOMIZATION MODAL -->
+  <div id="template-preview-overlay" class="wizard-container hidden" style="z-index: 10000;">
+    <div class="wizard-box glass" style="max-width: 800px; width: 90%;">
+      <div class="wizard-header">
+        <div class="logo-area">
+          <i class="fa-solid fa-layer-group bot-logo"></i>
+          <h1 id="preview-template-title">Customize Template</h1>
+        </div>
+        <p>Preview and customize the template before deployment.</p>
+      </div>
+      <div class="card-body px-4 pb-4" style="max-height: 70vh; overflow-y: auto; text-align: left;">
+        
+        <!-- Summary Alert -->
+        <div class="alert alert-info glass-inner mb-4" id="template-preview-summary" style="padding: 15px; border-radius: 8px; font-size: 0.9rem;">
+          <!-- Populated by JS: roles, categories, channels to create/skip -->
+        </div>
+
+        <!-- Warning Alert -->
+        <div class="alert alert-warning glass-inner mb-4" style="padding: 15px; border-radius: 8px; font-size: 0.9rem; border: 1px solid rgba(245, 158, 11, 0.2); background: rgba(245, 158, 11, 0.05); color: #f59e0b;">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <strong>Important:</strong> Applying this template will automatically organize the server. Current channels will be archived under a "PRE-RESTORE ARCHIVE" category.
+        </div>
+
+        <!-- Customizer Tree Structure -->
+        <h3 class="mb-2" style="font-size: 1.1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">Template Structure Customizer</h3>
+        <div id="template-tree-customizer" class="tree-customizer-container mb-4" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+          <!-- Populated dynamically: Tree checklist of Roles, Categories, Channels -->
+        </div>
+
+        <!-- Confirmation Checkbox -->
+        <div class="flex-start mb-4" style="display: flex; align-items: center; gap: 8px;">
+          <input type="checkbox" id="template-confirm-checkbox" style="cursor: pointer; width: 18px; height: 18px;">
+          <label for="template-confirm-checkbox" style="cursor: pointer; user-select: none; font-size: 0.95rem;">
+            I confirm that I want to apply this template layout to my server.
+          </label>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex-between" style="display: flex; gap: 15px;">
+          <button type="button" id="btn-cancel-template-preview" class="btn btn-secondary w-50" style="padding: 12px;">
+            <i class="fa-solid fa-xmark"></i> Cancel
+          </button>
+          <button type="button" id="btn-deploy-template-preview" class="btn btn-primary btn-glow w-50" style="padding: 12px;" disabled>
+            <i class="fa-solid fa-rocket"></i> Confirm and Deploy
+          </button>
+        </div>
+
       </div>
     </div>
   </div>
@@ -894,13 +946,34 @@
                   <p class="setting-desc mb-4">Automatically deletes messages matching the filtered words list. Staff members bypass this check.</p>
 
                   <div class="toggle-group mb-2">
-                    <span class="toggle-label">Block Links & Invites:</span>
+                    <span class="toggle-label">Block Links:</span>
                     <label class="switch">
                       <input type="checkbox" id="automod-links">
                       <span class="slider round"></span>
                     </label>
                   </div>
-                  <p class="setting-desc mb-4">Removes links shared by normal users (blocks advertisement, phishing links, and server invites).</p>
+                  <p class="setting-desc mb-4">Removes links shared by normal users (blocks advertisement and phishing links). Staff members bypass this check.</p>
+
+                  <div class="input-group" id="whitelisted-domains-group">
+                    <label for="automod-whitelisted-domains">Whitelisted Domains (one per line):</label>
+                    <textarea id="automod-whitelisted-domains" class="glass-input" rows="3" placeholder="e.g. google.com&#10;github.com"></textarea>
+                    <small>Links to these domains will be allowed.</small>
+                  </div>
+
+                  <div class="toggle-group mb-2">
+                    <span class="toggle-label">Block Discord Invites:</span>
+                    <label class="switch">
+                      <input type="checkbox" id="automod-invites">
+                      <span class="slider round"></span>
+                    </label>
+                  </div>
+                  <p class="setting-desc mb-4">Automatically removes messages containing Discord invites. Staff members bypass this check.</p>
+
+                  <div class="input-group" id="whitelisted-invites-group">
+                    <label for="automod-whitelisted-invites">Whitelisted Invites (one per line):</label>
+                    <textarea id="automod-whitelisted-invites" class="glass-input" rows="3" placeholder="e.g. aegis-dev&#10;discord-invite-code"></textarea>
+                    <small>Specific invite codes that are allowed.</small>
+                  </div>
 
                   <div class="input-group">
                     <label for="automod-max-mentions">Mass Mention Threshold:</label>

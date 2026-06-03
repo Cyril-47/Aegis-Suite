@@ -1,0 +1,89 @@
+{
+  "name": "community",
+  "verification_level": "low",
+  "explicit_content_filter": "all_members",
+  "roles": [
+    {
+      "name": "Staff",
+      "color": 3900150,
+      "hoist": true,
+      "permissions": 268435486,
+      "position": 3
+    },
+    {
+      "name": "VIP",
+      "color": 15485081,
+      "hoist": true,
+      "permissions": 104324673,
+      "position": 2
+    },
+    {
+      "name": "Member",
+      "color": 9741240,
+      "hoist": false,
+      "permissions": 104324673,
+      "position": 1
+    }
+  ],
+  "categories": [
+    {
+      "name": "📢 WELCOME & INFO",
+      "position": 1,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "welcome",
+          "type": "text",
+          "position": 1,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        },
+        {
+          "name": "rules-and-info",
+          "type": "text",
+          "position": 2,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "💬 DISCUSSION",
+      "position": 2,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "general-chat",
+          "type": "text",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "off-topic",
+          "type": "text",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "memes-and-media",
+          "type": "text",
+          "position": 3,
+          "overwrites": []
+        }
+      ]
+    }
+  ],
+  "uncategorized_channels": []
+}
