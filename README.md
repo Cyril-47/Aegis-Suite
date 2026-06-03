@@ -1,5 +1,9 @@
 # Aegis Server Optimizer
 
+[![Build & Publish Windows EXE Release](https://github.com/Cyril-47/Aegis-Suite/actions/workflows/release.yml/badge.svg)](https://github.com/Cyril-47/Aegis-Suite/actions/workflows/release.yml)
+[![Verify Security Layering](https://github.com/Cyril-47/Aegis-Suite/actions/workflows/verify.yml/badge.svg)](https://github.com/Cyril-47/Aegis-Suite/actions/workflows/verify.yml)
+[![Deploy to Railway](https://github.com/Cyril-47/Aegis-Suite/actions/workflows/deploy.yml/badge.svg)](https://github.com/Cyril-47/Aegis-Suite/actions/workflows/deploy.yml)
+
 Aegis Server Optimizer is an interactive server operations suite written in Python containing a Discord bot and a FastAPI web dashboard designed to automatically scan, analyze, audit, and optimize Discord servers with single-click layout configurations, welcome greeting embeds, custom command responses, support tickets, layouts backup/restore, and auto-moderation.
 
 ---
@@ -12,6 +16,44 @@ Aegis Server Optimizer is an interactive server operations suite written in Pyth
 - **Automated Welcoming Module**: Configures customizable welcome cards, color themes, embed headers, and auto-assigns roles (e.g. `Verified Member`) upon user joins.
 - **Robust Auto-Moderation Suite**: Filters links, prevents mention raid spam, blocks toxic profanity using a custom word blocklist, and logs violations to a staff `#mod-logs` channel.
 - **Live Terminal Logging Console**: Real-time websocket feed displaying server logs and bot actions directly on the dashboard page.
+
+---
+
+## 📸 Screenshots
+
+*Below are placeholders for the visual panels in the Aegis Suite interface:*
+
+| **Circular Health Score & Audit Panel** | **Server Layout Optimizer Card** |
+| :---: | :---: |
+| *[Screenshot Placeholder: Health score gauge and security audit results]* | *[Screenshot Placeholder: Interactive cards for Gaming, Social, Developer layouts]* |
+
+| **Automated Welcomer Configurator** | **Real-time Live Logging Console Feed** |
+| :---: | :---: |
+| *[Screenshot Placeholder: Welcome card customization, background templates]* | *[Screenshot Placeholder: Live websocket log streams running on the dashboard]* |
+
+---
+
+## 🏗️ Architecture Overview
+
+Aegis Suite is structured as a unified process running on a single asyncio event loop. This architecture allows the web dashboard (FastAPI) and the Discord bot (Discord.py client) to run in-process, simplifying deployment, lifecycle coordination, and memory utilization.
+
+```mermaid
+graph TD
+    Launcher[run.py / Compiled EXE] --> AppCore[aegis.core.AppCore]
+    AppCore --> State[Lifecycle State Machine]
+    AppCore --> paths[aegis.core.Paths]
+    AppCore --> db[aegis.db SQLite / Alembic]
+    AppCore --> WebService[FastAPI ASGI Server / Uvicorn]
+    AppCore --> BotService[Discord.py Bot Service]
+    BotService --> commands[Command Registrations / AutoMod Engine]
+    WebService --> endpoints[API / Dashboard Routes]
+```
+
+### Key Subsystems:
+1. **AppCore (`aegis/core/app_core.py`)**: The main lifecycle orchestrator which initializes directories, runs database migrations, handles setup verification checks, and spawns the bot and web tasks.
+2. **State Machine (`aegis/core/state.py`)**: Manages transitions between `STARTUP`, `SAFE_MODE`, `RUNNING`, and `SHUTTING_DOWN`. If a fatal error occurs (e.g., token invalidation), Aegis enters `SAFE_MODE`, suspending the bot but keeping the web dashboard active for recovery.
+3. **Database Layer (`aegis/db/`)**: Employs SQLite for persistent configuration storage (servers, leveling stats, templates), utilizing Alembic for schema migrations.
+4. **Secret Store (`secret_store.py`)**: Uses Windows Data Protection API (DPAPI) to encrypt secrets (tokens, passwords) at rest in the `.env.enc` file on Windows desktops.
 
 ---
 
@@ -184,7 +226,36 @@ On Railway and other Linux hosts, DPAPI is unavailable; the `.env.enc` step is s
 
 ---
 
+## 🚀 Release Instructions
+
+To package and deploy a new release:
+
+1. **Tag the Commit**: Release pipelines trigger automatically when a version tag matching `v*.*.*` is pushed.
+   ```cmd
+   git tag v2.1.0-rc1
+   git push origin v2.1.0-rc1
+   ```
+2. **GitHub Actions Workflow**:
+   - The `.github/workflows/release.yml` pipeline will trigger on the pushed tag.
+   - It sets up a `windows-latest` runner, installs Python 3.12, installs dependencies, and runs `build_exe.py` to compile the single-file binary.
+   - It compiles the installer script `setup.iss` using Inno Setup compiler to produce `AegisSetup.exe`.
+   - Both `AegisOptimizer.exe` and `AegisSetup.exe` are uploaded to the GitHub Release.
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md) to get started.
+
+---
+
 ## ⚠️ Known Technical Debt & Limits
 
 - **JSON Configuration Contention**: The current version uses local JSON files (`config.json`, `giveaways.json`, `audit_log.json`) for mutable configurations. While sufficient for small-scale local deployments, concurrent writes on large multi-tenant servers under high load can cause file corruptions or race conditions.
 - **SQLite Migration Roadmap**: If scaling up for public SaaS usage, it is highly recommended to migrate the configurations, custom commands, leveling stats, backups, and pairings data to a structured SQLite database (using `aiosqlite`) to support transactional integrity and concurrent locks.
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
