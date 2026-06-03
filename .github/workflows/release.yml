@@ -13,9 +13,10 @@ name: Build & Publish Windows EXE Release
 # resulting `AegisOptimizer.exe` to a GitHub Release named after the tag.
 #
 # The `verify.yml` and `deploy.yml` workflows are intentionally NOT
-# touched: they run on every push to `main`, while this workflow runs
+# The `verify.yml` and `deploy.yml` workflows are intentionally NOT
+# touched: they run on every push to `master`, while this workflow runs
 # only on tags. Operators tag a vetted commit, this workflow ships the
-# binary, and the existing test/deploy gates continue to protect main.
+# binary, and the existing test/deploy gates continue to protect master.
 
 on:
   push:
@@ -80,29 +81,34 @@ jobs:
           Write-Host "Built artifact: dist/AegisOptimizer.exe ($([math]::Round($size/1MB, 2)) MB)"
         shell: pwsh
 
-      - name: Upload EXE as workflow artifact
-        # This makes the binary downloadable from the Actions run UI in
-        # addition to attaching it to the Release. Useful for debugging
-        # a failed `softprops/action-gh-release` step without re-running
-        # the whole build.
+      - name: Build Installer (Inno Setup)
+        run: iscc setup.iss
+        shell: pwsh
+
+      - name: Upload Build Artifacts
+        # This makes the binary and installer downloadable from the Actions run UI in
+        # addition to attaching them to the Release.
         uses: actions/upload-artifact@v4
         with:
-          name: AegisOptimizer-${{ github.ref_name }}
-          path: dist/AegisOptimizer.exe
+          name: AegisSuite-${{ github.ref_name }}
+          path: |
+            dist/AegisOptimizer.exe
+            dist/AegisSetup.exe
           if-no-files-found: error
           retention-days: 30
 
-      - name: Publish GitHub Release with EXE attached
+      - name: Publish GitHub Release with Assets
         # `softprops/action-gh-release` is the de-facto standard action
         # for this. It creates the Release if it does not exist, or
-        # updates it (re-uploading the asset) if it does. The release
-        # name and tag both follow the pushed tag.
+        # updates it (re-uploading the asset) if it does.
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
           name: ${{ github.ref_name }}
           generate_release_notes: true
-          files: dist/AegisOptimizer.exe
+          files: |
+            dist/AegisOptimizer.exe
+            dist/AegisSetup.exe
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
