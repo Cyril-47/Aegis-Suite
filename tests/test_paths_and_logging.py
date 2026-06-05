@@ -203,9 +203,12 @@ def test_logging_setup_idempotency_and_handlers(paths_tmp):
 
 def test_logging_unwritable_fallback():
     """Verify logging setup falls back to console-only if directories/files are unwritable."""
-    # Build a Paths instance with a totally invalid/unwritable path format
-    # E.g. using invalid path characters on Windows
-    bad_p = Paths(root=Path("NUL:\\InvalidPath"))
+    # Build a Paths instance with a totally invalid/unwritable path format depending on OS
+    import sys
+    if sys.platform == "win32":
+        bad_p = Paths(root=Path("NUL:\\InvalidPath"))
+    else:
+        bad_p = Paths(root=Path("/sys/class/unwritable_aegis"))
     
     # This should not raise an exception, but degrade to console-only
     setup_logging(bad_p)
