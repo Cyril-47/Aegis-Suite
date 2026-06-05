@@ -359,11 +359,24 @@ async def optimize_guild_structure(guild: discord.Guild, preset: str, handling: 
             for channel in list(guild.channels):
                 if channel.category == archive_category or channel == archive_category:
                     continue
+                if isinstance(channel, discord.CategoryChannel):
+                    continue
                 try:
                     await channel.edit(category=archive_category, reason="Archiving old structure")
                     logger.info(f"Archived channel #{channel.name}")
                 except Exception as e:
                     logger.warning(f"Could not archive channel #{channel.name}: {e}")
+
+            # Clean up old empty categories
+            for category in list(guild.categories):
+                if category == archive_category:
+                    continue
+                if len(category.channels) == 0:
+                    try:
+                        await category.delete(reason="Deleting empty category after archiving channels")
+                        logger.info(f"Deleted empty category: {category.name}")
+                    except Exception as e:
+                        logger.warning(f"Could not delete empty category {category.name}: {e}")
 
     elif handling == "delete":
         logger.info("Deleting existing categories and channels...")
@@ -653,143 +666,395 @@ def backup_guild_layout(guild: discord.Guild):
             
     return backup_data
 
-async def restore_guild_layout(guild: discord.Guild, backup_data: dict):
-    """Rebuilds the guild channels, categories, roles and overrides from backup data."""
-    logger.info(f"Starting server layout restore on '{guild.name}'...")
-    
-    created_roles = {}
-    created_roles["@everyone"] = guild.default_role
-    
-    for r_data in backup_data.get("roles", []):
-        role_name = r_data["name"]
-        role = discord.utils.get(guild.roles, name=role_name)
-        if not role:
-            try:
-                role = await guild.create_role(
-                    name=role_name,
-                    permissions=discord.Permissions(r_data["permissions"]),
-                    color=discord.Color(r_data["color"]),
-                    hoist=r_data["hoist"],
-                    reason="Server Layout Restore"
-                )
-                logger.info(f"Restored role: '{role_name}'")
-            except Exception as e:
-                logger.error(f"Failed to restore role '{role_name}': {e}")
-                continue
-        created_roles[role_name] = role
-        
-    def deserialize_overwrites(overwrites_data):
-        overwrites = {}
-        for ow in overwrites_data:
-            target_name = ow["target_name"]
-            target_type = ow["target_type"]
-            target_id = ow.get("target_id")
-            
-            target = None
-            if target_type == "role":
-                if target_id:
-                    target = guild.get_role(int(target_id))
-                if not target:
-                    target = created_roles.get(target_name) or discord.utils.get(guild.roles, name=target_name)
-            else:
-                if target_id:
-                    target = guild.get_member(int(target_id))
-                if not target:
-                    target = discord.utils.get(guild.members, name=target_name)
-                
-            if target:
-                allow_perms = discord.Permissions(ow["allow"])
-                deny_perms = discord.Permissions(ow["deny"])
-                overwrites[target] = discord.PermissionOverwrite.from_pair(allow_perms, deny_perms)
-        return overwrites
+active_deployments = set()
 
-    archive_category = discord.utils.get(guild.categories, name="📦 PRE-RESTORE ARCHIVE")
-    if not archive_category:
-        try:
-            archive_category = await guild.create_category(
-                name="📦 PRE-RESTORE ARCHIVE",
-                overwrites={guild.default_role: discord.PermissionOverwrite(view_channel=False)},
-                reason="Archive before restore"
-            )
-        except Exception:
-            pass
+def generate_template_preview(guild: discord.Guild, template_data: dict, handling: str = "keep") -> dict:
+    roles_to_create = []
+    roles_to_skip = []
+    categories_to_create = []
+    categories_to_skip = []
+    channels_to_create = []
+    channels_to_skip = []
+    
+    guild_role_names = {r.name.lower() for r in guild.roles}
+    for r_data in template_data.get("roles", []):
+        r_name = r_data.get("name")
+        if r_name.lower() in guild_role_names:
+            roles_to_skip.append(r_name)
+        else:
+            roles_to_create.append(r_name)
             
-    if archive_category:
-        for ch in list(guild.channels):
-            if ch.category == archive_category or ch == archive_category:
-                continue
-            try:
-                await ch.edit(category=archive_category)
-            except Exception:
-                pass
-
-    for cat_data in backup_data.get("categories", []):
-        cat_name = cat_data["name"]
-        cat_overwrites = deserialize_overwrites(cat_data.get("overwrites", []))
-        
-        try:
-            category = await guild.create_category(
-                name=cat_name,
-                overwrites=cat_overwrites,
-                position=cat_data.get("position"),
-                reason="Layout Restore"
-            )
-            logger.info(f"Restored category: '{cat_name}'")
-        except Exception as e:
-            logger.error(f"Failed to restore category '{cat_name}': {e}")
-            continue
+    guild_channels = {(ch.name.lower(), "text" if isinstance(ch, discord.TextChannel) else "voice" if isinstance(ch, discord.VoiceChannel) else "category") for ch in guild.channels}
+    
+    for cat_data in template_data.get("categories", []):
+        cat_name = cat_data.get("name")
+        if (cat_name.lower(), "category") in guild_channels:
+            categories_to_skip.append(cat_name)
+        else:
+            categories_to_create.append(cat_name)
             
         for ch_data in cat_data.get("channels", []):
-            chan_name = ch_data["name"]
-            chan_type = ch_data["type"]
-            chan_overwrites = deserialize_overwrites(ch_data.get("overwrites", []))
-            
-            try:
-                if chan_type == "text":
-                    await guild.create_text_channel(
-                        name=chan_name,
-                        category=category,
-                        overwrites=chan_overwrites,
-                        position=ch_data.get("position"),
-                        reason="Layout Restore"
-                    )
-                    logger.info(f"Restored text channel #{chan_name}")
-                else:
-                    await guild.create_voice_channel(
-                        name=chan_name,
-                        category=category,
-                        overwrites=chan_overwrites,
-                        position=ch_data.get("position"),
-                        reason="Layout Restore"
-                    )
-                    logger.info(f"Restored voice channel '{chan_name}'")
-            except Exception as e:
-                logger.error(f"Failed to restore channel '{chan_name}': {e}")
-                
-    for ch_data in backup_data.get("uncategorized_channels", []):
-        chan_name = ch_data["name"]
-        chan_type = ch_data["type"]
-        chan_overwrites = deserialize_overwrites(ch_data.get("overwrites", []))
-        
-        try:
-            if chan_type == "text":
-                await guild.create_text_channel(
-                    name=chan_name,
-                    overwrites=chan_overwrites,
-                    position=ch_data.get("position"),
-                    reason="Layout Restore"
-                )
-                logger.info(f"Restored uncategorized text channel #{chan_name}")
+            ch_name = ch_data.get("name")
+            ch_type = ch_data.get("type", "text")
+            ch_full = f"{ch_name} ({ch_type})"
+            if (ch_name.lower(), ch_type) in guild_channels:
+                channels_to_skip.append(ch_full)
             else:
-                await guild.create_voice_channel(
-                    name=chan_name,
-                    overwrites=chan_overwrites,
-                    position=ch_data.get("position"),
-                    reason="Layout Restore"
-                )
-                logger.info(f"Restored uncategorized voice channel '{chan_name}'")
-        except Exception as e:
-            logger.error(f"Failed to restore uncategorized channel '{chan_name}': {e}")
+                channels_to_create.append(ch_full)
+                
+    for ch_data in template_data.get("uncategorized_channels", []):
+        ch_name = ch_data.get("name")
+        ch_type = ch_data.get("type", "text")
+        ch_full = f"{ch_name} ({ch_type})"
+        if (ch_name.lower(), ch_type) in guild_channels:
+            channels_to_skip.append(ch_full)
+        else:
+            channels_to_create.append(ch_full)
             
-    logger.info("Server layout restore process complete.")
-    return True
+    objects_to_modify = []
+    objects_to_delete = []
+    
+    if handling == "archive":
+        for cat in guild.categories:
+            if cat.name != "📦 ARCHIVED CHANNELS":
+                objects_to_modify.append(f"Category: {cat.name}")
+        for ch in guild.channels:
+            if not isinstance(ch, discord.CategoryChannel):
+                if ch.category is None or ch.category.name != "📦 ARCHIVED CHANNELS":
+                    objects_to_modify.append(f"Channel: #{ch.name} ({ch.type})")
+    elif handling == "delete":
+        for cat in guild.categories:
+            objects_to_delete.append(f"Category: {cat.name}")
+        for ch in guild.channels:
+            if not isinstance(ch, discord.CategoryChannel):
+                objects_to_delete.append(f"Channel: #{ch.name} ({ch.type})")
+                
+    if handling == "delete":
+        # Move all skipped items to create items since everything existing is wiped
+        roles_to_create.extend(roles_to_skip)
+        roles_to_skip.clear()
+        categories_to_create.extend(categories_to_skip)
+        categories_to_skip.clear()
+        channels_to_create.extend(channels_to_skip)
+        channels_to_skip.clear()
+            
+    return {
+        "summary": {
+            "roles_to_create": roles_to_create,
+            "roles_to_skip": roles_to_skip,
+            "categories_to_create": categories_to_create,
+            "categories_to_skip": categories_to_skip,
+            "channels_to_create": channels_to_create,
+            "channels_to_skip": channels_to_skip,
+            "objects_to_modify": objects_to_modify,
+            "objects_to_delete": objects_to_delete
+        },
+        "template_data": template_data
+    }
+
+
+async def restore_guild_layout(guild: discord.Guild, backup_data: dict, customizations: Optional[dict] = None, handling: Optional[str] = "keep"):
+    """Rebuilds the guild channels, categories, roles and overrides from backup data (idempotently)."""
+    logger.info(f"Starting server layout restore on '{guild.name}' (handling: {handling})...")
+    
+    if guild.id in active_deployments:
+        raise ValueError("A template deployment is already in progress on this server.")
+        
+    active_deployments.add(guild.id)
+    errors = []
+    
+    try:
+        if not guild.me.guild_permissions.manage_channels:
+            raise PermissionError("Bot is missing the required 'Manage Channels' permission to apply templates or backups.")
+        if not guild.me.guild_permissions.manage_roles:
+            raise PermissionError("Bot is missing the required 'Manage Roles' permission to apply templates or backups.")
+            
+        # 1. Handle existing channels (Archive / Delete)
+        if handling == "archive":
+            logger.info("Archiving existing channels...")
+            archive_category = discord.utils.get(guild.categories, name="📦 ARCHIVED CHANNELS")
+            if not archive_category:
+                try:
+                    overwrites = {
+                        guild.default_role: discord.PermissionOverwrite(view_channel=False),
+                    }
+                    archive_category = await guild.create_category(
+                        name="📦 ARCHIVED CHANNELS",
+                        overwrites=overwrites,
+                        reason="Archive existing layout"
+                    )
+                    logger.info("Created '📦 ARCHIVED CHANNELS' category.")
+                except Exception as e:
+                    logger.error(f"Failed to create archive category: {e}")
+                    errors.append(f"Failed to create archive category: {e}")
+
+            if archive_category:
+                for channel in list(guild.channels):
+                    if channel.category == archive_category or channel == archive_category:
+                        continue
+                    if isinstance(channel, discord.CategoryChannel):
+                        continue
+                    try:
+                        await channel.edit(category=archive_category, reason="Archiving old structure")
+                        logger.info(f"Archived channel #{channel.name}")
+                    except Exception as e:
+                        logger.warning(f"Could not archive channel #{channel.name}: {e}")
+
+                # Clean up old empty categories
+                for category in list(guild.categories):
+                    if category == archive_category:
+                        continue
+                    if len(category.channels) == 0:
+                        try:
+                            await category.delete(reason="Deleting empty category after archiving channels")
+                            logger.info(f"Deleted empty category: {category.name}")
+                        except Exception as e:
+                            logger.warning(f"Could not delete empty category {category.name}: {e}")
+
+        elif handling == "delete":
+            logger.info("Deleting existing categories and channels...")
+            for channel in list(guild.channels):
+                try:
+                    await channel.delete(reason="Server Layout Delete Before Restore")
+                    logger.info(f"Deleted channel/category: {channel.name}")
+                except Exception as e:
+                    logger.warning(f"Could not delete channel {channel.name}: {e}")
+
+        created_roles = {}
+        created_roles["@everyone"] = guild.default_role
+        
+        logger.info("Stage: Applying role modifications...")
+        permission_lost = False
+        
+        for r_data in backup_data.get("roles", []):
+            role_name = r_data["name"]
+            key = f"role:{role_name}"
+            if customizations and key in customizations.get("disabled_elements", []):
+                logger.info(f"Skipping disabled role: '{role_name}'")
+                continue
+            if customizations and key in customizations.get("renames", {}):
+                role_name = customizations["renames"][key]
+                
+            role = discord.utils.find(lambda r: r.name.lower() == role_name.lower(), guild.roles)
+            if not role:
+                try:
+                    role = await guild.create_role(
+                        name=role_name,
+                        permissions=discord.Permissions(r_data["permissions"]),
+                        color=discord.Color(r_data["color"]),
+                        hoist=r_data["hoist"],
+                        reason="Server Layout Restore"
+                    )
+                    logger.info(f"Restored role: '{role_name}'")
+                except Exception as e:
+                    logger.error(f"Failed to restore role '{role_name}': {e}")
+                    errors.append(f"Failed to create role '{role_name}': {e}")
+                    if isinstance(e, discord.Forbidden) and not guild.me.guild_permissions.manage_roles:
+                        logger.error("Permissions revoked mid-execution (Manage Roles). Aborting template apply.")
+                        errors.append("Critical: Bot missing 'Manage Roles' permission mid-execution. Aborted.")
+                        permission_lost = True
+                        break
+                    continue
+            created_roles[r_data["name"]] = role
+            
+        if permission_lost:
+            return False, errors
+            
+        def deserialize_overwrites(overwrites_data):
+            overwrites = {}
+            for ow in overwrites_data:
+                target_name = ow["target_name"]
+                target_type = ow["target_type"]
+                target_id = ow.get("target_id")
+                
+                target = None
+                if target_type == "role":
+                    if target_id:
+                        target = guild.get_role(int(target_id))
+                    if not target:
+                        target = created_roles.get(target_name) or discord.utils.find(lambda r: r.name.lower() == target_name.lower(), guild.roles)
+                else:
+                    if target_id:
+                        target = guild.get_member(int(target_id))
+                    if not target:
+                        target = discord.utils.find(lambda m: m.name.lower() == target_name.lower(), guild.members)
+                    
+                if target:
+                    allow_perms = discord.Permissions(ow["allow"])
+                    deny_perms = discord.Permissions(ow["deny"])
+                    overwrites[target] = discord.PermissionOverwrite.from_pair(allow_perms, deny_perms)
+            return overwrites
+
+        archive_category = discord.utils.get(guild.categories, name="📦 PRE-RESTORE ARCHIVE")
+        if not archive_category:
+            try:
+                archive_category = await guild.create_category(
+                    name="📦 PRE-RESTORE ARCHIVE",
+                    overwrites={guild.default_role: discord.PermissionOverwrite(view_channel=False)},
+                    reason="Archive before restore"
+                )
+            except Exception as e:
+                logger.error(f"Failed to create archive category: {e}")
+                errors.append(f"Failed to create archive category: {e}")
+                
+        if archive_category:
+            for ch in list(guild.channels):
+                if ch.category == archive_category or ch == archive_category:
+                    continue
+                if isinstance(ch, discord.CategoryChannel):
+                    continue
+                try:
+                    await ch.edit(category=archive_category)
+                except Exception:
+                    pass
+
+            # Clean up old empty categories
+            for category in list(guild.categories):
+                if category == archive_category:
+                    continue
+                if len(category.channels) == 0:
+                    try:
+                        await category.delete(reason="Deleting empty category after archiving channels")
+                    except Exception:
+                        pass
+
+        logger.info("Stage: Deploying category and channel modifications...")
+        for cat_data in backup_data.get("categories", []):
+            if permission_lost:
+                break
+                
+            cat_name = cat_data["name"]
+            key = f"category:{cat_name}"
+            if customizations and key in customizations.get("disabled_elements", []):
+                logger.info(f"Skipping disabled category: '{cat_name}'")
+                continue
+            if customizations and key in customizations.get("renames", {}):
+                cat_name = customizations["renames"][key]
+                
+            cat_overwrites = deserialize_overwrites(cat_data.get("overwrites", []))
+            
+            category = discord.utils.find(lambda c: c.name.lower() == cat_name.lower() and c.name != "📦 PRE-RESTORE ARCHIVE", guild.categories)
+            if not category:
+                try:
+                    category = await guild.create_category(
+                        name=cat_name,
+                        overwrites=cat_overwrites,
+                        position=cat_data.get("position"),
+                        reason="Layout Restore"
+                    )
+                    logger.info(f"Restored category: '{cat_name}'")
+                except Exception as e:
+                    logger.error(f"Failed to restore category '{cat_name}': {e}")
+                    errors.append(f"Failed to create category '{cat_name}': {e}")
+                    if isinstance(e, discord.Forbidden):
+                        logger.error("Permissions revoked mid-execution. Aborting template apply.")
+                        errors.append("Critical: Bot missing 'Manage Channels' permission mid-execution. Aborted.")
+                        permission_lost = True
+                        break
+                    continue
+                    
+            for ch_data in cat_data.get("channels", []):
+                chan_name = ch_data["name"]
+                chan_type = ch_data["type"]
+                ch_key = f"channel:{chan_name}"
+                if customizations and ch_key in customizations.get("disabled_elements", []):
+                    logger.info(f"Skipping disabled channel: '{chan_name}'")
+                    continue
+                if customizations and ch_key in customizations.get("renames", {}):
+                    chan_name = customizations["renames"][ch_key]
+                    
+                chan_overwrites = deserialize_overwrites(ch_data.get("overwrites", []))
+                
+                channel = discord.utils.find(
+                    lambda ch: ch.name.lower() == chan_name.lower() and (
+                        (chan_type == "text" and isinstance(ch, discord.TextChannel)) or 
+                        (chan_type == "voice" and isinstance(ch, discord.VoiceChannel))
+                    ), 
+                    category.channels
+                )
+                if channel:
+                    logger.info(f"Channel '{chan_name}' already exists in category '{cat_name}'. Skipping creation.")
+                    continue
+                    
+                try:
+                    if chan_type == "text":
+                        await guild.create_text_channel(
+                            name=chan_name,
+                            category=category,
+                            overwrites=chan_overwrites,
+                            position=ch_data.get("position"),
+                            reason="Layout Restore"
+                        )
+                        logger.info(f"Restored text channel #{chan_name}")
+                    else:
+                        await guild.create_voice_channel(
+                            name=chan_name,
+                            category=category,
+                            overwrites=chan_overwrites,
+                            position=ch_data.get("position"),
+                            reason="Layout Restore"
+                        )
+                        logger.info(f"Restored voice channel '{chan_name}'")
+                except Exception as e:
+                    logger.error(f"Failed to restore channel '{chan_name}': {e}")
+                    errors.append(f"Failed to create channel '{chan_name}': {e}")
+                    if isinstance(e, discord.Forbidden):
+                        logger.error("Permissions revoked mid-execution. Aborting template apply.")
+                        errors.append("Critical: Bot missing 'Manage Channels' permission mid-execution. Aborted.")
+                        permission_lost = True
+                        break
+                        
+        if not permission_lost:
+            logger.info("Stage: Deploying uncategorized channels...")
+            for ch_data in backup_data.get("uncategorized_channels", []):
+                chan_name = ch_data["name"]
+                chan_type = ch_data["type"]
+                ch_key = f"channel:{chan_name}"
+                if customizations and ch_key in customizations.get("disabled_elements", []):
+                    logger.info(f"Skipping disabled uncategorized channel: '{chan_name}'")
+                    continue
+                if customizations and ch_key in customizations.get("renames", {}):
+                    chan_name = customizations["renames"][ch_key]
+                    
+                chan_overwrites = deserialize_overwrites(ch_data.get("overwrites", []))
+                
+                channel = discord.utils.find(
+                    lambda ch: ch.category is None and ch.name.lower() == chan_name.lower() and (
+                        (chan_type == "text" and isinstance(ch, discord.TextChannel)) or 
+                        (chan_type == "voice" and isinstance(ch, discord.VoiceChannel))
+                    ), 
+                    guild.channels
+                )
+                if channel:
+                    logger.info(f"Uncategorized channel '{chan_name}' already exists. Skipping creation.")
+                    continue
+                    
+                try:
+                    if chan_type == "text":
+                        await guild.create_text_channel(
+                            name=chan_name,
+                            overwrites=chan_overwrites,
+                            position=ch_data.get("position"),
+                            reason="Layout Restore"
+                        )
+                        logger.info(f"Restored uncategorized text channel #{chan_name}")
+                    else:
+                        await guild.create_voice_channel(
+                            name=chan_name,
+                            overwrites=chan_overwrites,
+                            position=ch_data.get("position"),
+                            reason="Layout Restore"
+                        )
+                        logger.info(f"Restored uncategorized voice channel '{chan_name}'")
+                except Exception as e:
+                    logger.error(f"Failed to restore uncategorized channel '{chan_name}': {e}")
+                    errors.append(f"Failed to create uncategorized channel '{chan_name}': {e}")
+                    if isinstance(e, discord.Forbidden):
+                        logger.error("Permissions revoked mid-execution. Aborting template apply.")
+                        errors.append("Critical: Bot missing 'Manage Channels' permission mid-execution. Aborted.")
+                        break
+
+        logger.info("Server layout restore process complete.")
+        return len(errors) == 0, errors
+    finally:
+        active_deployments.discard(guild.id)

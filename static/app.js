@@ -1,7 +1,7 @@
 // State variables
 let currentBotStatus = 'stopped';
 let savedClientId = '';
-let activeGuildId = null;
+let activeGuildId = localStorage.getItem('active_guild_id') || null;
 let currentConfig = null;
 let socket = null;
 let localCustomCommands = {};
@@ -40,31 +40,172 @@ const TAB_DESCRIPTIONS = {
 let isAuthenticated = false;
 let authToken = localStorage.getItem('admin_token') || '';
 
-// Intercept fetch calls globally to inject Auth Header and handle token expiration (401)
+// Global Loading State Reset
+function globalLoadingReset() {
+  const elementsToHide = [
+    'audit-loading',
+    'optimizer-status',
+    'setup-wizard-loading',
+    'progress-overlay'
+  ];
+  elementsToHide.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
+  });
+  
+  // Re-enable action buttons
+  const buttons = [
+    'btn-execute-optimize',
+    'btn-execute-audit',
+    'btn-verify-token',
+    'btn-prev',
+    'btn-next'
+  ];
+  buttons.forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.disabled = false;
+  });
+  
+  // Query all disabled buttons or inputs and re-enable them
+  document.querySelectorAll('button:disabled, input[type="submit"]:disabled').forEach(btn => {
+    if (btn.id === 'btn-deploy-template-preview') {
+      const checkbox = document.getElementById('template-confirm-checkbox');
+      if (checkbox && !checkbox.checked) return;
+    }
+    btn.disabled = false;
+  });
+}
+
+// Embed Builder Persistence functions
+function saveEmbedBuilderState() {
+  const state = {
+    plainText: document.getElementById('embed-plain-text')?.value || '',
+    authorName: document.getElementById('embed-author-name')?.value || '',
+    authorIcon: document.getElementById('embed-author-icon')?.value || '',
+    title: document.getElementById('embed-title')?.value || '',
+    desc: document.getElementById('embed-description-text')?.value || '',
+    color: document.getElementById('embed-color-hex')?.value || '#6366F1',
+    thumbnail: document.getElementById('embed-thumbnail')?.value || '',
+    image: document.getElementById('embed-image')?.value || '',
+    footerText: document.getElementById('embed-footer-text')?.value || '',
+    footerIcon: document.getElementById('embed-footer-icon')?.value || '',
+    includeTimestamp: document.getElementById('embed-timestamp')?.checked || false,
+    fields: getEmbedFields()
+  };
+  localStorage.setItem('embed_builder_state', JSON.stringify(state));
+}
+
+function restoreEmbedBuilderState() {
+  const stateStr = localStorage.getItem('embed_builder_state');
+  if (!stateStr) return;
+  try {
+    const state = JSON.parse(stateStr);
+    
+    const setVal = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) el.value = val || '';
+    };
+    
+    setVal('embed-plain-text', state.plainText);
+    setVal('embed-author-name', state.authorName);
+    setVal('embed-author-icon', state.authorIcon);
+    setVal('embed-title', state.title);
+    setVal('embed-description-text', state.desc);
+    
+    let color = state.color || '#6366F1';
+    if (color && !color.startsWith('#')) color = '#' + color;
+    setVal('embed-color-hex', color);
+    const picker = document.getElementById('embed-color-picker');
+    if (picker) picker.value = color;
+    
+    setVal('embed-thumbnail', state.thumbnail);
+    setVal('embed-image', state.image);
+    setVal('embed-footer-text', state.footerText);
+    setVal('embed-footer-icon', state.footerIcon);
+    
+    const ts = document.getElementById('embed-timestamp');
+    if (ts) ts.checked = !!state.includeTimestamp;
+    
+    const container = document.getElementById('embed-fields-container');
+    if (container) {
+      container.innerHTML = '';
+      if (state.fields && Array.isArray(state.fields)) {
+        state.fields.forEach(f => {
+          addEmbedFieldWithData(f.name, f.value, f.inline !== false);
+        });
+      }
+    }
+    
+    updateEmbedPreview();
+  } catch(e) {
+    console.error('Error restoring embed builder state:', e);
+  }
+}
+
+// Intercept fetch calls globally to inject Auth Header, handle token expiration (401), retry 5xx/timeouts (max 2), and enforce a 10s request timeout
 const originalFetch = window.fetch;
 window.fetch = function (url, options) {
   options = options || {};
   options.headers = options.headers || {};
   
+  const tokenUsed = authToken;
   if (authToken) {
     options.headers['Authorization'] = `Bearer ${authToken}`;
   }
   
+  let targetUrl = url;
   if (window.BOT_API_URL && window.BOT_API_URL !== '%%BOT_API_URL%%' && typeof url === 'string' && url.startsWith('/')) {
-    url = window.BOT_API_URL.replace(/\/$/, '') + url;
+    targetUrl = window.BOT_API_URL.replace(/\/$/, '') + url;
   }
   
-  return originalFetch(url, options).then(async (response) => {
-    if (response.status === 401 && !url.includes('/api/auth/')) {
-      // Session expired, clear storage and show login overlay
-      localStorage.removeItem('admin_token');
-      authToken = '';
-      isAuthenticated = false;
-      showToast('Session expired. Please log in again.', 'warning');
-      checkAuthentication();
-    }
-    return response;
-  });
+  const maxAttempts = 3;
+  
+  const makeAttempt = (attempt) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    
+    const currentOptions = { ...options, signal: controller.signal };
+    
+    return originalFetch(targetUrl, currentOptions)
+      .then(async (response) => {
+        clearTimeout(timeoutId);
+        
+        if (response.status === 401 && !targetUrl.includes('/api/auth/')) {
+          if (tokenUsed && tokenUsed === authToken) {
+            // Session expired, clear storage and show login overlay
+            logoutLocalState();
+            showToast('Session expired. Please log in again.', 'warning');
+            checkAuthentication();
+            globalLoadingReset();
+          }
+          return response;
+        }
+        
+        if (response.status >= 500 && attempt < maxAttempts) {
+          console.warn(`Fetch to ${url} failed with status ${response.status}. Retrying (attempt ${attempt}/${maxAttempts - 1})...`);
+          return makeAttempt(attempt + 1);
+        }
+        
+        if (response.status >= 500) {
+          globalLoadingReset();
+        }
+        
+        return response;
+      })
+      .catch((err) => {
+        clearTimeout(timeoutId);
+        const isTimeoutOrNetwork = err.name === 'AbortError' || err.message === 'Failed to fetch' || err instanceof TypeError;
+        if (isTimeoutOrNetwork && attempt < maxAttempts) {
+          console.warn(`Fetch to ${url} encountered error: ${err.message || err}. Retrying (attempt ${attempt}/${maxAttempts - 1})...`);
+          return makeAttempt(attempt + 1);
+        }
+        
+        globalLoadingReset();
+        throw err;
+      });
+  };
+  
+  return makeAttempt(1);
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -91,22 +232,36 @@ function initApp() {
   checkStatus().then(() => {
     // First-launch Hosting Mode chooser — admin-only, only when not yet persisted (Req 1.1, 1.6, 1.7)
     maybeShowHostingModeSelector();
+    
+    // Check and restore template preview modal state
+    const savedTemplate = localStorage.getItem('template_modal_state');
+    if (savedTemplate && activeGuildId) {
+      openTemplatePreview(savedTemplate);
+    }
+    
+    refreshActiveTabContent();
   });
   fetchConfig();
   fetchStats();
+  
+  // Restore Embed Builder State
+  restoreEmbedBuilderState();
   
   // Refresh loop for status and stats (Tier 3.2, 3.15)
   statusInterval = setInterval(() => {
     if (document.visibilityState === 'hidden') return;
     checkStatus();
-    fetchStats();
     
-    // Poll music status if the music tab is active
-    const activePane = document.querySelector('.tab-pane:not(.hidden)');
-    if (activePane && activePane.id === 'tab-music' && activeGuildId) {
-      fetchMusicStatus();
-    } else if (activePane && activePane.id === 'tab-giveaways' && activeGuildId) {
-      loadGiveaways();
+    if (isAuthenticated) {
+      fetchStats();
+      
+      // Poll music status if the music tab is active
+      const activePane = document.querySelector('.tab-pane:not(.hidden)');
+      if (activePane && activePane.id === 'tab-music' && activeGuildId) {
+        fetchMusicStatus();
+      } else if (activePane && activePane.id === 'tab-giveaways' && activeGuildId) {
+        loadGiveaways();
+      }
     }
   }, 15000);
 }
@@ -132,6 +287,25 @@ async function fetchStats() {
   }
 }
 
+function logoutLocalState() {
+  if (socket) {
+    try {
+      socket.close();
+    } catch (e) {}
+    socket = null;
+  }
+  if (statusInterval) {
+    clearInterval(statusInterval);
+    statusInterval = null;
+  }
+  localStorage.removeItem('admin_token');
+  localStorage.removeItem('admin_role');
+  localStorage.removeItem('admin_guild_id');
+  authToken = '';
+  isAuthenticated = false;
+  isAppInitialized = false;
+}
+
 async function checkAuthentication() {
   try {
     const statusRes = await fetch('/api/auth/setup-status');
@@ -145,7 +319,7 @@ async function checkAuthentication() {
       setupOverlay.classList.remove('hidden');
       loginOverlay.classList.add('hidden');
       mainApp.classList.add('hidden');
-      isAuthenticated = false;
+      logoutLocalState();
       return false;
     }
     
@@ -154,7 +328,7 @@ async function checkAuthentication() {
       loginOverlay.classList.remove('hidden');
       setupOverlay.classList.add('hidden');
       mainApp.classList.add('hidden');
-      isAuthenticated = false;
+      logoutLocalState();
       
       // Load public status to extract client_id for the login page invite button
       fetch('/api/status').then(res => res.json()).then(data => {
@@ -168,28 +342,26 @@ async function checkAuthentication() {
     
     // We have a token, verify validity
     const statusCheck = await fetch('/api/status');
-    if (statusCheck.status === 401) {
-      localStorage.removeItem('admin_token');
-      localStorage.removeItem('admin_role');
-      localStorage.removeItem('admin_guild_id');
-      authToken = '';
+    let statusCheckData = null;
+    try {
+      statusCheckData = await statusCheck.json();
+    } catch (e) {
+      console.error("Error parsing status JSON:", e);
+    }
+
+    if (statusCheck.status === 401 || !statusCheckData || !statusCheckData.role || statusCheckData.role === 'guest') {
+      logoutLocalState();
       loginOverlay.classList.remove('hidden');
       setupOverlay.classList.add('hidden');
       mainApp.classList.add('hidden');
-      isAuthenticated = false;
       return false;
     }
     
-    try {
-      const statusData = await statusCheck.json();
-      if (statusData.role) {
-        localStorage.setItem('admin_role', statusData.role);
-      }
-      if (statusData.guild_id) {
-        localStorage.setItem('admin_guild_id', statusData.guild_id);
-      }
-    } catch (e) {
-      console.error("Error parsing status JSON:", e);
+    if (statusCheckData.role) {
+      localStorage.setItem('admin_role', statusCheckData.role);
+    }
+    if (statusCheckData.guild_id) {
+      localStorage.setItem('admin_guild_id', statusCheckData.guild_id);
     }
     
     // Valid session! Hide overlays
@@ -207,6 +379,7 @@ async function checkAuthentication() {
 // Navigation & Tabbing
 // ==========================================================================
 function refreshActiveTabContent() {
+  if (!isAuthenticated) return;
   const activePane = document.querySelector('.tab-pane:not(.hidden)');
   if (!activePane || !activeGuildId) return;
   
@@ -250,6 +423,7 @@ function setupNavigation() {
   navItems.forEach(item => {
     item.addEventListener('click', () => {
       const targetTab = item.getAttribute('data-tab');
+      localStorage.setItem('active_tab', targetTab);
       
       // Update sidebar active state
       navItems.forEach(nav => nav.classList.remove('active'));
@@ -272,6 +446,15 @@ function setupNavigation() {
       refreshActiveTabContent();
     });
   });
+
+  // Restore active tab after setup
+  const savedTab = localStorage.getItem('active_tab');
+  if (savedTab) {
+    const savedItem = document.querySelector(`.nav-item[data-tab="${savedTab}"]`);
+    if (savedItem) {
+      savedItem.click();
+    }
+  }
 }
 
 // ==========================================================================
@@ -339,6 +522,10 @@ async function checkStatus() {
     }
   } catch (err) {
     console.error('Error checking status:', err);
+    // Show offline notice on network failure/server down
+    const offlineNotice = document.getElementById('offline-notice-overlay');
+    if (offlineNotice) offlineNotice.classList.remove('hidden');
+    if (mainApp) mainApp.classList.add('hidden');
   }
 }
 
@@ -417,12 +604,6 @@ function updateOverviewCard(data) {
     botOverviewUsername.textContent = data.bot_user.username;
     botOverviewId.textContent = data.bot_user.id;
     botOverviewGuilds.textContent = data.bot_user.guilds_count;
-    
-    // Automatically load guilds if select is empty and we are connected
-    const select = document.getElementById('server-select');
-    if (select.options.length <= 1) {
-      refreshGuildsList();
-    }
   } else {
     botOverviewAvatar.src = 'https://discord.com/assets/c09c2a688b139c15814e578d0554c9a6.png';
     botOverviewStatusText.textContent = data.status.toUpperCase();
@@ -430,6 +611,12 @@ function updateOverviewCard(data) {
     botOverviewUsername.textContent = '-';
     botOverviewId.textContent = '-';
     botOverviewGuilds.textContent = '0';
+  }
+
+  // Automatically load guilds if select is empty and we have a session
+  const select = document.getElementById('server-select');
+  if (select && select.options.length <= 1) {
+    refreshGuildsList();
   }
 }
 
@@ -475,14 +662,41 @@ function updateInviteLinks(clientId) {
 // ==========================================================================
 async function refreshGuildsList() {
   const select = document.getElementById('server-select');
+  if (!select) return;
+  let guilds = [];
+  let fetchFailed = false;
   try {
     const res = await fetch('/api/guilds');
-    if (!res.ok) return;
-    
-    const guilds = await res.json();
-    
-    // Clear and build options
-    select.innerHTML = '<option value="">Select a server...</option>';
+    if (res.ok) {
+      guilds = await res.json();
+    } else {
+      fetchFailed = true;
+    }
+  } catch (err) {
+    console.error('Error fetching guilds:', err);
+    fetchFailed = true;
+  }
+  
+  if (fetchFailed) {
+    // Cache/keep selected guild dropdown selection when bot goes offline
+    if (activeGuildId) {
+      select.value = activeGuildId;
+      if (select.selectedIndex === -1) {
+        const opt = document.createElement('option');
+        opt.value = activeGuildId;
+        opt.textContent = `Server ID: ${activeGuildId} (Cached/Offline)`;
+        select.appendChild(opt);
+        select.value = activeGuildId;
+      }
+      handleServerSelection(activeGuildId);
+    }
+    return;
+  }
+  
+  // Clear and build options on successful load
+  select.innerHTML = '<option value="">Select a server...</option>';
+  
+  if (guilds && guilds.length > 0) {
     guilds.forEach(g => {
       const opt = document.createElement('option');
       opt.value = g.id;
@@ -490,13 +704,34 @@ async function refreshGuildsList() {
       select.appendChild(opt);
     });
     
+    // Check if activeGuildId exists
     if (activeGuildId) {
-      select.value = activeGuildId;
+      const exists = guilds.some(g => String(g.id) === String(activeGuildId));
+      if (exists) {
+        select.value = activeGuildId;
+        handleServerSelection(activeGuildId);
+      } else {
+        // Fallback only if the saved guild is confirmed missing on successful load
+        const fallbackId = guilds[0].id;
+        activeGuildId = fallbackId;
+        localStorage.setItem('active_guild_id', fallbackId);
+        select.value = fallbackId;
+        handleServerSelection(fallbackId);
+        showToast('Saved server invalid. Auto-selected fallback server.', 'warning');
+      }
+    } else {
+      const fallbackId = guilds[0].id;
+      activeGuildId = fallbackId;
+      localStorage.setItem('active_guild_id', fallbackId);
+      select.value = fallbackId;
+      handleServerSelection(fallbackId);
     }
-    showToast('Servers list updated.', 'info');
-  } catch (err) {
-    console.error('Error fetching guilds:', err);
+  } else {
+    activeGuildId = null;
+    localStorage.removeItem('active_guild_id');
   }
+  
+  showToast('Servers list updated.', 'info');
 }
 
 async function handleServerSelection(guildId) {
@@ -697,9 +932,9 @@ async function runOptimization() {
   const statusText = document.getElementById('optimizer-status-text');
   const btn = document.getElementById('btn-execute-optimize');
   
-  statusDiv.classList.remove('hidden');
-  btn.disabled = true;
-  statusText.textContent = `Applying '${selectedPreset.toUpperCase()}' layout preset...`;
+  if (statusDiv) statusDiv.classList.remove('hidden');
+  if (btn) btn.disabled = true;
+  if (statusText) statusText.textContent = `Applying '${selectedPreset.toUpperCase()}' layout preset...`;
   
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/optimize`, {
@@ -819,7 +1054,6 @@ function populateAutomodForm(settings) {
   document.getElementById('automod-links').checked = settings.block_links;
   document.getElementById('automod-max-mentions').value = settings.max_mentions;
   document.getElementById('automod-words').value = settings.profanity_words.join(', ');
-  document.getElementById('automod-invites').checked = settings.block_invites || false;
   document.getElementById('automod-whitelisted-domains').value = (settings.whitelisted_domains || []).join('\n');
   document.getElementById('automod-whitelisted-invites').value = (settings.whitelisted_invites || []).join('\n');
 }
@@ -835,8 +1069,7 @@ async function saveAutomodSettings(e) {
   const log_channel_id = logSelect.value || null;
   const log_channel_name = logSelect.selectedIndex >= 0 ? logSelect.options[logSelect.selectedIndex].text : 'mod-logs';
   const wordsRaw = document.getElementById('automod-words').value;
-  
-  const block_invites = document.getElementById('automod-invites').checked;
+  const block_invites = block_links;
   const whitelisted_domains = document.getElementById('automod-whitelisted-domains').value
     .split('\n')
     .map(d => d.trim())
@@ -1081,11 +1314,152 @@ function populateRolesDropdown() {
   });
 }
 
+async function fetchBuiltinTemplates() {
+  const container = document.getElementById('builtin-templates-container');
+  if (!container) return;
+
+  try {
+    const res = await fetch('/api/templates/builtin');
+    if (!res.ok) {
+      container.innerHTML = '<p class="text-danger">Failed to load built-in templates.</p>';
+      return;
+    }
+    const templates = await res.json();
+    
+    // Group templates by category
+    const categories = ["Gaming", "Community", "Creator", "Anime", "Economy", "Utility", "Support"];
+    const grouped = {};
+    categories.forEach(cat => grouped[cat] = []);
+    
+    templates.forEach(tpl => {
+      const cat = tpl.category;
+      if (grouped[cat]) {
+        grouped[cat].push(tpl);
+      } else {
+        grouped[cat] = [tpl];
+        if (!categories.includes(cat)) {
+          categories.push(cat);
+        }
+      }
+    });
+
+    container.innerHTML = '';
+    categories.forEach(catName => {
+      const list = grouped[catName] || [];
+      
+      const catDiv = document.createElement('div');
+      catDiv.className = 'builtin-category-group';
+      
+      let catIcon = 'fa-folder';
+      if (catName === 'Gaming') catIcon = 'fa-gamepad';
+      else if (catName === 'Community') catIcon = 'fa-users';
+      else if (catName === 'Creator') catIcon = 'fa-laptop-code';
+      else if (catName === 'Anime') catIcon = 'fa-mask';
+      else if (catName === 'Economy') catIcon = 'fa-coins';
+      else if (catName === 'Utility') catIcon = 'fa-screwdriver-wrench';
+      else if (catName === 'Support') catIcon = 'fa-ticket';
+
+      let cardsHtml = '';
+      if (list.length === 0) {
+        cardsHtml = `
+          <div class="stat-card glass-inner text-center py-4 w-100" style="opacity: 0.5; border-radius: 8px; grid-column: 1 / -1;">
+            <p class="text-sub font-size-08 m-0">No layouts available in this category for this release.</p>
+          </div>
+        `;
+      } else {
+        list.forEach(tpl => {
+          let themeColor = 'var(--primary)';
+          let btnClass = 'btn-primary';
+          if (catName === 'Community') {
+            themeColor = 'var(--success)';
+            btnClass = 'btn-success';
+          } else if (catName === 'Creator') {
+            themeColor = 'var(--pink)';
+            btnClass = 'btn-glow';
+          } else if (catName === 'Anime') {
+            themeColor = '#f59e0b';
+            btnClass = 'btn-warning';
+          } else if (catName === 'Utility') {
+            themeColor = '#818cf8';
+            btnClass = 'btn-indigo';
+          } else if (catName === 'Support') {
+            themeColor = '#a855f7';
+            btnClass = 'btn-purple';
+          }
+
+          cardsHtml += `
+            <div class="stat-card glass-inner text-center" style="display: flex; flex-direction: column; align-items: center; padding: 20px; border-radius: 12px; justify-content: space-between; min-height: 180px;">
+              <div>
+                <i class="fa-solid ${tpl.icon || 'fa-layer-group'}" style="font-size: 2rem; color: ${themeColor};"></i>
+                <h3 class="mt-2" style="font-size: 1.05rem; font-weight: 600;">${tpl.display_name}</h3>
+                <p class="text-sub mt-2 font-size-075" style="line-height: 1.4; min-height: 54px; margin: 0;">${tpl.description}</p>
+              </div>
+              <button class="btn ${btnClass} btn-small mt-3 w-100 btn-apply-builtin" data-preset="${tpl.name}">Apply Template</button>
+            </div>
+          `;
+        });
+      }
+
+      catDiv.innerHTML = `
+        <h3 style="font-size: 1.1rem; font-weight: 600; color: #818cf8; margin-top: 10px; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+          <i class="fa-solid ${catIcon}"></i> ${catName} Layouts
+        </h3>
+        <div class="grid-3-col" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 15px; margin-bottom: 15px;">
+          ${cardsHtml}
+        </div>
+      `;
+      container.appendChild(catDiv);
+    });
+
+    container.querySelectorAll('.btn-apply-builtin').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const preset = btn.getAttribute('data-preset');
+        openTemplatePreview(preset);
+      });
+    });
+
+  } catch (err) {
+    container.innerHTML = '<p class="text-danger">Error loading built-in templates.</p>';
+  }
+}
+
+async function exportCustomTemplate(name) {
+  if (!activeGuildId) {
+    showToast('Please select a Discord server first.', 'warning');
+    return;
+  }
+  try {
+    showToast(`Exporting template "${name}"...`, 'info');
+    const res = await fetch(`/api/templates/${name.toLowerCase().trim()}/preview?guild_id=${activeGuildId}`);
+    if (!res.ok) {
+      showToast('Failed to retrieve template data for export.', 'error');
+      return;
+    }
+    const data = await res.json();
+    const templateData = data.template_data;
+    
+    const blob = new Blob([JSON.stringify(templateData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${name}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('Template exported successfully!', 'success');
+  } catch (err) {
+    showToast('Error exporting template.', 'error');
+  }
+}
+
 async function fetchTemplates() {
   const tbody = document.getElementById('templates-list-body');
   const empty = document.getElementById('templates-empty');
   if (!tbody || !empty) return;
   
+  fetchBuiltinTemplates();
+
   try {
     const res = await fetch('/api/templates');
     if (!res.ok) return;
@@ -1106,13 +1480,19 @@ async function fetchTemplates() {
       
       const tdActions = document.createElement('td');
       
-      const btnApply = document.createElement('button');
-      btnApply.type = 'button';
-      btnApply.className = 'btn btn-primary btn-small mr-2 btn-apply-custom-template';
-      btnApply.setAttribute('data-template', tpl.name);
-      btnApply.innerHTML = '<i class="fa-solid fa-play"></i> Apply';
-      btnApply.addEventListener('click', () => applyCustomTemplate(tpl.name));
-      tdActions.appendChild(btnApply);
+      const btnRestore = document.createElement('button');
+      btnRestore.type = 'button';
+      btnRestore.className = 'btn btn-success btn-small mr-2';
+      btnRestore.innerHTML = '<i class="fa-solid fa-clock-rotate-left"></i> Restore';
+      btnRestore.addEventListener('click', () => openTemplatePreview(tpl.name));
+      tdActions.appendChild(btnRestore);
+
+      const btnExport = document.createElement('button');
+      btnExport.type = 'button';
+      btnExport.className = 'btn btn-primary btn-small mr-2';
+      btnExport.innerHTML = '<i class="fa-solid fa-file-export"></i> Export';
+      btnExport.addEventListener('click', () => exportCustomTemplate(tpl.name));
+      tdActions.appendChild(btnExport);
       
       const btnDel = document.createElement('button');
       btnDel.type = 'button';
@@ -1139,11 +1519,13 @@ async function openTemplatePreview(name) {
     return;
   }
   
+  localStorage.setItem('template_modal_state', name);
   const safeName = name.toLowerCase().trim();
+  const handling = document.querySelector('input[name="channel-handling"]:checked')?.value || 'archive';
 
   try {
     showToast(`Loading template preview for "${name}"...`, 'info');
-    const res = await fetch(`/api/templates/${safeName}/preview?guild_id=${activeGuildId}`);
+    const res = await fetch(`/api/templates/${safeName}/preview?guild_id=${activeGuildId}&handling=${handling}`);
     if (!res.ok) {
       const err = await res.json();
       showToast(err.detail || 'Failed to load template preview.', 'error');
@@ -1157,7 +1539,39 @@ async function openTemplatePreview(name) {
     document.getElementById('template-confirm-checkbox').checked = false;
     document.getElementById('btn-deploy-template-preview').disabled = true;
 
+    // Reset delete confirmation text input state
+    const deleteContainer = document.getElementById('delete-confirmation-container');
+    const deleteInput = document.getElementById('delete-confirm-input');
+    if (deleteContainer) {
+      if (handling === 'delete') {
+        deleteContainer.classList.remove('hidden');
+      } else {
+        deleteContainer.classList.add('hidden');
+      }
+    }
+    if (deleteInput) {
+      deleteInput.value = '';
+    }
+
     const sum = data.summary;
+    
+    let handlingHtml = '';
+    if (handling === 'archive') {
+      const archivedCount = sum.objects_to_modify ? sum.objects_to_modify.length : 0;
+      handlingHtml = `
+        <li style="grid-column: span 2; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 8px; margin-top: 4px; font-size: 0.85rem; color: #818cf8;">
+          📦 <strong>Objects to Archive:</strong> ${archivedCount} (${sum.objects_to_modify?.join(', ') || 'None'})
+        </li>
+      `;
+    } else if (handling === 'delete') {
+      const deletedCount = sum.objects_to_delete ? sum.objects_to_delete.length : 0;
+      handlingHtml = `
+        <li style="grid-column: span 2; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 8px; margin-top: 4px; font-size: 0.85rem; color: #ef4444;">
+          ⚠️ <strong>Objects to Delete:</strong> ${deletedCount} (${sum.objects_to_delete?.join(', ') || 'None'})
+        </li>
+      `;
+    }
+
     const summaryDiv = document.getElementById('template-preview-summary');
     summaryDiv.innerHTML = `
       <h4 style="font-weight: 600; margin-bottom: 8px;"><i class="fa-solid fa-clipboard-list"></i> Deployment Summary</h4>
@@ -1168,6 +1582,7 @@ async function openTemplatePreview(name) {
         <li>⚪ <strong>Categories to Skip:</strong> ${sum.categories_to_skip.length} (${sum.categories_to_skip.join(', ') || 'None'})</li>
         <li>🟢 <strong>Channels to Create:</strong> ${sum.channels_to_create.length}</li>
         <li>⚪ <strong>Channels to Skip:</strong> ${sum.channels_to_skip.length} (${sum.channels_to_skip.join(', ') || 'None'})</li>
+        ${handlingHtml}
       </ul>
     `;
 
@@ -1502,47 +1917,84 @@ async function populateGuildChannels(guildId) {
 // ==========================================================================
 function setupEventListeners() {
   // Refresh Guilds
-  document.getElementById('btn-refresh-guilds').addEventListener('click', refreshGuildsList);
+  const btnRefreshGuilds = document.getElementById('btn-refresh-guilds');
+  if (btnRefreshGuilds) {
+    btnRefreshGuilds.addEventListener('click', refreshGuildsList);
+  }
   
   // Server Selection
-  document.getElementById('server-select').addEventListener('change', (e) => {
-    handleServerSelection(e.target.value);
-  });
+  const serverSelect = document.getElementById('server-select');
+  if (serverSelect) {
+    serverSelect.addEventListener('change', (e) => {
+      const val = e.target.value;
+      if (val) {
+        localStorage.setItem('active_guild_id', val);
+      } else {
+        localStorage.removeItem('active_guild_id');
+      }
+      handleServerSelection(val);
+    });
+  }
   
   // Scan Button
-  document.getElementById('btn-run-audit').addEventListener('click', runServerAudit);
+  const btnRunAudit = document.getElementById('btn-run-audit');
+  if (btnRunAudit) {
+    btnRunAudit.addEventListener('click', runServerAudit);
+  }
   
   // Optimizer Preset Cards Click
   setupPresetSelector();
   
   // Optimizer Run
-  document.getElementById('btn-execute-optimize').addEventListener('click', runOptimization);
+  const btnExecuteOptimize = document.getElementById('btn-execute-optimize');
+  if (btnExecuteOptimize) {
+    btnExecuteOptimize.addEventListener('click', runOptimization);
+  }
   
   // Form Saves
-  document.getElementById('welcome-form').addEventListener('submit', saveWelcomeSettings);
-  document.getElementById('automod-form').addEventListener('submit', saveAutomodSettings);
+  const welcomeForm = document.getElementById('welcome-form');
+  if (welcomeForm) {
+    welcomeForm.addEventListener('submit', saveWelcomeSettings);
+  }
+  const automodForm = document.getElementById('automod-form');
+  if (automodForm) {
+    automodForm.addEventListener('submit', saveAutomodSettings);
+  }
   
   // Sync Welcome Embed Previews dynamically
-  document.getElementById('welcome-title').addEventListener('input', syncWelcomePreview);
-  document.getElementById('welcome-description').addEventListener('input', syncWelcomePreview);
+  const welcomeTitle = document.getElementById('welcome-title');
+  if (welcomeTitle) {
+    welcomeTitle.addEventListener('input', syncWelcomePreview);
+  }
+  const welcomeDescription = document.getElementById('welcome-description');
+  if (welcomeDescription) {
+    welcomeDescription.addEventListener('input', syncWelcomePreview);
+  }
   
   const hexInput = document.getElementById('welcome-color-hex');
   const pickerInput = document.getElementById('welcome-color-picker');
-  
-  hexInput.addEventListener('input', (e) => {
-    pickerInput.value = e.target.value;
-    syncWelcomePreview();
-  });
-  
-  pickerInput.addEventListener('input', (e) => {
-    hexInput.value = e.target.value.toUpperCase();
-    syncWelcomePreview();
-  });
+  if (hexInput && pickerInput) {
+    hexInput.addEventListener('input', (e) => {
+      pickerInput.value = e.target.value;
+      syncWelcomePreview();
+    });
+    
+    pickerInput.addEventListener('input', (e) => {
+      hexInput.value = e.target.value.toUpperCase();
+      syncWelcomePreview();
+    });
+  }
   
   // Clear Logs console
-  document.getElementById('btn-clear-logs').addEventListener('click', () => {
-    document.getElementById('log-terminal').innerHTML = '';
-  });
+  const btnClearLogs = document.getElementById('btn-clear-logs');
+  if (btnClearLogs) {
+    btnClearLogs.addEventListener('click', () => {
+      const logTerminal = document.getElementById('log-terminal');
+      if (logTerminal) {
+        logTerminal.innerHTML = '';
+      }
+    });
+  }
 
   // Custom Commands Form Submit
   const cmdForm = document.getElementById('command-form');
@@ -1860,22 +2312,7 @@ function setupEventListeners() {
       try {
         await fetch('/api/auth/logout', { method: 'POST' });
       } catch (err) {}
-      if (socket) {
-        try {
-          socket.close();
-        } catch (e) {}
-        socket = null;
-      }
-      if (statusInterval) {
-        clearInterval(statusInterval);
-        statusInterval = null;
-      }
-      localStorage.removeItem('admin_token');
-      localStorage.removeItem('admin_role');
-      localStorage.removeItem('admin_guild_id');
-      authToken = '';
-      isAuthenticated = false;
-      isAppInitialized = false;
+      logoutLocalState();
       showToast('Logged out successfully.', 'info');
       checkAuthentication();
     });
@@ -2104,37 +2541,211 @@ function setupEventListeners() {
     });
   }
 
-  // Built-in Presets Apply Buttons
-  document.querySelectorAll('.btn-apply-builtin').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      if (!activeGuildId) {
-        showToast('Please select a Discord server first.', 'warning');
+  // Open / Close Import Template Modal functions
+  window.openImportTemplateModal = function() {
+    const overlay = document.getElementById('template-import-overlay');
+    if (overlay) {
+      overlay.classList.remove('hidden');
+      document.getElementById('template-import-name').value = '';
+      document.getElementById('template-import-json').value = '';
+    }
+  };
+
+  window.closeImportTemplateModal = function() {
+    const overlay = document.getElementById('template-import-overlay');
+    if (overlay) overlay.classList.add('hidden');
+  };
+
+  // Wire up JSON Import submission
+  const btnSubmitImportJson = document.getElementById('btn-submit-import-json');
+  if (btnSubmitImportJson) {
+    btnSubmitImportJson.addEventListener('click', async () => {
+      const nameInput = document.getElementById('template-import-name');
+      const jsonInput = document.getElementById('template-import-json');
+      const name = nameInput.value.trim();
+      const rawJson = jsonInput.value.trim();
+      
+      if (!name) {
+        showToast('Template name is required.', 'warning');
         return;
       }
-      const preset = e.currentTarget.getAttribute('data-preset');
-      const presetNameMap = {
-        'Gaming': 'gaming',
-        'Community': 'community',
-        'Developer': 'creator'
-      };
-      const safeName = presetNameMap[preset] || preset.toLowerCase();
-      openTemplatePreview(safeName);
+      if (!rawJson) {
+        showToast('Template JSON text is required.', 'warning');
+        return;
+      }
+      
+      let parsedData;
+      try {
+        parsedData = JSON.parse(rawJson);
+      } catch (err) {
+        showToast('Invalid JSON format. Please verify the syntax.', 'error');
+        return;
+      }
+      
+      if (!parsedData.categories && !parsedData.roles && !parsedData.channels) {
+        showToast('Invalid layout data. Must contain roles, channels, or categories.', 'error');
+        return;
+      }
+      
+      try {
+        showToast('Importing template...', 'info');
+        const res = await fetch('/api/templates/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: name,
+            data: parsedData
+          })
+        });
+        
+        if (res.ok) {
+          showToast('Template imported successfully!', 'success');
+          closeImportTemplateModal();
+          fetchTemplates();
+        } else {
+          const err = await res.json();
+          showToast(err.detail || 'Failed to import template.', 'error');
+        }
+      } catch (err) {
+        showToast('Network error importing template.', 'error');
+      }
     });
-  });
+  }
+
+  // Wire up File upload listener
+  const templateFileInput = document.getElementById('template-file-input');
+  if (templateFileInput) {
+    templateFileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = async (evt) => {
+        let parsedData;
+        try {
+          parsedData = JSON.parse(evt.target.result);
+        } catch (err) {
+          showToast('Invalid JSON file.', 'error');
+          return;
+        }
+        
+        if (!parsedData.categories && !parsedData.roles && !parsedData.channels) {
+          showToast('Invalid template file. Must contain roles, channels, or categories.', 'error');
+          return;
+        }
+        
+        // Use filename (without .json) as default template name
+        const defaultName = file.name.replace(/\.[^/.]+$/, "");
+        const name = prompt("Enter a name for the imported template:", defaultName);
+        if (name === null) return; // User cancelled
+        const finalName = name.trim() || defaultName;
+        
+        try {
+          showToast('Importing template...', 'info');
+          const res = await fetch('/api/templates/upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: finalName,
+              data: parsedData
+            })
+          });
+          
+          if (res.ok) {
+            showToast('Template file imported successfully!', 'success');
+            fetchTemplates();
+          } else {
+            const err = await res.json();
+            showToast(err.detail || 'Failed to import template file.', 'error');
+          }
+        } catch (err) {
+          showToast('Network error importing template file.', 'error');
+        }
+      };
+      reader.readAsText(file);
+      // Clear input so same file can be selected again
+      templateFileInput.value = '';
+    });
+  }
 
   // Template Preview & Deployment Listeners
   const cancelTemplatePreviewBtn = document.getElementById('btn-cancel-template-preview');
   if (cancelTemplatePreviewBtn) {
     cancelTemplatePreviewBtn.addEventListener('click', () => {
       document.getElementById('template-preview-overlay').classList.add('hidden');
+      localStorage.removeItem('template_modal_state');
     });
   }
 
   const templateConfirmCheckbox = document.getElementById('template-confirm-checkbox');
+  const deleteConfirmInput = document.getElementById('delete-confirm-input');
   const deployTemplatePreviewBtn = document.getElementById('btn-deploy-template-preview');
-  if (templateConfirmCheckbox && deployTemplatePreviewBtn) {
-    templateConfirmCheckbox.addEventListener('change', (e) => {
-      deployTemplatePreviewBtn.disabled = !e.target.checked;
+
+  const updateDeployButtonState = () => {
+    if (!templateConfirmCheckbox || !deployTemplatePreviewBtn) return;
+    const handling = document.querySelector('input[name="channel-handling"]:checked')?.value || 'archive';
+    
+    if (handling === 'delete') {
+      const typedDelete = deleteConfirmInput ? deleteConfirmInput.value.trim() : '';
+      deployTemplatePreviewBtn.disabled = !(templateConfirmCheckbox.checked && typedDelete === 'DELETE');
+    } else {
+      deployTemplatePreviewBtn.disabled = !templateConfirmCheckbox.checked;
+    }
+  };
+
+  if (templateConfirmCheckbox) {
+    templateConfirmCheckbox.addEventListener('change', updateDeployButtonState);
+  }
+  if (deleteConfirmInput) {
+    deleteConfirmInput.addEventListener('input', updateDeployButtonState);
+  }
+
+  // Quick Action Buttons
+  const btnQuickRestore = document.getElementById('btn-quick-restore');
+  if (btnQuickRestore) {
+    btnQuickRestore.addEventListener('click', async () => {
+      const select = document.getElementById('restore-backup-select');
+      if (!select) return;
+      
+      try {
+        const res = await fetch('/api/templates');
+        if (res.ok) {
+          const templates = await res.json();
+          select.innerHTML = '<option value="">-- Choose Backup --</option>';
+          templates.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.name;
+            opt.textContent = t.name;
+            select.appendChild(opt);
+          });
+          document.getElementById('restore-backup-overlay').classList.remove('hidden');
+        } else {
+          showToast('Failed to load backups.', 'error');
+        }
+      } catch (err) {
+        showToast('Error loading backups.', 'error');
+      }
+    });
+  }
+
+  const btnConfirmRestoreBackup = document.getElementById('btn-confirm-restore-backup');
+  if (btnConfirmRestoreBackup) {
+    btnConfirmRestoreBackup.addEventListener('click', () => {
+      const select = document.getElementById('restore-backup-select');
+      const backupName = select?.value;
+      if (!backupName) {
+        showToast('Please select a backup first.', 'warning');
+        return;
+      }
+      document.getElementById('restore-backup-overlay').classList.add('hidden');
+      openTemplatePreview(backupName);
+    });
+  }
+
+  const btnQuickImport = document.getElementById('btn-quick-import');
+  if (btnQuickImport) {
+    btnQuickImport.addEventListener('click', () => {
+      openImportTemplateModal();
     });
   }
 
@@ -2149,15 +2760,19 @@ function setupEventListeners() {
         const toggle = item.querySelector('.tree-item-toggle');
         const input = item.querySelector('.tree-item-name');
         const origName = toggle.getAttribute('data-original-name');
+        const type = toggle.getAttribute('data-type');
+        const key = `${type}:${origName}`;
 
         if (!toggle.checked) {
-          disabledElements.push(origName);
+          disabledElements.push(key);
         }
         const val = input.value.trim();
         if (val !== origName) {
-          renames[origName] = val;
+          renames[key] = val;
         }
       });
+
+      const handling = document.querySelector('input[name="channel-handling"]:checked')?.value || 'archive';
 
       try {
         showToast(`Deploying template "${currentPreviewTemplateName}"...`, 'info');
@@ -2170,6 +2785,7 @@ function setupEventListeners() {
             guild_id: activeGuildId,
             name: currentPreviewTemplateName,
             confirm: true,
+            handling: handling,
             customizations: {
               disabled_elements: disabledElements,
               renames: renames
@@ -2179,6 +2795,7 @@ function setupEventListeners() {
 
         if (res.ok) {
           showToast('Template applied successfully!', 'success');
+          localStorage.removeItem('template_modal_state');
           setTimeout(() => {
             handleServerSelection(activeGuildId);
             runServerAudit();
@@ -2482,7 +3099,13 @@ function updateEmbedPreview() {
   const authorIcon = document.getElementById('embed-author-icon')?.value || '';
   const title = document.getElementById('embed-title')?.value || '';
   const desc = document.getElementById('embed-description-text')?.value || '';
-  const color = document.getElementById('embed-color-hex')?.value || '#6366F1';
+  
+  const hexInput = document.getElementById('embed-color-hex');
+  if (hexInput && hexInput.value && !hexInput.value.startsWith('#')) {
+    hexInput.value = '#' + hexInput.value;
+  }
+  const color = hexInput?.value || '#6366F1';
+  
   const thumbnail = document.getElementById('embed-thumbnail')?.value || '';
   const image = document.getElementById('embed-image')?.value || '';
   const footerText = document.getElementById('embed-footer-text')?.value || '';
@@ -2607,6 +3230,8 @@ function updateEmbedPreview() {
       pFields.classList.add('hidden');
     }
   }
+  
+  saveEmbedBuilderState();
 }
 
 function compileEmbedJSON() {
@@ -2621,6 +3246,22 @@ function compileEmbedJSON() {
   const footerIcon = document.getElementById('embed-footer-icon')?.value || '';
   const includeTimestamp = document.getElementById('embed-timestamp')?.checked;
   
+  const helperNormalizeUrl = (url) => {
+    if (!url) return '';
+    url = url.trim();
+    if (url.startsWith('data:')) {
+      showToast('Discord does not support Base64 data URIs for embeds. Please use a public http/https image link.', 'error');
+      return '';
+    }
+    if (url.startsWith('/')) {
+      return window.location.origin + url;
+    }
+    if (!/^[a-zA-Z]+:\/\//.test(url)) {
+      return 'https://' + url;
+    }
+    return url;
+  };
+
   const embed = {};
   
   if (title) embed.title = title;
@@ -2633,20 +3274,24 @@ function compileEmbedJSON() {
   
   if (authorName) {
     embed.author = { name: authorName };
-    if (authorIcon) embed.author.icon_url = authorIcon;
+    const normalizedAuthorIcon = helperNormalizeUrl(authorIcon);
+    if (normalizedAuthorIcon) embed.author.icon_url = normalizedAuthorIcon;
   }
   
-  if (thumbnail) {
-    embed.thumbnail = { url: thumbnail };
+  const normalizedThumbnail = helperNormalizeUrl(thumbnail);
+  if (normalizedThumbnail) {
+    embed.thumbnail = { url: normalizedThumbnail };
   }
   
-  if (image) {
-    embed.image = { url: image };
+  const normalizedImage = helperNormalizeUrl(image);
+  if (normalizedImage) {
+    embed.image = { url: normalizedImage };
   }
   
   if (footerText) {
     embed.footer = { text: footerText };
-    if (footerIcon) embed.footer.icon_url = footerIcon;
+    const normalizedFooterIcon = helperNormalizeUrl(footerIcon);
+    if (normalizedFooterIcon) embed.footer.icon_url = normalizedFooterIcon;
   }
   
   if (includeTimestamp) {
@@ -2765,8 +3410,11 @@ async function submitEmbedBuilder(e) {
   }
   
   const embed = compileEmbedJSON();
-  if (Object.keys(embed).length === 0) {
-    showToast('Embed is empty. Add a title, description, or author.', 'warning');
+  const hasContent = embed.title || embed.description || (embed.fields && embed.fields.length > 0) || 
+                     (embed.author && embed.author.name) || (embed.image && embed.image.url) || 
+                     (embed.thumbnail && embed.thumbnail.url) || (embed.footer && embed.footer.text);
+  if (!hasContent) {
+    showToast('Embed must contain at least a title, description, fields, author, footer, or a valid HTTP/HTTPS image URL.', 'warning');
     return;
   }
   
@@ -2819,7 +3467,7 @@ async function populateMusicVoiceChannels(guildId) {
 }
 
 async function fetchMusicStatus() {
-  if (!activeGuildId) return;
+  if (!activeGuildId || !isAuthenticated) return;
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/music/status`);
     if (!res.ok) return;
@@ -3185,7 +3833,7 @@ async function submitScheduledMessage(e) {
   };
   
   if (scheduleType === 'once') {
-    payload.datetime = datetime;
+    payload.datetime = new Date(datetime).toISOString();
   } else {
     payload.interval_type = intervalType;
     payload.interval_value = intervalVal;
@@ -3751,11 +4399,13 @@ function initGiveawaysTab() {
         return;
       }
       
+      const hostInput = document.getElementById('giveaway-host');
       const payload = {
         channel_id: document.getElementById('giveaway-target-channel').value,
         prize: document.getElementById('giveaway-prize').value,
         winners_count: parseInt(document.getElementById('giveaway-winners').value, 10),
-        duration: document.getElementById('giveaway-duration').value
+        duration: document.getElementById('giveaway-duration').value,
+        host: hostInput ? hostInput.value.trim() : ''
       };
       
       try {
@@ -3782,15 +4432,26 @@ function initGiveawaysTab() {
     });
   }
 
+  function shouldOverwriteValue(currentVal) {
+    if (!currentVal) return true;
+    const val = currentVal.trim().toLowerCase();
+    if (val.startsWith('http://') || val.startsWith('https://')) {
+      return false;
+    }
+    return true;
+  }
+
   // Setup click listeners for preset image URL badges in the Embed Builder
   document.querySelectorAll('.preset-link-thumb').forEach(badge => {
     badge.addEventListener('click', () => {
       const url = badge.getAttribute('data-url');
       const input = document.getElementById('embed-thumbnail');
-      if (input) {
+      if (input && shouldOverwriteValue(input.value)) {
         input.value = url;
         input.dispatchEvent(new Event('input'));
         showToast('Thumbnail preset loaded.', 'success');
+      } else {
+        showToast('Preserved custom HTTP/HTTPS URL.', 'info');
       }
     });
   });
@@ -3799,10 +4460,12 @@ function initGiveawaysTab() {
     badge.addEventListener('click', () => {
       const url = badge.getAttribute('data-url');
       const input = document.getElementById('embed-image');
-      if (input) {
+      if (input && shouldOverwriteValue(input.value)) {
         input.value = url;
         input.dispatchEvent(new Event('input'));
         showToast('Large image preset loaded.', 'success');
+      } else {
+        showToast('Preserved custom HTTP/HTTPS URL.', 'info');
       }
     });
   });
@@ -3831,40 +4494,40 @@ function initGiveawaysTab() {
         if (descInput) descInput.value = 'Welcome {user}! We are thrilled to have you join our community.\n\nMake sure to head over to:\n• <#welcome> to say hello\n• <#rules> to read our community guidelines\n• <#roles> to pick your self-assignable roles!\n\nHave a wonderful time! ⚡';
         if (colorPicker) colorPicker.value = '#6366f1';
         if (colorHex) colorHex.value = '#6366F1';
-        if (thumbnailInput) thumbnailInput.value = '/static/bot_logo.png';
-        if (imageInput) imageInput.value = '/static/bot_banner.png';
+        if (thumbnailInput && shouldOverwriteValue(thumbnailInput.value)) thumbnailInput.value = '/static/bot_logo.png';
+        if (imageInput && shouldOverwriteValue(imageInput.value)) imageInput.value = '/static/bot_banner.png';
         if (footerInput) footerInput.value = 'Aegis Suite | Secure & Welcoming Server';
-        if (footerIconInput) footerIconInput.value = '';
+        if (footerIconInput && shouldOverwriteValue(footerIconInput.value)) footerIconInput.value = '';
       } 
       else if (preset === 'rules') {
         if (titleInput) titleInput.value = '📜 Community Rules & Regulations';
         if (descInput) descInput.value = 'Please follow these rules to ensure a fun, safe, and respectful environment for everyone.\n\n**1. Respect Everyone**\nTreat all members with respect. No harassment, sexism, racism, or hate speech will be tolerated.\n\n**2. No Spam or Self-Promotion**\nDo not spam chat channels with emojis, caps, repeated text, or unsolicited links.\n\n**3. Keep Content appropriate**\nMake sure content is posted in the relevant channels (e.g. memes in #memes).';
         if (colorPicker) colorPicker.value = '#ef4444';
         if (colorHex) colorHex.value = '#EF4444';
-        if (thumbnailInput) thumbnailInput.value = 'https://i.imgur.com/V9l5Nn0.png';
-        if (imageInput) imageInput.value = '';
+        if (thumbnailInput && shouldOverwriteValue(thumbnailInput.value)) thumbnailInput.value = '/static/bot_logo.png';
+        if (imageInput && shouldOverwriteValue(imageInput.value)) imageInput.value = '';
         if (footerInput) footerInput.value = 'Moderation Team | Violations will result in warnings/kicks';
-        if (footerIconInput) footerIconInput.value = '';
+        if (footerIconInput && shouldOverwriteValue(footerIconInput.value)) footerIconInput.value = '';
       } 
       else if (preset === 'announcement') {
         if (titleInput) titleInput.value = '📢 SERVER ANNOUNCEMENT';
         if (descInput) descInput.value = 'Hey @everyone! We have some exciting updates coming to our server.\n\nWe are launching a new leveling system and scheduling community gaming sessions! Feel free to checkout #announcements for updates and stay tuned.';
         if (colorPicker) colorPicker.value = '#3b82f6';
         if (colorHex) colorHex.value = '#3B82F6';
-        if (thumbnailInput) thumbnailInput.value = '';
-        if (imageInput) imageInput.value = '/static/bot_banner.png';
+        if (thumbnailInput && shouldOverwriteValue(thumbnailInput.value)) thumbnailInput.value = '';
+        if (imageInput && shouldOverwriteValue(imageInput.value)) imageInput.value = '/static/bot_banner.png';
         if (footerInput) footerInput.value = 'Community Management';
-        if (footerIconInput) footerIconInput.value = '/static/bot_logo.png';
+        if (footerIconInput && shouldOverwriteValue(footerIconInput.value)) footerIconInput.value = '/static/bot_logo.png';
       } 
       else if (preset === 'giveaway') {
         if (titleInput) titleInput.value = '🎉 GIVEAWAY TIME 🎉';
         if (descInput) descInput.value = 'We are hosting a giveaway for our active community members!\n\nClick the button below to join the draw. Make sure to participate before the timer runs out.';
         if (colorPicker) colorPicker.value = '#10b981';
         if (colorHex) colorHex.value = '#10B981';
-        if (thumbnailInput) thumbnailInput.value = 'https://i.imgur.com/NlVd7s7.png';
-        if (imageInput) imageInput.value = '';
+        if (thumbnailInput && shouldOverwriteValue(thumbnailInput.value)) thumbnailInput.value = '/static/bot_logo.png';
+        if (imageInput && shouldOverwriteValue(imageInput.value)) imageInput.value = '';
         if (footerInput) footerInput.value = 'Giveaway Host';
-        if (footerIconInput) footerIconInput.value = '';
+        if (footerIconInput && shouldOverwriteValue(footerIconInput.value)) footerIconInput.value = '';
         
         addEmbedFieldPreset('🎁 Prize', 'Discord Nitro Classic (1 Month)', true);
         addEmbedFieldPreset('🏆 Winner Count', '1 Winner', true);
@@ -3874,10 +4537,10 @@ function initGiveawaysTab() {
         if (descInput) descInput.value = 'Need assistance? Have a question or feedback for the staff?\n\nCreate a secure, private ticket channel where you can chat 1-on-1 with our administration team. Open a ticket using the ticketing controls below.';
         if (colorPicker) colorPicker.value = '#8b5cf6';
         if (colorHex) colorHex.value = '#8B5CF6';
-        if (thumbnailInput) thumbnailInput.value = '';
-        if (imageInput) imageInput.value = '';
+        if (thumbnailInput && shouldOverwriteValue(thumbnailInput.value)) thumbnailInput.value = '';
+        if (imageInput && shouldOverwriteValue(imageInput.value)) imageInput.value = '';
         if (footerInput) footerInput.value = 'Support Helpdesk';
-        if (footerIconInput) footerIconInput.value = '/static/bot_logo.png';
+        if (footerIconInput && shouldOverwriteValue(footerIconInput.value)) footerIconInput.value = '/static/bot_logo.png';
       }
       
       embedTemplateSelect.value = '';
@@ -3889,42 +4552,7 @@ function initGiveawaysTab() {
 
 // Helper to append fields for presets
 function addEmbedFieldPreset(name, value, inline) {
-  const container = document.getElementById('embed-fields-container');
-  if (!container) return;
-  
-  const div = document.createElement('div');
-  div.className = 'embed-field-item glass-inner p-3 mb-2';
-  div.style.position = 'relative';
-  
-  div.innerHTML = `
-    <div class="grid-2-col">
-      <div class="input-group">
-        <label>Field Name:</label>
-        <input type="text" class="field-name-input" value="${escapeHtml(name)}" placeholder="Field Name">
-      </div>
-      <div class="input-group">
-        <label>Field Value:</label>
-        <input type="text" class="field-value-input" value="${escapeHtml(value)}" placeholder="Field Value">
-      </div>
-    </div>
-    <div class="mt-2 flex-between">
-      <label class="flex-align" style="font-size:0.8rem; cursor:pointer;">
-        <input type="checkbox" class="field-inline-checkbox" ${inline ? 'checked' : ''} style="margin-right:5px;"> Inline field
-      </label>
-      <button type="button" class="btn btn-secondary btn-xs btn-remove-embed-field text-danger">Remove</button>
-    </div>
-  `;
-  
-  div.querySelector('.btn-remove-embed-field').addEventListener('click', () => {
-    div.remove();
-    updateEmbedPreview();
-  });
-  
-  div.querySelectorAll('input').forEach(input => {
-    input.addEventListener('input', updateEmbedPreview);
-  });
-  
-  container.appendChild(div);
+  addEmbedFieldWithData(name, value, inline);
 }
 
 // Populate Giveaway Destination Channels Dropdown
@@ -4328,6 +4956,7 @@ function renderHostingModeBadge(mode, role) {
     }
     badge.onclick = null;
   }
+  badge.classList.add('hidden');
 }
 
 function renderFeatureAvailabilityWarning(mode) {
@@ -4342,20 +4971,7 @@ function renderFeatureAvailabilityWarning(mode) {
 
 // First-launch trigger: admin-only, opens chooser only when no value persisted (Req 1.1, 1.6, 1.7)
 async function maybeShowHostingModeSelector() {
-  const role = localStorage.getItem('admin_role');
-  if (role !== 'admin') return; // Tenants never see the chooser
-  try {
-    const res = await fetch('/api/hosting-mode');
-    if (!res.ok) return; // Do not fail open to the modal on a network blip
-    const data = await res.json();
-    const value = data && data.hosting_mode;
-    if (value === 'local_pc' || value === 'cloud') {
-      return; // Already configured
-    }
-    openHostingModeSelector();
-  } catch (err) {
-    console.error('maybeShowHostingModeSelector: error fetching hosting mode', err);
-  }
+  return; // Feature is unfinished, hidden
 }
 
 function openHostingModeSelector() {

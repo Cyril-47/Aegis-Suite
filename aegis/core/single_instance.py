@@ -9,6 +9,9 @@ class SingleInstanceGuard:
     """Named mutex single-instance guard for Windows, with lock-file fallback on other platforms."""
     def __init__(self, data_dir: Path, name: str = "AegisSuiteMutex"):
         self.data_dir = data_dir
+        # Avoid mutex collision during tests by appending a unique test suffix
+        if os.getenv("PYTEST_CURRENT_TEST"):
+            name = f"{name}_test_{os.getpid()}"
         self.mutex_name = name
         self.lock_file_path = data_dir / "aegis.lock"
         self.url_file_path = data_dir / "aegis.url"

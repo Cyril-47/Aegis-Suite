@@ -1,6 +1,6 @@
 def get_wizard_html(health_payload: dict) -> str:
     """Returns a premium, glassmorphic, responsive dark-themed Setup Wizard HTML page.
-    Fully implements the 5 steps: Welcome, Token entry, Server selection, Template selection, and Finish.
+    Implements exactly 4 steps: Connect Bot, Select Server, Verify Permissions, and Complete Setup.
     """
     
     html = """<!DOCTYPE html>
@@ -364,68 +364,41 @@ def get_wizard_html(health_payload: dict) -> str:
             font-weight: 500;
         }
 
-        /* Templates Layout */
-        .templates-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
-        }
-
-        .template-card {
-            padding: 20px 15px;
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 255, 255, 0.04);
-            border-radius: 12px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .template-card:hover {
-            background: rgba(99, 102, 241, 0.08);
-            border-color: rgba(99, 102, 241, 0.2);
-            transform: translateY(-2px);
-        }
-
-        .template-card.selected {
-            background: rgba(99, 102, 241, 0.15);
-            border-color: var(--color-primary);
-            box-shadow: 0 0 15px rgba(99, 102, 241, 0.2);
-        }
-
-        .template-icon {
-            font-size: 2rem;
-            margin-bottom: 10px;
-        }
-
-        .template-title {
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: #fff;
-        }
-
-        .template-preview-area {
-            background: rgba(10, 11, 16, 0.6);
+        /* Permissions checklist */
+        .permissions-checklist {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: rgba(10, 11, 16, 0.4);
             border: 1px solid var(--card-border);
             border-radius: 8px;
             padding: 16px;
-            max-height: 180px;
-            overflow-y: auto;
-            font-family: monospace;
-            font-size: 0.8rem;
-            color: var(--text-secondary);
+            margin-bottom: 20px;
         }
 
-        .preview-header {
-            font-weight: bold;
-            color: #fff;
-            margin-bottom: 8px;
+        .permission-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 4px 0;
+            font-size: 0.9rem;
         }
 
-        .preview-item {
-            margin-left: 12px;
-            margin-bottom: 4px;
+        .permission-badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 4px;
+        }
+
+        .perm-granted {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--color-success);
+        }
+
+        .perm-denied {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--color-error);
         }
 
         /* Overlay */
@@ -485,6 +458,7 @@ def get_wizard_html(health_payload: dict) -> str:
                 <span class="logo-icon">🛡️</span>
                 <h1>Aegis Suite</h1>
             </div>
+            <div style="color: var(--text-secondary); font-size: 0.95rem; margin-top: 6px;">Welcome to Aegis Suite Onboarding</div>
             <div>
                 <span class="wizard-badge">Setup Wizard</span>
             </div>
@@ -497,22 +471,11 @@ def get_wizard_html(health_payload: dict) -> str:
             <div class="step-dot" id="dot-2">2</div>
             <div class="step-dot" id="dot-3">3</div>
             <div class="step-dot" id="dot-4">4</div>
-            <div class="step-dot" id="dot-5">5</div>
         </div>
 
         <main>
-            <!-- STEP 1: Welcome -->
+            <!-- STEP 1: Connect Bot -->
             <div class="wizard-step-panel active" id="step-panel-1">
-                <h2>Welcome to Aegis Suite Onboarding</h2>
-                <p class="description">This step-by-step wizard will configure your server environment, connect your Discord bot credentials securely, and set up your initial server template.</p>
-                <div style="text-align: center; margin: 30px 0;">
-                    <div style="font-size: 64px;">🚀</div>
-                    <p style="margin-top: 15px; color: var(--text-secondary);">Everything will be configured within your browser without command line tools.</p>
-                </div>
-            </div>
-
-            <!-- STEP 2: Token Entry -->
-            <div class="wizard-step-panel" id="step-panel-2">
                 <h2>Discord Bot Connection</h2>
                 <p class="description">Enter your Discord application's Bot Token. This credentials key is stored securely in the local DPAPI Secret Store on your system.</p>
                 <div class="form-group">
@@ -532,9 +495,9 @@ def get_wizard_html(health_payload: dict) -> str:
                 <div id="token-success" class="success-box hidden">✓ Token validation succeeded. Proceeding to server selection.</div>
             </div>
 
-            <!-- STEP 3: Server Selection -->
-            <div class="wizard-step-panel" id="step-panel-3">
-                <h2>Select Discord Server</h2>
+            <!-- STEP 2: Select Server -->
+            <div class="wizard-step-panel" id="step-panel-2">
+                <h2>Select target server</h2>
                 <p class="description">Choose the target guild from the list of servers that your bot has been added to.</p>
                 <div class="guild-list-container" id="guilds-list">
                     <p style="padding: 10px; color: var(--text-muted);">Loading servers list...</p>
@@ -542,46 +505,26 @@ def get_wizard_html(health_payload: dict) -> str:
                 <div id="guilds-error" class="error-box hidden"></div>
             </div>
 
-            <!-- STEP 4: Template Selection -->
-            <div class="wizard-step-panel" id="step-panel-4">
-                <h2>Choose Community Structure</h2>
-                <p class="description">Select a server design layout template. A structural blueprint of roles and channels will be applied.</p>
+            <!-- STEP 3: Verify Permissions -->
+            <div class="wizard-step-panel" id="step-panel-3">
+                <h2>Verify Bot Permissions</h2>
+                <p class="description">Verifying bot's active permissions checklist on the selected server. A correct permission scope prevents template deployment failures.</p>
                 
-                <div class="templates-grid">
-                    <div class="template-card" onclick="selectTemplate('gaming')" id="tpl-gaming">
-                        <div class="template-icon">🎮</div>
-                        <div class="template-title">Gaming</div>
-                    </div>
-                    <div class="template-card" onclick="selectTemplate('community')" id="tpl-community">
-                        <div class="template-icon">📣</div>
-                        <div class="template-title">Community</div>
-                    </div>
-                    <div class="template-card" onclick="selectTemplate('creator')" id="tpl-creator">
-                        <div class="template-icon">🎥</div>
-                        <div class="template-title">Creator</div>
-                    </div>
-                    <div class="template-card" onclick="selectTemplate('empty')" id="tpl-empty">
-                        <div class="template-icon">🛡️</div>
-                        <div class="template-title">Start Empty</div>
-                    </div>
+                <div class="permissions-checklist" id="permissions-checklist-container">
+                    <!-- Dynamic Checklist -->
                 </div>
-
-                <div class="template-preview-area" id="template-preview">
-                    <div class="preview-header">Template Preview</div>
-                    <p style="color: var(--text-muted);">Select a template above to preview its structure.</p>
-                </div>
+                <div id="permissions-notice"></div>
             </div>
 
-            <!-- STEP 5: Finish Onboarding -->
-            <div class="wizard-step-panel" id="step-panel-5">
+            <!-- STEP 4: Complete Setup -->
+            <div class="wizard-step-panel" id="step-panel-4">
                 <h2>Complete Setup Onboarding</h2>
                 <p class="description">Ready to complete setup? Clicking complete will activate your configurations and promote your system to the running dashboard.</p>
                 
                 <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--card-border); border-radius: 8px; padding: 20px; line-height: 1.6;">
                     <h4>Configuration Overview:</h4>
                     <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 10px;" id="summary-details">
-                        Target Guild: (Selected Guild)<br>
-                        Template: (Selected Template)
+                        Target Guild: (Selected Guild)
                     </p>
                 </div>
                 <div id="finish-error" class="error-box hidden"></div>
@@ -604,32 +547,14 @@ def get_wizard_html(health_payload: dict) -> str:
 
     <script>
         let currentStep = 1;
-        const totalSteps = 5;
+        const totalSteps = 4;
         
         let tokenValidated = false;
         let selectedGuildId = "";
         let selectedGuildName = "";
-        let selectedTemplate = "";
+        let selectedGuildPermissions = "0";
+        let guildPermissionsMap = {};
         
-        const templatesData = {
-            gaming: {
-                roles: ["Admin", "Moderator", "Gamer"],
-                channels: ["Categories: INFORMATION, TEXT CHANNELS, VOICE", "Channels: #rules, #announcements, #general, #lfg, General Voice, Gaming Room"]
-            },
-            community: {
-                roles: ["Admin", "Moderator", "Member"],
-                channels: ["Categories: WELCOME, DISCUSSION, VOICE", "Channels: #welcome, #rules, #general, #chat, Lobby, Lounge"]
-            },
-            creator: {
-                roles: ["Admin", "Moderator", "Subscriber", "Viewer"],
-                channels: ["Categories: INFORMATION, CHAT, CONTENT", "Channels: #rules, #live-updates, #announcements, #general, #video-chat"]
-            },
-            empty: {
-                roles: ["Admin"],
-                channels: ["Categories: GENERAL", "Channels: #general, General Voice"]
-            }
-        };
-
         function updateStepDots() {
             for (let i = 1; i <= totalSteps; i++) {
                 const dot = document.getElementById("dot-" + i);
@@ -664,12 +589,12 @@ def get_wizard_html(health_payload: dict) -> str:
             }
             
             // Step-specific locks
-            if (step === 2) {
+            if (step === 1) {
                 nextBtn.disabled = !tokenValidated;
-            } else if (step === 3) {
+            } else if (step === 2) {
                 nextBtn.disabled = !selectedGuildId;
-            } else if (step === 4) {
-                nextBtn.disabled = !selectedTemplate;
+            } else if (step === 3) {
+                nextBtn.disabled = false; // Warnings shown but user can proceed
             } else {
                 nextBtn.disabled = false;
             }
@@ -680,12 +605,13 @@ def get_wizard_html(health_payload: dict) -> str:
         function nextStep() {
             if (currentStep < totalSteps) {
                 currentStep++;
-                if (currentStep === 3) {
+                if (currentStep === 2) {
                     loadGuilds();
-                } else if (currentStep === 5) {
+                } else if (currentStep === 3) {
+                    verifyPermissions();
+                } else if (currentStep === 4) {
                     document.getElementById("summary-details").innerHTML = `
-                        Target Guild: <strong>${selectedGuildName}</strong> (ID: ${selectedGuildId})<br>
-                        Applied Template: <strong>${selectedTemplate.toUpperCase()}</strong>
+                        Target Guild: <strong>${selectedGuildName}</strong> (ID: ${selectedGuildId})
                     `;
                 }
                 showStep(currentStep);
@@ -699,7 +625,7 @@ def get_wizard_html(health_payload: dict) -> str:
             }
         }
 
-        function toggleToken() {
+        toggleToken = function() {
             const input = document.getElementById("discord-token");
             input.type = input.type === "password" ? "text" : "password";
         }
@@ -782,7 +708,9 @@ def get_wizard_html(health_payload: dict) -> str:
                     }
                     
                     listContainer.innerHTML = "";
+                    guildPermissionsMap = {};
                     guilds.forEach(g => {
+                        guildPermissionsMap[g.id] = g.permissions || "0";
                         const div = document.createElement("div");
                         div.className = "guild-item";
                         div.id = "guild-" + g.id;
@@ -814,6 +742,7 @@ def get_wizard_html(health_payload: dict) -> str:
         function selectGuild(id, name) {
             selectedGuildId = id;
             selectedGuildName = name;
+            selectedGuildPermissions = guildPermissionsMap[id] || "0";
             
             document.querySelectorAll(".guild-item").forEach(item => {
                 item.classList.remove("selected");
@@ -824,25 +753,51 @@ def get_wizard_html(health_payload: dict) -> str:
             document.getElementById("btn-next").disabled = false;
         }
 
-        function selectTemplate(kind) {
-            selectedTemplate = kind;
+        function verifyPermissions() {
+            const container = document.getElementById("permissions-checklist-container");
+            const noticeContainer = document.getElementById("permissions-notice");
+            container.innerHTML = "";
             
-            document.querySelectorAll(".template-card").forEach(card => {
-                card.classList.remove("selected");
+            const perms = BigInt(selectedGuildPermissions);
+            const required = [
+                { name: "Manage Channels", bit: 0x10n },
+                { name: "Manage Roles", bit: 0x10000000n },
+                { name: "Send Messages", bit: 0x800n },
+                { name: "Embed Links", bit: 0x4000n },
+                { name: "Read Message History", bit: 0x10000n },
+                { name: "Connect (Voice playback)", bit: 0x100000n },
+                { name: "Speak (Voice playback)", bit: 0x200000n }
+            ];
+            
+            let allGranted = true;
+            required.forEach(p => {
+                const hasPerm = (perms & p.bit) === p.bit;
+                if (!hasPerm) allGranted = false;
+                
+                const row = document.createElement("div");
+                row.className = "permission-row";
+                row.innerHTML = `
+                    <span>${p.name}</span>
+                    <span class="permission-badge ${hasPerm ? 'perm-granted' : 'perm-denied'}">
+                        ${hasPerm ? '✓ Granted' : '✗ Missing'}
+                    </span>
+                `;
+                container.appendChild(row);
             });
-            document.getElementById("tpl-" + kind).classList.add("selected");
             
-            const preview = document.getElementById("template-preview");
-            const data = templatesData[kind];
-            
-            preview.innerHTML = `
-                <div class="preview-header">${kind.toUpperCase()} Template Preview</div>
-                <div class="preview-item"><strong>Roles:</strong> ${data.roles.join(", ")}</div>
-                <div class="preview-item"><strong>Structure:</strong></div>
-                ${data.channels.map(c => `<div class="preview-item" style="color: var(--text-muted);">${c}</div>`).join("")}
-            `;
-            
-            document.getElementById("btn-next").disabled = false;
+            if (allGranted) {
+                noticeContainer.innerHTML = `
+                    <div class="success-box">
+                        ✓ All required bot permissions are successfully verified!
+                    </div>
+                `;
+            } else {
+                noticeContainer.innerHTML = `
+                    <div class="warning-box">
+                        ⚠️ <strong>Bot Lacks Permissions:</strong> Some required permissions are missing. You can continue, but server customization or voice playback features may fail unless you update the bot's role permissions in Discord.
+                    </div>
+                `;
+            }
         }
 
         async function finishWizard() {
@@ -857,7 +812,7 @@ def get_wizard_html(health_payload: dict) -> str:
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         guild_id: selectedGuildId,
-                        template_kind: selectedTemplate
+                        template_kind: ""
                     })
                 });
                 

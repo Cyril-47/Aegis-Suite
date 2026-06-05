@@ -22,8 +22,36 @@
       "position": 2,
       "channels": [
         {"name": "Raid Room 1", "type": "voice", "position": 1},
-        {"name": "Raid Room 2", "type": "voice", "position": 2},
-        {"name": "Officers Room", "type": "voice", "position": 3}
+        {"name": "Raid Room 2", "type": "voice", "position": 2}
+      ]
+    },
+    {
+      "name": "🛡️ OFFICER QUARTERS",
+      "position": 3,
+      "overwrites": [
+        {
+          "target_type": "role",
+          "target_name": "@everyone",
+          "allow": 0,
+          "deny": 1024
+        },
+        {
+          "target_type": "role",
+          "target_name": "Clan Leader",
+          "allow": 1024,
+          "deny": 0
+        },
+        {
+          "target_type": "role",
+          "target_name": "Officer",
+          "allow": 1024,
+          "deny": 0
+        }
+      ],
+      "channels": [
+        {"name": "officers-chat", "type": "text", "position": 1, "overwrites": []},
+        {"name": "officer-logs", "type": "text", "position": 2, "overwrites": []},
+        {"name": "Officers Room", "type": "voice", "position": 3, "overwrites": []}
       ]
     }
   ]

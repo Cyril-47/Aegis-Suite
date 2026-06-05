@@ -73,8 +73,25 @@ class GiveawayJoinView(discord.ui.View):
             
         await interaction.response.send_message(msg, ephemeral=True)
 
-async def start_giveaway_bot(channel, prize, winners_count, duration_seconds, host_id):
+async def start_giveaway_bot(channel, prize, winners_count, duration_seconds, host_id, host_name_custom=None):
     end_time = time.time() + duration_seconds
+    
+    if host_name_custom:
+        host_name = host_name_custom
+    else:
+        host_name = "Aegis Suite"
+        if host_id:
+            try:
+                host_member = await channel.guild.fetch_member(int(host_id))
+                host_name = host_member.display_name
+            except Exception:
+                host_member = channel.guild.get_member(int(host_id))
+                if host_member:
+                    host_name = host_member.display_name
+                elif int(host_id) == channel.guild.me.id:
+                    host_name = channel.guild.me.display_name
+                else:
+                    host_name = f"User (ID: {host_id})"
     
     embed = discord.Embed(
         title="🎁 GIVEAWAY START 🎁",
@@ -85,7 +102,7 @@ async def start_giveaway_bot(channel, prize, winners_count, duration_seconds, ho
     embed.add_field(name="🏆 Winners", value=str(winners_count), inline=True)
     embed.add_field(name="⏳ Ends", value=f"<t:{int(end_time)}:R> (<t:{int(end_time)}:f>)", inline=False)
     embed.add_field(name="👥 Participants (0)", value="Click the button below to join!\nTotal: **0** entrant(s)", inline=True)
-    embed.set_footer(text="Hosted by Aegis Suite")
+    embed.set_footer(text=f"Hosted by {host_name}")
     
     view = GiveawayJoinView()
     message = await channel.send(embed=embed, view=view)
@@ -101,52 +118,63 @@ async def start_giveaway_bot(channel, prize, winners_count, duration_seconds, ho
             "entrants": [],
             "winners": [],
             "ended": False,
-            "host_id": str(host_id)
+            "host_id": str(host_id),
+            "host_name": host_name
         }
         await utils.save_giveaways(giveaways)
         
     return str(message.id)
 
+active_rerolls = set()
+
 async def reroll_giveaway_bot(channel, message_id):
     msg_id_str = str(message_id)
-    
-    async with utils.giveaways_lock:
-        giveaways = await utils.load_giveaways()
-        if msg_id_str not in giveaways:
-            return "Giveaway not found in record."
-            
-        gw = giveaways[msg_id_str]
-        if not gw.get("ended", False):
-            return "Giveaway is still active. End it first before rerolling."
-            
-        entrants = gw.get("entrants", [])
-        if not entrants:
-            return "No entrants to roll from."
-            
-        winners_count = gw.get("winners_count", 1)
-        prize = gw.get("prize", "Unknown Prize")
+    if msg_id_str in active_rerolls:
+        return "A reroll is already in progress for this giveaway."
         
-        actual_winners_count = min(len(entrants), winners_count)
-        winners = random.sample(entrants, actual_winners_count)
-        
-        gw["winners"] = winners
-        giveaways[msg_id_str] = gw
-        await utils.save_giveaways(giveaways)
-        
+    active_rerolls.add(msg_id_str)
     try:
-        message = await channel.fetch_message(message_id)
-        embeds = message.embeds
-        if embeds:
-            embed = embeds[0]
-            new_embed = discord.Embed.from_dict(embed.to_dict())
-            new_embed.clear_fields()
-            new_embed.add_field(name="🎁 Prize", value=prize, inline=True)
+        async with utils.giveaways_lock:
+            giveaways = await utils.load_giveaways()
+            if msg_id_str not in giveaways:
+                return "Giveaway not found in record."
+                
+            gw = giveaways[msg_id_str]
+            if not gw.get("ended", False):
+                return "Giveaway is still active. End it first before rerolling."
+                
+            entrants = gw.get("entrants", [])
+            if not entrants:
+                return "No entrants to roll from."
+                
+            winners_count = gw.get("winners_count", 1)
+            prize = gw.get("prize", "Unknown Prize")
             
-            winners_mentions = ", ".join([f"<@{w}>" for w in winners])
-            new_embed.add_field(name="🏆 Rerolled Winners", value=winners_mentions, inline=True)
-            new_embed.add_field(name="👥 Total Participants", value=f"**{len(entrants)}** entrant(s)", inline=True)
+            actual_winners_count = min(len(entrants), winners_count)
+            winners = random.sample(entrants, actual_winners_count)
             
-            await message.edit(embed=new_embed)
+            gw["winners"] = winners
+            giveaways[msg_id_str] = gw
+            await utils.save_giveaways(giveaways)
+            
+        try:
+            message = await channel.fetch_message(message_id)
+            embeds = message.embeds
+            if embeds:
+                embed = embeds[0]
+                new_embed = discord.Embed.from_dict(embed.to_dict())
+                new_embed.clear_fields()
+                new_embed.add_field(name="🎁 Prize", value=prize, inline=True)
+                
+                winners_mentions = ", ".join([f"<@{w}>" for w in winners])
+                new_embed.add_field(name="🏆 Rerolled Winners", value=winners_mentions, inline=True)
+                new_embed.add_field(name="👥 Total Participants", value=f"**{len(entrants)}** entrant(s)", inline=True)
+                
+                await message.edit(embed=new_embed)
+        except discord.NotFound:
+            logger.warning(f"Giveaway message {message_id} not found during reroll. Skipping edit.")
+        except Exception as e:
+            logger.error(f"Failed to edit message during reroll: {e}")
             
         winners_mentions = ", ".join([f"<@{w}>" for w in winners])
         await channel.send(
@@ -154,6 +182,5 @@ async def reroll_giveaway_bot(channel, message_id):
             f"Congratulations to the new winner(s): {winners_mentions}! You won **{prize}**! 🎁"
         )
         return "success"
-    except Exception as e:
-        logger.error(f"Failed to edit message during reroll: {e}")
-        return f"Failed to edit Discord message: {e}"
+    finally:
+        active_rerolls.discard(msg_id_str)

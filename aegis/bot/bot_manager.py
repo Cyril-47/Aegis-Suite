@@ -20,7 +20,7 @@ bot_task = None
 
 # Regular Expressions for Safe AutoMod Enforcement (Backtracking Protected)
 DISCORD_INVITE_PATTERN = re.compile(
-    r'(?:https?://)?(?:www\.)?(?:discord\.(?:gg|io|me|li|club)|discord(?:app)?\.com/invite)/([a-zA-Z0-9-]{2,32})',
+    r'(?:https?://)?(?:www\.)?(?:discord\.(?:gg|io|me|li|club)|discord(?:app)?\.com/invite)/([a-zA-Z0-9_-]{2,32})',
     re.IGNORECASE
 )
 
@@ -34,8 +34,7 @@ def get_bot():
 
 from aegis.bot.tickets import TicketCloseView, TicketPanelView
 
-from aegis.bot.giveaways import GiveawayJoinView
-
+from aegis.bot.giveaways import GiveawayJoinView, start_giveaway_bot, reroll_giveaway_bot
 
 class DiscordOptimizerBot(commands.Bot):
     def __init__(self, *args, **kwargs):
@@ -77,9 +76,10 @@ class DiscordOptimizerBot(commands.Bot):
         self.add_view(TicketCloseView())
         self.add_view(GiveawayJoinView())
         
-        # Start scheduled messages background scheduler
+        # Start scheduled messages background scheduler and watchdog
         self.scheduler_task = self.loop.create_task(self.scheduler_loop())
         self.giveaway_task = self.loop.create_task(self.giveaway_scheduler_loop())
+        self.watchdog_task = self.loop.create_task(self.watchdog_loop())
         
         # Only sync when requested or on dev guild to protect rate limits (Tier 3.14)
         dev_guild_id = self.config.get("dev_guild_id")
@@ -101,6 +101,32 @@ class DiscordOptimizerBot(commands.Bot):
             except Exception as e:
                 logger.error(f"Failed to sync slash commands globally: {e}")
 
+    async def watchdog_loop(self):
+        logger.info("Watchdog loop started.")
+        await self.wait_until_ready()
+        while not self.is_closed():
+            try:
+                # Monitor scheduler_loop
+                if self.scheduler_task is None or self.scheduler_task.done():
+                    if self.scheduler_task and self.scheduler_task.done() and self.scheduler_task.exception():
+                        exc = self.scheduler_task.exception()
+                        logger.error(f"Scheduler loop crashed with exception: {exc}. Restarting...")
+                    else:
+                        logger.warning("Scheduler loop is not running. Restarting...")
+                    self.scheduler_task = self.loop.create_task(self.scheduler_loop())
+
+                # Monitor giveaway_scheduler_loop
+                if self.giveaway_task is None or self.giveaway_task.done():
+                    if self.giveaway_task and self.giveaway_task.done() and self.giveaway_task.exception():
+                        exc = self.giveaway_task.exception()
+                        logger.error(f"Giveaway loop crashed with exception: {exc}. Restarting...")
+                    else:
+                        logger.warning("Giveaway loop is not running. Restarting...")
+                    self.giveaway_task = self.loop.create_task(self.giveaway_scheduler_loop())
+            except Exception as e:
+                logger.error(f"Error in watchdog loop: {e}")
+            await asyncio.sleep(30)
+
     async def scheduler_loop(self):
         logger.info("Scheduled messages background scheduler loop started.")
         await self.wait_until_ready()
@@ -115,56 +141,81 @@ class DiscordOptimizerBot(commands.Bot):
                     if not msg.get("enabled", True):
                         continue
                     
-                    next_run_str = msg.get("next_run")
-                    if not next_run_str:
-                        continue
+                    try:
+                        msg_id = msg.get("id")
+                        guild_id_str = msg.get("guild_id")
+                        channel_id_str = msg.get("channel_id")
                         
-                    next_run = datetime.datetime.fromisoformat(next_run_str)
-                    if next_run.tzinfo is None:
-                        next_run = next_run.replace(tzinfo=datetime.timezone.utc)
-                    if now >= next_run:
-                        # Message is due! Send it.
-                        guild_id = int(msg["guild_id"])
-                        channel_id = int(msg["channel_id"])
-                        guild = self.get_guild(guild_id)
-                        if guild:
-                            channel = guild.get_channel(channel_id)
-                            if channel:
-                                try:
-                                    embed_data = msg.get("embed")
-                                    if embed_data:
-                                        embed = discord.Embed.from_dict(embed_data)
-                                        await channel.send(content=msg.get("content") or None, embed=embed)
-                                    else:
-                                        await channel.send(content=msg["content"])
-                                    logger.info(f"Fired scheduled message '{msg['id']}' in #{channel.name}")
-                                except Exception as e:
-                                    logger.error(f"Failed to send scheduled message '{msg['id']}': {e}")
-                                    
-                        # Update next_run or disable if once
-                        if msg["schedule_type"] == "once":
+                        if not msg_id or not guild_id_str or not channel_id_str:
+                            logger.error(f"Scheduled message is missing critical fields (id, guild_id, channel_id). Disabling: {msg}")
                             msg["enabled"] = False
-                            msg["next_run"] = None
-                        else:
-                            interval = msg.get("interval_type", "daily")
-                            val = int(msg.get("interval_value", 1))
-                            if interval == "hourly":
-                                next_run = next_run + datetime.timedelta(hours=val)
-                            elif interval == "daily":
-                                next_run = next_run + datetime.timedelta(days=val)
-                            elif interval == "weekly":
-                                next_run = next_run + datetime.timedelta(weeks=val)
-                            else:
-                                next_run = next_run + datetime.timedelta(days=1)
-                                
-                            msg["next_run"] = next_run.isoformat()
-                            msg["last_run"] = now.isoformat()
+                            config_changed = True
+                            continue
                             
-                        config_changed = True
+                        next_run_str = msg.get("next_run")
+                        if not next_run_str:
+                            continue
+                            
+                        next_run = datetime.datetime.fromisoformat(next_run_str)
+                        if next_run.tzinfo is None:
+                            next_run = next_run.replace(tzinfo=datetime.timezone.utc)
+                        if now >= next_run:
+                            # Message is due! Send it.
+                            guild_id = int(guild_id_str)
+                            channel_id = int(channel_id_str)
+                            guild = self.get_guild(guild_id)
+                            if guild:
+                                channel = guild.get_channel(channel_id)
+                                if channel:
+                                    try:
+                                        embed_data = msg.get("embed")
+                                        if embed_data:
+                                            embed = discord.Embed.from_dict(embed_data)
+                                            await channel.send(content=msg.get("content") or None, embed=embed)
+                                        else:
+                                            await channel.send(content=msg["content"])
+                                        logger.info(f"Fired scheduled message '{msg['id']}' in #{channel.name}")
+                                    except Exception as e:
+                                        logger.error(f"Failed to send scheduled message '{msg['id']}': {e}")
+                                        
+                            # Update next_run or disable if once
+                            if msg["schedule_type"] == "once":
+                                msg["enabled"] = False
+                                msg["next_run"] = None
+                            else:
+                                interval = msg.get("interval_type", "daily")
+                                val = int(msg.get("interval_value", 1))
+                                if interval == "hourly":
+                                    next_run = next_run + datetime.timedelta(hours=val)
+                                elif interval == "daily":
+                                    next_run = next_run + datetime.timedelta(days=val)
+                                elif interval == "weekly":
+                                    next_run = next_run + datetime.timedelta(weeks=val)
+                                else:
+                                    next_run = next_run + datetime.timedelta(days=1)
+                                    
+                                msg["next_run"] = next_run.isoformat()
+                                msg["last_run"] = now.isoformat()
+                                
+                            config_changed = True
+                    except Exception as e:
+                        logger.error(f"Error processing scheduled message '{msg.get('id', 'unknown')}': {e}")
                         
                 if config_changed:
-                    utils.save_config(config)
-                    self.config = config
+                    # Reload config under config_lock to avoid overwriting concurrent API edits
+                    with utils.config_lock:
+                        new_config = utils.load_config()
+                        new_scheduled = new_config.get("scheduled_messages", [])
+                        new_sched_map = {m["id"]: m for m in new_scheduled}
+                        for msg in scheduled:
+                            if msg.get("id") in new_sched_map:
+                                new_sched_map[msg["id"]]["enabled"] = msg["enabled"]
+                                new_sched_map[msg["id"]]["next_run"] = msg["next_run"]
+                                if "last_run" in msg:
+                                    new_sched_map[msg["id"]]["last_run"] = msg["last_run"]
+                        new_config["scheduled_messages"] = new_scheduled
+                        utils.save_config(new_config)
+                        self.config = new_config
                     
             except Exception as e:
                 logger.error(f"Error in scheduler loop: {e}")
@@ -224,6 +275,23 @@ class DiscordOptimizerBot(commands.Bot):
         
         giveaways[str(message.id)] = gw
         
+        host_id = gw.get("host_id")
+        host_name = gw.get("host_name")
+        if not host_name:
+            host_name = "Aegis Suite"
+            if host_id:
+                try:
+                    host_member = await message.guild.fetch_member(int(host_id))
+                    host_name = host_member.display_name
+                except Exception:
+                    host_member = message.guild.get_member(int(host_id))
+                    if host_member:
+                        host_name = host_member.display_name
+                    elif int(host_id) == message.guild.me.id:
+                        host_name = message.guild.me.display_name
+                    else:
+                        host_name = f"User (ID: {host_id})"
+        
         embeds = message.embeds
         if embeds:
             embed = embeds[0]
@@ -237,6 +305,7 @@ class DiscordOptimizerBot(commands.Bot):
             winners_mentions = ", ".join([f"<@{w}>" for w in winners]) if winners else "No entrants."
             new_embed.add_field(name="🏆 Winners", value=winners_mentions, inline=True)
             new_embed.add_field(name="👥 Total Participants", value=f"**{len(entrants)}** entrant(s)", inline=True)
+            new_embed.set_footer(text=f"Hosted by {host_name}")
             
             view = discord.ui.View()
             btn = discord.ui.Button(label=f"Giveaway Ended ({len(entrants)})", style=discord.ButtonStyle.secondary, disabled=True, custom_id="giveaway_ended_btn")
@@ -246,13 +315,11 @@ class DiscordOptimizerBot(commands.Bot):
             
             if winners:
                 await message.channel.send(
-                    f"🎉 Congratulations to {winners_mentions}! You won **{prize}**! 🎁\n"
-                    f"Original message: {message.jump_url}"
+                    f"🎉 Congratulations to {winners_mentions}! You won **{prize}**! 🎁"
                 )
             else:
                 await message.channel.send(
-                    f"😭 The giveaway for **{prize}** ended, but there were no participants.\n"
-                    f"Original message: {message.jump_url}"
+                    f"😭 The giveaway for **{prize}** ended, but there were no participants."
                 )
 
     async def on_command_error(self, ctx: commands.Context, error: Exception):
@@ -586,7 +653,7 @@ class DiscordOptimizerBot(commands.Bot):
                         break
                         
             if not user_ignored:
-                from leveling import leveling_system
+                from aegis.bot.leveling import leveling_system
                 xp_per_msg = int(leveling_cfg.get("xp_per_message", 15))
                 cooldown = int(leveling_cfg.get("xp_cooldown_seconds", 60))
                 
@@ -653,7 +720,10 @@ class DiscordOptimizerBot(commands.Bot):
         # 2. Invite check
         invites_found = DISCORD_INVITE_PATTERN.findall(message.content)
         if invites_found and automod.get("block_invites", False):
-            whitelisted_invites = [i.lower().strip() for i in automod.get("whitelisted_invites", [])]
+            whitelisted_invites = []
+            for entry in automod.get("whitelisted_invites", []):
+                match = DISCORD_INVITE_PATTERN.search(entry)
+                whitelisted_invites.append(match.group(1).lower().strip() if match else entry.lower().strip())
             for invite_code in invites_found:
                 if invite_code.lower().strip() not in whitelisted_invites:
                     infractions.append("Contains Discord invite link (unauthorized)")
@@ -664,15 +734,19 @@ class DiscordOptimizerBot(commands.Bot):
             url_matches = list(URL_DOMAIN_PATTERN.finditer(message.content))
             if url_matches:
                 invite_matches = list(DISCORD_INVITE_PATTERN.finditer(message.content))
-                whitelisted_domains = [d.lower().strip() for d in automod.get("whitelisted_domains", [])]
+                whitelisted_domains = []
+                for entry in automod.get("whitelisted_domains", []):
+                    match = URL_DOMAIN_PATTERN.search(entry)
+                    whitelisted_domains.append(match.group(1).lower().strip() if match else entry.lower().strip())
                 for url_match in url_matches:
                     domain = url_match.group(1)
                     domain_lower = domain.lower().strip()
-                    # Skip if this domain match is part of a discord invite link
+                    # Skip if this domain match is part of a discord invite link AND invite filtering is active
                     is_invite_part = False
                     for inv_match in invite_matches:
                         if inv_match.start() <= url_match.start() and url_match.end() <= inv_match.end():
-                            is_invite_part = True
+                            if automod.get("block_invites", False):
+                                is_invite_part = True
                             break
                     if is_invite_part:
                         continue
@@ -732,11 +806,45 @@ class DiscordOptimizerBot(commands.Bot):
             log_channel = guild.get_channel(int(automod["log_channel_id"]))
         
         if not log_channel:
-            log_name = automod.get("log_channel_name", "mod-logs").lstrip("#").lower()
+            log_name = automod.get("log_channel_name") or "mod-logs"
+            log_name_clean = log_name.lstrip("#").lower()
+            if not log_name_clean:
+                log_name_clean = "mod-logs"
             for ch in guild.text_channels:
-                if ch.name.lower() == log_name:
+                if ch.name.lower() == log_name_clean:
                     log_channel = ch
                     break
+
+        if not log_channel:
+            log_name = automod.get("log_channel_name") or "mod-logs"
+            log_name_clean = log_name.lstrip("#").lower()
+            if not log_name_clean:
+                log_name_clean = "mod-logs"
+            try:
+                if guild.me.guild_permissions.manage_channels:
+                    overwrites = {
+                        guild.default_role: discord.PermissionOverwrite(view_channel=False)
+                    }
+                    admin_role = discord.utils.find(lambda r: r.name.lower() in ("admin", "server admin"), guild.roles)
+                    mod_role = discord.utils.find(lambda r: r.name.lower() in ("moderator", "staff"), guild.roles)
+                    if admin_role:
+                        overwrites[admin_role] = discord.PermissionOverwrite(view_channel=True)
+                    if mod_role:
+                        overwrites[mod_role] = discord.PermissionOverwrite(view_channel=True)
+                        
+                    log_channel = await guild.create_text_channel(
+                        name=log_name_clean,
+                        overwrites=overwrites,
+                        reason="Auto-created default AutoMod infraction log channel"
+                    )
+                    logger.info(f"Auto-created default mod log channel #{log_name_clean}")
+                    
+                    guild_conf = utils.get_guild_config(str(guild.id))
+                    guild_conf["automod_settings"]["log_channel_id"] = str(log_channel.id)
+                    guild_conf["automod_settings"]["log_channel_name"] = log_channel.name
+                    utils.save_guild_config(str(guild.id), guild_conf)
+            except Exception as e:
+                logger.error(f"Failed to auto-create default mod log channel: {e}")
 
         if log_channel:
             try:
@@ -784,7 +892,6 @@ def parse_duration(duration_str: str) -> Optional[int]:
     elif unit == "m":
         return val * 60
     elif unit == "h":
-        from aegis.bot.giveaways import start_giveaway_bot, reroll_giveaway_bot
         return val * 3600
     elif unit == "d":
         return val * 86400

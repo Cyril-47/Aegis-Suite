@@ -168,6 +168,49 @@
     </div>
   </div>
 
+  <!-- IMPORT TEMPLATE JSON MODAL -->
+  <div id="template-import-overlay" class="wizard-container hidden" style="z-index: 10000;">
+    <div class="wizard-box glass" style="max-width: 600px; width: 90%; padding: 25px; border-radius: 16px; background: rgba(18, 18, 24, 0.95); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); border: 1px solid rgba(255, 255, 255, 0.1);">
+      <div class="flex-between border-bottom pb-2 mb-3" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 15px;">
+        <h2 style="font-size: 1.3rem; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 8px; margin: 0;"><i class="fa-solid fa-file-import"></i> Paste Template JSON</h2>
+        <button type="button" onclick="closeImportTemplateModal();" style="background: none; border: none; color: rgba(255,255,255,0.6); font-size: 1.8rem; cursor: pointer; line-height: 1; padding: 0;">&times;</button>
+      </div>
+      <div class="input-group">
+        <label for="template-import-name" style="font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; display: block;">Template Name <span class="required">*</span></label>
+        <input type="text" id="template-import-name" placeholder="e.g. Pasted Layout Template" class="glass-input" style="padding: 10px; width: 100%; border-radius: 8px;">
+      </div>
+      <div class="input-group mt-3">
+        <label for="template-import-json" style="font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; display: block;">Paste Template JSON Data <span class="required">*</span></label>
+        <textarea id="template-import-json" placeholder='{ "roles": [...], "categories": [...] }' class="glass-input" rows="8" style="font-family: monospace; font-size: 0.85rem; resize: vertical; padding: 10px; width: 100%; border-radius: 8px;"></textarea>
+      </div>
+      <div class="flex-end mt-4" style="display: flex; justify-content: flex-end; gap: 10px;">
+        <button type="button" class="btn btn-secondary" onclick="closeImportTemplateModal();" style="border-radius: 8px;">Cancel</button>
+        <button type="button" id="btn-submit-import-json" class="btn btn-primary btn-glow" style="border-radius: 8px;">Import Template</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESTORE BACKUP MODAL -->
+  <div id="restore-backup-overlay" class="wizard-container hidden" style="z-index: 10000;">
+    <div class="wizard-box glass" style="max-width: 500px; width: 90%; padding: 25px; border-radius: 16px; background: rgba(18, 18, 24, 0.95); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); border: 1px solid rgba(255, 255, 255, 0.1);">
+      <div class="flex-between border-bottom pb-2 mb-3" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 15px;">
+        <h2 style="font-size: 1.3rem; font-weight: 700; color: var(--success); display: flex; align-items: center; gap: 8px; margin: 0;"><i class="fa-solid fa-clock-rotate-left"></i> Restore Server Backup</h2>
+        <button type="button" onclick="document.getElementById('restore-backup-overlay').classList.add('hidden');" style="background: none; border: none; color: rgba(255,255,255,0.6); font-size: 1.8rem; cursor: pointer; line-height: 1; padding: 0;">&times;</button>
+      </div>
+      <p style="font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-bottom: 20px;">Select a previously saved backup to restore your server's layout.</p>
+      <div class="input-group mb-4">
+        <label for="restore-backup-select" style="font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; display: block;">Select Backup <span class="required">*</span></label>
+        <select id="restore-backup-select" class="glass-input w-100" style="padding: 10px; border-radius: 8px; color: #fff; background: rgba(0,0,0,0.3);">
+          <option value="">-- Choose Backup --</option>
+        </select>
+      </div>
+      <div class="flex-between" style="display: flex; justify-content: space-between; gap: 15px;">
+        <button type="button" class="btn btn-secondary w-50" onclick="document.getElementById('restore-backup-overlay').classList.add('hidden');" style="border-radius: 8px;">Cancel</button>
+        <button type="button" id="btn-confirm-restore-backup" class="btn btn-success btn-glow w-50" style="border-radius: 8px;">Next &rarr;</button>
+      </div>
+    </div>
+  </div>
+
   <!-- TEMPLATE PREVIEW & CUSTOMIZATION MODAL -->
   <div id="template-preview-overlay" class="wizard-container hidden" style="z-index: 10000;">
     <div class="wizard-box glass" style="max-width: 800px; width: 90%;">
@@ -195,6 +238,16 @@
         <h3 class="mb-2" style="font-size: 1.1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">Template Structure Customizer</h3>
         <div id="template-tree-customizer" class="tree-customizer-container mb-4" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
           <!-- Populated dynamically: Tree checklist of Roles, Categories, Channels -->
+        </div>
+
+        <!-- Delete Confirmation Text Input (only visible when handling is 'delete') -->
+        <div id="delete-confirmation-container" class="alert alert-danger glass-inner mb-4 hidden" style="padding: 15px; border-radius: 8px; font-size: 0.9rem; border: 1px solid rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05); color: #ef4444;">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <strong>CRITICAL WARNING:</strong> You selected 'Deconstruct / Delete All'. This will delete all current channels and categories in your server. This action is irreversible. All chat histories will be permanently lost!
+          <div class="mt-3">
+            <label for="delete-confirm-input" style="display: block; margin-bottom: 6px; font-weight: bold;">Type "DELETE" to confirm:</label>
+            <input type="text" id="delete-confirm-input" class="glass-input w-100" style="padding: 8px 12px; border-color: rgba(239, 68, 68, 0.4); color: #fff; background: rgba(0,0,0,0.3);" placeholder="Type DELETE here">
+          </div>
         </div>
 
         <!-- Confirmation Checkbox -->
@@ -239,9 +292,6 @@
         <button class="nav-item" data-tab="tab-auditor">
           <i class="fa-solid fa-shield-halved"></i> Server Auditor
         </button>
-        <button class="nav-item" data-tab="tab-optimizer">
-          <i class="fa-solid fa-sliders"></i> Layout Optimizer
-        </button>
         <button class="nav-item" data-tab="tab-commands">
           <i class="fa-solid fa-code"></i> Custom Commands
         </button>
@@ -255,7 +305,7 @@
           <i class="fa-solid fa-tags"></i> Role Panels
         </button>
         <button class="nav-item" data-tab="tab-templates">
-          <i class="fa-solid fa-layer-group"></i> Templates Manager
+          <i class="fa-solid fa-layer-group"></i> Server Layouts & Templates
         </button>
         <button class="nav-item" data-tab="tab-welcome">
           <i class="fa-solid fa-door-open"></i> Welcome Setup
@@ -334,7 +384,7 @@
 
           <!-- Hosting Mode Badge -->
           <button id="hosting-mode-badge"
-                  class="hosting-mode-badge state-unconfigured"
+                  class="hosting-mode-badge state-unconfigured hidden"
                   title="Hosting mode"
                   aria-label="Hosting mode: Unconfigured">
             <i class="fa-solid fa-circle-question"></i>
@@ -568,124 +618,6 @@
                 <div id="audit-results-list" class="checklist-list hidden">
                   <!-- Dynamic check cards go here -->
                 </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- TAB: OPTIMIZER -->
-        <section id="tab-optimizer" class="tab-pane hidden">
-          <div class="card glass mb-4">
-            <div class="card-header border-bottom">
-              <h2>Select an Optimization Layout Preset</h2>
-              <p>Reorganizes, categorizes, and secures channels according to curated community models.</p>
-            </div>
-            <div class="card-body">
-              <div class="preset-selector-grid">
-                <!-- Preset: Gaming -->
-                <div class="preset-card glass-inner active" data-preset="gaming">
-                  <div class="preset-badge badge-indigo">RECOMMENDED</div>
-                  <div class="preset-icon"><i class="fa-solid fa-gamepad"></i></div>
-                  <h3>Gaming Guild / Squads</h3>
-                  <p>Designed for gaming servers. Features dedicated general lobbies, clips highlights, meme chats, bot command center, and voice channels (Squads, Duos, Lounges).</p>
-                  <div class="preset-meta border-top mt-3 pt-3">
-                    <h4>Created Layout:</h4>
-                    <ul>
-                      <li>🏆 <strong>Info</strong>: welcome, rules-and-info, announcements</li>
-                      <li>💬 <strong>Text</strong>: general, gaming-lobby, clips-highlights, memes, bot-commands</li>
-                      <li>🔊 <strong>Voice</strong>: General Voice, Squad Room 1, Squad Room 2, Chill Lounge</li>
-                      <li>🛡️ <strong>Staff</strong>: staff-chat, mod-logs</li>
-                    </ul>
-                  </div>
-                </div>
-
-                <!-- Preset: Community -->
-                <div class="preset-card glass-inner" data-preset="community">
-                  <div class="preset-badge badge-emerald">SOCIAL</div>
-                  <div class="preset-icon"><i class="fa-solid fa-users"></i></div>
-                  <h3>Social Community</h3>
-                  <p>A broad, engaging template perfect for social circles. Features interest-based channels (hobbies, media), text lounges, and standard rules/announcements structure.</p>
-                  <div class="preset-meta border-top mt-3 pt-3">
-                    <h4>Created Layout:</h4>
-                    <ul>
-                      <li>📢 <strong>Info</strong>: welcome, rules-and-roles, announcements</li>
-                      <li>💬 <strong>Text</strong>: general-chat, introductions, bot-commands</li>
-                      <li>🎭 <strong>Interests</strong>: hobbies, media-and-art, memes</li>
-                      <li>🔊 <strong>Voice</strong>: General Lounge, Gaming, Music Room</li>
-                      <li>🛡️ <strong>Staff</strong>: mod-chat, mod-logs</li>
-                    </ul>
-                  </div>
-                </div>
-
-                <!-- Preset: Developer -->
-                <div class="preset-card glass-inner" data-preset="developer">
-                  <div class="preset-badge badge-pink">TECH</div>
-                  <div class="preset-icon"><i class="fa-solid fa-code"></i></div>
-                  <h3>Coding & Projects</h3>
-                  <p>Optimized for coding clusters, hackathons, or tech discussion. Emphasizes showcase channels, resources feeds, questions help desk, and collaboration voice desks.</p>
-                  <div class="preset-meta border-top mt-3 pt-3">
-                    <h4>Created Layout:</h4>
-                    <ul>
-                      <li>📚 <strong>Info</strong>: welcome, rules-and-resources, announcements</li>
-                      <li>💬 <strong>Text</strong>: general-dev, questions-and-help, resources, bot-commands</li>
-                      <li>💻 <strong>Projects</strong>: showcase, ideas-feedback, github-feed</li>
-                      <li>🔊 <strong>Voice</strong>: Dev Desk 1, Dev Desk 2, Standup Room</li>
-                      <li>🛡️ <strong>Staff</strong>: staff-chat, mod-logs</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div class="grid-layout">
-            <!-- Channel Handling -->
-            <div class="card glass span-2">
-              <div class="card-header border-bottom">
-                <h2>Channel Handling Options</h2>
-              </div>
-              <div class="card-body">
-                <div class="radio-group-container">
-                  <label class="radio-card glass-inner active">
-                    <input type="radio" name="channel-handling" value="archive" checked>
-                    <div class="radio-card-content">
-                      <div class="title"><i class="fa-solid fa-box-archive text-indigo"></i> Archive Existing (Recommended)</div>
-                      <p>Creates a private category named <code>📦 ARCHIVED CHANNELS</code> and moves all current categories/channels inside. Restricts access to Staff only. <strong>Zero data loss!</strong></p>
-                    </div>
-                  </label>
-
-                  <label class="radio-card glass-inner">
-                    <input type="radio" name="channel-handling" value="keep">
-                    <div class="radio-card-content">
-                      <div class="title"><i class="fa-solid fa-layer-group text-emerald"></i> Keep Existing / Append</div>
-                      <p>Leaves your existing categories and channels untouched, and simply appends the new preset categories and channels at the bottom of the channel list.</p>
-                    </div>
-                  </label>
-
-                  <label class="radio-card glass-inner danger-radio">
-                    <input type="radio" name="channel-handling" value="delete">
-                    <div class="radio-card-content">
-                      <div class="title"><i class="fa-solid fa-trash-can text-danger"></i> Deconstruct / Delete All</div>
-                      <p>Deletes all current channels and categories before applying the preset. <strong>Warning: This cannot be undone and will erase all chat histories!</strong></p>
-                    </div>
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            <!-- Run Optimize -->
-            <div class="card glass span-2 flex-center flex-column py-5">
-              <div class="text-center px-4">
-                <i class="fa-solid fa-triangle-exclamation warning-icon mb-3 animate-pulse"></i>
-                <h2>Apply Optimization</h2>
-                <p class="max-width-350 mt-2 text-sub">Make sure the bot has the highest role ranking (above Moderator roles) and has the Administrator permission enabled on Discord so it can create roles, move channels, and restrict overrides.</p>
-              </div>
-              <button id="btn-execute-optimize" class="btn btn-primary btn-glow mt-4 btn-large">
-                <i class="fa-solid fa-magic"></i> Run Server Optimization
-              </button>
-              <div id="optimizer-status" class="mt-3 text-center hidden">
-                <i class="fa-solid fa-circle-notch fa-spin spinner"></i>
-                <span class="ml-2" id="optimizer-status-text">Optimizing server layout...</span>
               </div>
             </div>
           </div>
@@ -960,14 +892,6 @@
                     <small>Links to these domains will be allowed.</small>
                   </div>
 
-                  <div class="toggle-group mb-2">
-                    <span class="toggle-label">Block Discord Invites:</span>
-                    <label class="switch">
-                      <input type="checkbox" id="automod-invites">
-                      <span class="slider round"></span>
-                    </label>
-                  </div>
-                  <p class="setting-desc mb-4">Automatically removes messages containing Discord invites. Staff members bypass this check.</p>
 
                   <div class="input-group" id="whitelisted-invites-group">
                     <label for="automod-whitelisted-invites">Whitelisted Invites (one per line):</label>
@@ -1210,56 +1134,89 @@
           </div>
         </section>
 
-        <!-- TAB: TEMPLATES MANAGER -->
+        <!-- TAB: SERVER LAYOUTS & TEMPLATES -->
         <section id="tab-templates" class="tab-pane hidden">
           <div class="grid-layout">
-            <!-- Save Template Card -->
-            <div class="card glass span-4">
+            <!-- Backup Current Layout Card -->
+            <div class="card glass span-2">
               <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-cloud-arrow-up"></i> Save Current Server as Template</h2>
-                <p>Capture your server's current role hierarchy and channel setup as a template to deploy elsewhere.</p>
+                <h2><i class="fa-solid fa-floppy-disk"></i> Backup Current Layout</h2>
+                <p>Save your server's current role hierarchy and channel setup.</p>
               </div>
               <div class="card-body">
-                <div class="flex-between">
-                  <div class="input-group mr-3 w-100">
-                    <label for="template-save-name">Template Name <span class="required">*</span></label>
-                    <input type="text" id="template-save-name" placeholder="e.g. My Community Layout" class="glass-input">
+                <div class="input-group">
+                  <label for="template-save-name">Backup Name <span class="required">*</span></label>
+                  <div style="display: flex; gap: 10px; margin-top: 6px;">
+                    <input type="text" id="template-save-name" placeholder="e.g. My Community Layout" class="glass-input" style="flex: 1;">
+                    <button id="btn-save-template" class="btn btn-primary btn-glow" style="white-space: nowrap;">
+                      <i class="fa-solid fa-floppy-disk"></i> Save Layout
+                    </button>
                   </div>
-                  <button id="btn-save-template" class="btn btn-primary btn-glow" style="margin-top: 24px; white-space: nowrap;">
-                    <i class="fa-solid fa-floppy-disk"></i> Save Layout
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick Actions Card -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-bolt"></i> Quick Actions</h2>
+                <p>Quick operations for layouts and backups.</p>
+              </div>
+              <div class="card-body" style="display: flex; flex-direction: column; gap: 12px; justify-content: center; min-height: 90px; padding-top: 20px; padding-bottom: 20px;">
+                <div style="display: flex; gap: 12px;">
+                  <button id="btn-quick-restore" class="btn btn-success btn-glow" style="flex: 1; padding: 12px; border-radius: 8px;">
+                    <i class="fa-solid fa-window-restore"></i> Restore Backup
+                  </button>
+                  <button id="btn-quick-import" class="btn btn-primary btn-glow" style="flex: 1; padding: 12px; border-radius: 8px;">
+                    <i class="fa-solid fa-file-import"></i> Import Template
                   </button>
                 </div>
               </div>
             </div>
 
-            <!-- Pre-built Templates Grid -->
+            <!-- Channel Handling Options Card -->
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2>Channel Handling Options</h2>
+                <p>Configure how existing channels and categories are processed before deploying layouts.</p>
+              </div>
+              <div class="card-body">
+                <div class="radio-group-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px;">
+                  <label class="radio-card glass-inner active" style="padding: 15px; border-radius: 8px; display: block; cursor: pointer; transition: all 0.2s;">
+                    <input type="radio" name="channel-handling" value="archive" checked style="margin-bottom: 8px;">
+                    <div class="radio-card-content">
+                      <div class="title" style="font-weight: 600; font-size: 0.95rem; margin-bottom: 4px;"><i class="fa-solid fa-box-archive text-indigo"></i> Archive Existing (Recommended)</div>
+                      <p class="text-sub font-size-075" style="margin: 0; line-height: 1.4;">Creates a private category named <code>📦 ARCHIVED CHANNELS</code> and moves all current categories/channels inside. Restricts access to Staff only. <strong>Zero data loss!</strong></p>
+                    </div>
+                  </label>
+
+                  <label class="radio-card glass-inner" style="padding: 15px; border-radius: 8px; display: block; cursor: pointer; transition: all 0.2s;">
+                    <input type="radio" name="channel-handling" value="keep" style="margin-bottom: 8px;">
+                    <div class="radio-card-content">
+                      <div class="title" style="font-weight: 600; font-size: 0.95rem; margin-bottom: 4px;"><i class="fa-solid fa-layer-group text-emerald"></i> Keep Existing / Append</div>
+                      <p class="text-sub font-size-075" style="margin: 0; line-height: 1.4;">Leaves your existing categories and channels untouched, and simply appends the new preset categories and channels at the bottom of the channel list.</p>
+                    </div>
+                  </label>
+
+                  <label class="radio-card glass-inner danger-radio" style="padding: 15px; border-radius: 8px; display: block; cursor: pointer; transition: all 0.2s;">
+                    <input type="radio" name="channel-handling" value="delete" style="margin-bottom: 8px;">
+                    <div class="radio-card-content">
+                      <div class="title" style="font-weight: 600; font-size: 0.95rem; margin-bottom: 4px; color: #ef4444;"><i class="fa-solid fa-trash-can text-danger"></i> Deconstruct / Delete All</div>
+                      <p class="text-sub font-size-075" style="margin: 0; line-height: 1.4;">Deletes all current channels and categories before applying the preset. <strong>Warning: This cannot be undone and will erase all chat histories!</strong> (Requires typed confirmation).</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Pre-built Layout Templates -->
             <div class="card glass span-4">
               <div class="card-header border-bottom">
                 <h2><i class="fa-solid fa-circle-nodes"></i> Pre-built Layout Templates</h2>
-                <p>Deploy professional ready-made layouts with one click. Note: Deploying a template will archive your current channels.</p>
+                <p>Deploy professional ready-made layouts. Selection will use the channel handling options selected above.</p>
               </div>
-              <div class="card-body grid-3-col">
-                <!-- Gaming Card -->
-                <div class="stat-card glass-inner text-center">
-                  <i class="fa-solid fa-gamepad" style="font-size: 2rem; color: var(--primary);"></i>
-                  <h3 class="mt-2">Gaming Presets</h3>
-                  <p class="text-sub mt-1 font-size-08">Includes Welcome, Announcements, General, Clips, LFG channels and lobby voice rooms.</p>
-                  <button class="btn btn-primary btn-small mt-3 w-100 btn-apply-builtin" data-preset="Gaming">Apply Template</button>
-                </div>
-                <!-- Community Card -->
-                <div class="stat-card glass-inner text-center">
-                  <i class="fa-solid fa-users" style="font-size: 2rem; color: var(--success);"></i>
-                  <h3 class="mt-2">Social Community</h3>
-                  <p class="text-sub mt-1 font-size-08">Structured with Info, Media, Memes, General chat channels and event planning categories.</p>
-                  <button class="btn btn-success btn-small mt-3 w-100 btn-apply-builtin" data-preset="Community">Apply Template</button>
-                </div>
-                <!-- Tech Card -->
-                <div class="stat-card glass-inner text-center">
-                  <i class="fa-solid fa-laptop-code" style="font-size: 2rem; color: var(--pink);"></i>
-                  <h3 class="mt-2">Coding & Devs</h3>
-                  <p class="text-sub mt-1 font-size-08">Organized for projects with Tech chat, Project Showcase, Q&A helpdesk and study logs.</p>
-                  <button class="btn btn-discord mt-3 btn-small w-100 btn-apply-builtin" data-preset="Developer">Apply Template</button>
-                </div>
+              <div class="card-body" id="builtin-templates-container" style="display: flex; flex-direction: column; gap: 24px;">
+                <!-- Populated dynamically via JS: category groups and grids -->
               </div>
             </div>
 
@@ -1267,7 +1224,7 @@
             <div class="card glass span-4">
               <div class="card-header border-bottom">
                 <h2><i class="fa-solid fa-box-archive"></i> Your Custom Saved Templates</h2>
-                <p>Deploy layouts you have saved from this server or other connected servers.</p>
+                <p>Restore backups or export custom layouts you have saved from this server.</p>
               </div>
               <div class="card-body p-0">
                 <div class="table-container max-h-400">
@@ -1459,7 +1416,7 @@
                       <div class="discord-embed-grid">
                         <div class="discord-embed-main">
                           <div id="preview-embed-author" class="discord-embed-author hidden">
-                            <img id="preview-embed-author-icon" src="" class="discord-embed-author-icon hidden">
+                            <img id="preview-embed-author-icon" src="" class="discord-embed-author-icon hidden" onload="this.classList.remove('hidden');" onerror="this.classList.add('hidden');">
                             <span id="preview-embed-author-name"></span>
                           </div>
                           <h4 id="preview-embed-title-text" class="discord-embed-title hidden"></h4>
@@ -1468,11 +1425,11 @@
                           <!-- Custom Fields Grid -->
                           <div id="preview-embed-fields" class="discord-embed-fields hidden"></div>
                         </div>
-                        <img id="preview-embed-thumbnail-img" src="" class="discord-embed-thumbnail hidden" alt="Thumbnail">
+                        <img id="preview-embed-thumbnail-img" src="" class="discord-embed-thumbnail hidden" alt="Thumbnail" onload="this.classList.remove('hidden');" onerror="this.classList.add('hidden');">
                       </div>
-                      <img id="preview-embed-large-img" src="" class="discord-embed-image hidden" alt="Large Image">
+                      <img id="preview-embed-large-img" src="" class="discord-embed-image hidden" alt="Large Image" onload="this.classList.remove('hidden');" onerror="this.classList.add('hidden');">
                       <div id="preview-embed-footer-container" class="discord-embed-footer hidden">
-                        <img id="preview-embed-footer-icon-img" src="" class="discord-embed-footer-icon hidden">
+                        <img id="preview-embed-footer-icon-img" src="" class="discord-embed-footer-icon hidden" onload="this.classList.remove('hidden');" onerror="this.classList.add('hidden');">
                         <span id="preview-embed-footer-text-span"></span>
                         <span id="preview-embed-footer-timestamp" class="ml-1"></span>
                       </div>
@@ -1516,6 +1473,11 @@
                       <label for="giveaway-duration">Duration (e.g. 10m, 2h, 1d) <span class="required">*</span></label>
                       <input type="text" id="giveaway-duration" placeholder="e.g. 10m" required>
                     </div>
+                  </div>
+                  
+                  <div class="input-group">
+                    <label for="giveaway-host">Host Name (Optional)</label>
+                    <input type="text" id="giveaway-host" placeholder="e.g. Staff Team">
                   </div>
                   
                   <button type="submit" class="btn btn-primary w-100 mt-3" style="border-radius: 12px; padding: 12px; font-weight: 600;">

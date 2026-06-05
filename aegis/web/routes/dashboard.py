@@ -13,6 +13,76 @@ import audit_log
 # Configure logging
 logger = logging.getLogger("WebServer")
 
+BUILTIN_METADATA = {
+    "gaming": {
+        "display_name": "Gaming Lobbies",
+        "category": "Gaming",
+        "description": "Designed for gaming servers, featuring dedicated lounges, clips highlights, and squad voice rooms.",
+        "icon": "fa-gamepad"
+    },
+    "clan": {
+        "display_name": "Clan Squads",
+        "category": "Gaming",
+        "description": "Tactical setups with clan rosters, war logs, announcements, and competitive lounges.",
+        "icon": "fa-shield-halved"
+    },
+    "esports": {
+        "display_name": "Esports Arena",
+        "category": "Gaming",
+        "description": "Ideal for leagues, featuring brackets, match results, scrim schedules, and team voice desks.",
+        "icon": "fa-trophy"
+    },
+    "community": {
+        "display_name": "Social Community",
+        "category": "Community",
+        "description": "Perfect for social circles. Features interest-based channels (hobbies, media) and text lounges.",
+        "icon": "fa-users"
+    },
+    "creator": {
+        "display_name": "Content Creator",
+        "category": "Creator",
+        "description": "Optimized for YouTube/Twitch creators. Features content showcase, feedback, and collaboration.",
+        "icon": "fa-laptop-code"
+    },
+    "streamer": {
+        "display_name": "Live Streamer",
+        "category": "Creator",
+        "description": "Setup for active streamers, featuring live notifications, stream logs, and subscriber voice decks.",
+        "icon": "fa-video"
+    },
+    "anime": {
+        "display_name": "Anime Hub",
+        "category": "Anime",
+        "description": "Anime layout featuring discussion channels, manga chat, and movie watch party voice rooms.",
+        "icon": "fa-mask"
+    },
+    "minimal": {
+        "display_name": "Minimalist",
+        "category": "Utility",
+        "description": "Barebones structure with announcements, rules, general chat, and a single voice channel.",
+        "icon": "fa-circle-dot"
+    },
+    "study": {
+        "display_name": "Study Group",
+        "category": "Utility",
+        "description": "Designed for classes or study circles, with resources lists, Q&A helpdesk, and study desks.",
+        "icon": "fa-book"
+    },
+    "business": {
+        "display_name": "Business Office",
+        "category": "Utility",
+        "description": "Professional setup for workspace collaborations, project teams, and standup voice desks.",
+        "icon": "fa-briefcase"
+    },
+    "support": {
+        "display_name": "Support Desk",
+        "category": "Support",
+        "description": "Customer helpdesk setup with ticket panels, staff lobby, and mod log channels.",
+        "icon": "fa-ticket"
+    }
+}
+BUILTIN_NAMES = set(BUILTIN_METADATA.keys())
+
 from collections import defaultdict
 import time
 import threading
@@ -155,6 +225,12 @@ class TemplateSaveRequest(BaseModel):
 class TemplateApplyRequest(BaseModel):
     guild_id: str
     name: str
+    customizations: Optional[dict] = None
+    handling: Optional[str] = "archive"
+
+class TemplateUploadRequest(BaseModel):
+    name: str
+    data: dict
 
 class MusicPlayRequest(BaseModel):
     query: str
@@ -200,6 +276,7 @@ class GiveawayStartRequest(BaseModel):
     enabled: bool = True
     channels: List[str] = Field(default_factory=list)
     roles: List[str] = Field(default_factory=list)
+    host: Optional[str] = None
 
 # API Endpoints
 
@@ -574,6 +651,10 @@ async def audit_guild(guild_id: str):
 
 @router.post("/api/guilds/{guild_id}/optimize")
 async def optimize_guild(guild_id: str, request: OptimizeRequest):
+    """DEPRECATED: Kept for backwards compatibility with legacy integration checks.
+    Dashboard UI has migrated to the Server Layouts & Templates deployment workflow.
+    """
+    logger.warning(f"Deprecated endpoint /api/guilds/{guild_id}/optimize called.")
     bot = get_active_bot()
         
     guild = bot.get_guild(parse_id(guild_id, "guild_id"))
@@ -855,12 +936,14 @@ async def restore_backup(guild_id: str, backup_data: dict = Body(...)):
         raise HTTPException(status_code=404, detail="Guild not found.")
         
     try:
-        success = await bot_manager.restore_guild_layout(guild, backup_data)
+        success, errors = await bot_manager.restore_guild_layout(guild, backup_data, None)
         if success:
             audit_log.log_action("admin", "BACKUP_ACTION", "Restored server structure from backup file", guild_id)
             return {"status": "success", "message": "Server structure restored successfully."}
         else:
-            raise HTTPException(status_code=500, detail="Failed to restore server structure.")
+            raise HTTPException(status_code=400, detail="Encountered errors during layout restoration:\n" + "\n".join(errors))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error restoring guild {guild_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -874,9 +957,51 @@ async def get_templates():
     for filename in os.listdir(templates_dir):
         if filename.endswith(".json"):
             name = filename[:-5]
-            templates_list.append({
-                "name": name
-            })
+            if name.lower() not in BUILTIN_NAMES:
+                templates_list.append({
+                    "name": name
+                })
+    return templates_list
+
+@router.get("/api/templates/builtin")
+async def get_builtin_templates():
+    templates_dir = utils.get_writeable_path("templates")
+    builtin_dir = os.path.join(templates_dir, "builtin")
+    if not os.path.exists(builtin_dir):
+        builtin_dir = os.path.join("templates", "builtin")
+        
+    templates_list = []
+    if os.path.exists(builtin_dir):
+        for filename in os.listdir(builtin_dir):
+            if filename.endswith(".json"):
+                name = filename[:-5]
+                if name.lower() in BUILTIN_NAMES:
+                    file_path = os.path.join(builtin_dir, filename)
+                    try:
+                        import json
+                        with open(file_path, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                        
+                        roles_count = len(data.get("roles", []))
+                        categories_count = len(data.get("categories", []))
+                        channels_count = 0
+                        for cat in data.get("categories", []):
+                            channels_count += len(cat.get("channels", []))
+                        channels_count += len(data.get("uncategorized_channels", []))
+                        
+                        meta = BUILTIN_METADATA.get(name.lower(), {})
+                        
+                        templates_list.append({
+                            "name": name,
+                            "display_name": meta.get("display_name", name.capitalize()),
+                            "category": meta.get("category", "General"),
+                            "description": meta.get("description", f"Pre-built template layout containing {channels_count} channels and {roles_count} roles."),
+                            "icon": meta.get("icon", "fa-layer-group"),
+                            "channels_count": channels_count,
+                            "roles_count": roles_count
+                        })
+                    except Exception as e:
+                        logger.error(f"Error parsing builtin template {filename}: {e}")
     return templates_list
 
 @router.post("/api/templates/save")
@@ -916,6 +1041,72 @@ async def save_template(request: TemplateSaveRequest, req_data: Request):
         logger.error(f"Error saving template {request.name}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.post("/api/templates/upload")
+async def upload_template(request: TemplateUploadRequest):
+    import re
+    safe_name = re.sub(r'[^a-zA-Z0-9_-]', '', request.name)
+    if not safe_name:
+        raise HTTPException(status_code=400, detail="Invalid template name.")
+        
+    try:
+        if not isinstance(request.data, dict) or (not request.data.get("categories") and not request.data.get("roles") and not request.data.get("channels")):
+            raise HTTPException(status_code=400, detail="Invalid template format. Must contain roles, channels, or categories.")
+            
+        templates_dir = utils.get_writeable_path("templates")
+        os.makedirs(templates_dir, exist_ok=True)
+        
+        import json
+        file_path = os.path.join(templates_dir, f"{safe_name}.json")
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(request.data, f, indent=2)
+            
+        logger.info(f"Uploaded server layout template: '{safe_name}'")
+        audit_log.log_action("admin", "BACKUP_ACTION", f"Uploaded third-party template '{request.name}'", "N/A")
+        return {"status": "success"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error uploading template {request.name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/templates/{name}/preview")
+async def get_template_preview(name: str, guild_id: str, request: Request, handling: str = "keep"):
+    auth_header = request.headers.get("Authorization")
+    token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else ""
+    session_guild_id = auth.get_session_guild_id(token)
+    session_role = auth.get_session_role(token)
+    if session_role == "tenant" and session_guild_id:
+        if str(guild_id) != session_guild_id:
+            raise HTTPException(status_code=403, detail="Forbidden: Mismatched guild ID in template preview request.")
+            
+    bot = get_active_bot()
+    guild = bot.get_guild(parse_id(guild_id, "guild_id"))
+    if not guild:
+        raise HTTPException(status_code=404, detail="Guild not found.")
+        
+    templates_dir = utils.get_writeable_path("templates")
+    import re
+    safe_name = re.sub(r'[^a-zA-Z0-9_-]', '', name)
+    if safe_name.lower() in BUILTIN_NAMES:
+        file_path = os.path.join(templates_dir, "builtin", f"{safe_name}.json")
+    else:
+        file_path = os.path.join(templates_dir, f"{safe_name}.json")
+        
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail=f"Template '{name}' not found.")
+        
+    try:
+        import json
+        with open(file_path, "r", encoding="utf-8") as f:
+            template_data = json.load(f)
+            
+        from aegis.bot.restructuring import generate_template_preview
+        preview = generate_template_preview(guild, template_data, handling)
+        return preview
+    except Exception as e:
+        logger.error(f"Error loading template preview for {name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/api/templates/apply")
 async def apply_template(request: TemplateApplyRequest, req_data: Request):
     auth_header = req_data.headers.get("Authorization")
@@ -934,7 +1125,10 @@ async def apply_template(request: TemplateApplyRequest, req_data: Request):
     templates_dir = utils.get_writeable_path("templates")
     import re
     safe_name = re.sub(r'[^a-zA-Z0-9_-]', '', request.name)
-    file_path = os.path.join(templates_dir, f"{safe_name}.json")
+    if safe_name.lower() in BUILTIN_NAMES:
+        file_path = os.path.join(templates_dir, "builtin", f"{safe_name}.json")
+    else:
+        file_path = os.path.join(templates_dir, f"{safe_name}.json")
     
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail=f"Template '{request.name}' not found.")
@@ -944,12 +1138,14 @@ async def apply_template(request: TemplateApplyRequest, req_data: Request):
         with open(file_path, "r", encoding="utf-8") as f:
             backup_data = json.load(f)
             
-        success = await bot_manager.restore_guild_layout(guild, backup_data)
+        success, errors = await bot_manager.restore_guild_layout(guild, backup_data, request.customizations, handling=request.handling)
         if success:
             audit_log.log_action("admin", "BACKUP_ACTION", f"Applied server layout template '{request.name}'", request.guild_id)
             return {"status": "success", "message": f"Template '{request.name}' applied successfully."}
         else:
-            raise HTTPException(status_code=500, detail="Failed to apply template layout.")
+            raise HTTPException(status_code=400, detail="Encountered errors during template deployment:\n" + "\n".join(errors))
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error applying template {request.name}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -959,8 +1155,10 @@ async def delete_template(name: str):
     templates_dir = utils.get_writeable_path("templates")
     import re
     safe_name = re.sub(r'[^a-zA-Z0-9_-]', '', name)
+    if safe_name.lower() in BUILTIN_NAMES:
+        raise HTTPException(status_code=403, detail="Cannot delete built-in templates.")
+        
     file_path = os.path.join(templates_dir, f"{safe_name}.json")
-    
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail=f"Template '{name}' not found.")
         
@@ -1234,7 +1432,7 @@ async def delete_scheduled_message(id: str, request: Request):
     return {"status": "success"}
 
 @router.patch("/api/scheduled-messages/{id}")
-async def toggle_scheduled_message(id: str, request: Request, enabled: bool = Body(..., embed=True)):
+async def toggle_scheduled_message(id: str, request: Request, enabled: bool = Body(...)):
     auth_header = request.headers.get("Authorization")
     token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else ""
     session_guild_id = auth.get_session_guild_id(token)
@@ -1273,7 +1471,7 @@ async def toggle_scheduled_message(id: str, request: Request, enabled: bool = Bo
 
 @router.get("/api/guilds/{guild_id}/leaderboard")
 async def get_leveling_leaderboard(guild_id: str):
-    from leveling import leveling_system
+    from aegis.bot.leveling import leveling_system
     bot = get_active_bot()
     
     guild = bot.get_guild(parse_id(guild_id, "guild_id"))
@@ -1303,7 +1501,7 @@ async def get_leveling_leaderboard(guild_id: str):
 
 @router.get("/api/guilds/{guild_id}/members/{member_id}/rank")
 async def get_member_rank(guild_id: str, member_id: str):
-    from leveling import leveling_system
+    from aegis.bot.leveling import leveling_system
     rank = leveling_system.get_user_rank(guild_id, member_id)
     return rank
 
@@ -1327,7 +1525,7 @@ async def save_leveling_config(guild_id: str, request: LevelingConfigModel):
 
 @router.post("/api/guilds/{guild_id}/leveling/reset")
 async def reset_leveling_endpoint(guild_id: str):
-    from leveling import leveling_system
+    from aegis.bot.leveling import leveling_system
     leveling_system.reset_guild(guild_id)
     audit_log.log_action("dashboard", "LEVELING_ACTION", "Reset leveling data for server", guild_id)
     return {"status": "success"}
@@ -1603,7 +1801,8 @@ async def get_giveaways(guild_id: str):
                 "entrants_count": len(gw.get("entrants", [])),
                 "winners": resolved_winners,
                 "ended": gw.get("ended", False),
-                "host_id": gw.get("host_id")
+                "host_id": gw.get("host_id"),
+                "host_name": gw.get("host_name", "Aegis Suite")
             })
             
     guild_gws.sort(key=lambda x: (x["ended"], -x["end_time"]))
@@ -1631,7 +1830,8 @@ async def start_giveaway_endpoint(guild_id: str, request: GiveawayStartRequest):
             request.prize,
             request.winners_count,
             duration_secs,
-            bot.user.id
+            bot.user.id,
+            host_name_custom=request.host
         )
         audit_log.log_action("dashboard", "GIVEAWAY_ACTION", f"Started giveaway for '{request.prize}' in #{channel.name}", guild_id)
         return {"status": "success", "message_id": msg_id}

@@ -152,7 +152,7 @@ The Aegis bot is hosted by us — you do not need to create a Discord applicatio
 
 ## 🏠 Hosting Modes
 
-Aegis Suite can be run two different ways, and the right choice depends on **where the bot process lives** and **how continuously it stays online**. In Local PC mode the bot runs on the Maintainer's own Windows machine and is online only while that PC is awake and connected. In Cloud mode the same repository runs on a paid third-party host that the Maintainer provisions themselves, with continuous 24/7 uptime expected. The dashboard's first-launch chooser, the header badge, and the Feature Availability Warning panel all surface this choice. Pick your hosting model first, then read the Secrets at Rest section below for the credential-handling rules that apply to the local path.
+Aegis Suite is designed to be run in Local PC mode. In previous versions, Cloud mode was supported for deploying the repository to a paid third-party host (such as Render, Railway, or a generic Docker VPS). However, as of this version, Cloud Mode is deprecated and has been completely removed from the Aegis Suite.
 
 ### Local PC Mode
 
@@ -160,9 +160,7 @@ Local PC mode runs the Windows EXE on the Maintainer's own desktop or laptop. Th
 
 ### Cloud Mode
 
-Cloud mode runs the same repository on a paid third-party host that the Maintainer provisions, pays for, and configures themselves. **Aegis does not provision the host for you** — the dashboard's only role in Cloud mode is to record your choice and silence the Local-PC-only warnings. There are two supported deployment paths:
-- **Render** — Create a new **Web Service** from the GitHub repo.
-- **Generic VPS** — Clone the repo onto your host and run dependencies.
+**Removed**: Cloud Mode (which allowed deploying to providers like Render, Railway, or generic Docker VPS) has been deprecated and completely removed as of this version. Any previous deployment templates or automated setup flows targeting these cloud environments are no longer supported. This resolves deployment failures on platforms like Railway.
 
 ### Feature availability
 

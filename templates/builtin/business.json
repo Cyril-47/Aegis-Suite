@@ -32,6 +32,35 @@
         {"name": "Conference Room", "type": "voice", "position": 1},
         {"name": "Quiet Workspace", "type": "voice", "position": 2}
       ]
+    },
+    {
+      "name": "🛡️ MANAGEMENT ZONE",
+      "position": 4,
+      "overwrites": [
+        {
+          "target_type": "role",
+          "target_name": "@everyone",
+          "allow": 0,
+          "deny": 1024
+        },
+        {
+          "target_type": "role",
+          "target_name": "Admin/Owner",
+          "allow": 1024,
+          "deny": 0
+        },
+        {
+          "target_type": "role",
+          "target_name": "Manager",
+          "allow": 1024,
+          "deny": 0
+        }
+      ],
+      "channels": [
+        {"name": "management-chat", "type": "text", "position": 1, "overwrites": []},
+        {"name": "audit-logs", "type": "text", "position": 2, "overwrites": []},
+        {"name": "Boardroom", "type": "voice", "position": 3, "overwrites": []}
+      ]
     }
   ]
 }

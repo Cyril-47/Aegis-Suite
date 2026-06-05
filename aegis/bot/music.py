@@ -42,6 +42,7 @@ class MusicPlayer:
         except RuntimeError:
             self.loop = asyncio.get_event_loop()
         self.disconnect_task = None
+        self.idle_task = None
 
     async def join_channel(self, channel_id: int):
         """Joins a voice channel."""
@@ -112,12 +113,18 @@ class MusicPlayer:
             except Exception as retry_err:
                 logger.error(f"Failed to connect to voice channel on retry: {retry_err}")
                 raise retry_err
+        
+        # Start inactivity loop if not already running
+        if self.loop.is_running():
+            if not self.idle_task or self.idle_task.done():
+                self.idle_task = self.loop.create_task(self._inactivity_check_loop())
+            
         return self.voice_client
 
     async def leave_channel(self):
         """Leaves voice channel and clears queue."""
         self.loop = asyncio.get_running_loop()
-        if self.voice_client and self.voice_client.is_connected():
+        if self.voice_client and await self._is_connected():
             await self.voice_client.disconnect()
         self.voice_client = None
         self.queue = []
@@ -125,6 +132,75 @@ class MusicPlayer:
         if self.disconnect_task and not self.disconnect_task.done():
             self.disconnect_task.cancel()
         self.disconnect_task = None
+        if self.idle_task and not self.idle_task.done():
+            self.idle_task.cancel()
+        self.idle_task = None
+
+    async def _is_connected(self) -> bool:
+        if not self.voice_client:
+            return False
+        fn = self.voice_client.is_connected
+        if asyncio.iscoroutinefunction(fn):
+            return await fn()
+        elif callable(fn):
+            res = fn()
+            if asyncio.iscoroutine(res):
+                return await res
+            return bool(res)
+        return bool(fn)
+
+    async def _is_playing_or_paused(self) -> bool:
+        if not self.voice_client:
+            return False
+        playing = False
+        fn_playing = getattr(self.voice_client, "is_playing", None)
+        if callable(fn_playing):
+            res = fn_playing()
+            if asyncio.iscoroutine(res):
+                playing = await res
+            else:
+                playing = bool(res)
+        else:
+            playing = bool(fn_playing)
+
+        paused = False
+        fn_paused = getattr(self.voice_client, "is_paused", None)
+        if callable(fn_paused):
+            res = fn_paused()
+            if asyncio.iscoroutine(res):
+                paused = await res
+            else:
+                paused = bool(res)
+        else:
+            paused = bool(fn_paused)
+
+        return playing or paused
+
+    async def _inactivity_check_loop(self):
+        """Periodically checks if the bot is alone in the voice channel or not playing music,
+        and disconnects if the inactivity threshold (5 minutes) is met.
+        """
+        idle_seconds = 0
+        while self.voice_client and await self._is_connected():
+            await asyncio.sleep(5)
+            
+            # Check if alone
+            bot_channel = self.voice_client.channel
+            humans = [m for m in bot_channel.members if not m.bot]
+            is_alone = len(humans) == 0
+            
+            # Check if playing music (active or paused)
+            is_playing = await self._is_playing_or_paused()
+            
+            if is_alone or not is_playing:
+                idle_seconds += 5
+            else:
+                idle_seconds = 0
+                
+            if idle_seconds >= 300: # 5 minutes timeout
+                logger.info(f"Auto-disconnecting from voice channel '{bot_channel.name}' due to inactivity (alone={is_alone}, not_playing={not is_playing}).")
+                await self.leave_channel()
+                break
 
     async def play_next(self):
         """Plays the next song in queue."""

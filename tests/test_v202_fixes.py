@@ -209,6 +209,7 @@ async def test_music_voice_stale_session_cleanup():
     stale_vc.disconnect.assert_called_once_with(force=True)
     # Assert that a new connection is established via channel.connect()
     connect_mock.assert_called_once()
+    await player.leave_channel()
 
 
 # --- 5. MUSIC VOICE RETRY ON FAILURE TEST ---
@@ -236,6 +237,7 @@ async def test_music_voice_retry_on_failure():
     assert res == first_vc
     assert connect_mock.call_count == 2
     guild.change_voice_state.assert_called_once_with(channel=None)
+    await player.leave_channel()
 
 
 # --- 6. VOICE GATEWAY MONKEYPATCH TEST ---
@@ -337,6 +339,7 @@ async def test_music_player_dynamic_loop_update(monkeypatch):
         
     # Verify player.loop has updated to new_loop
     assert player.loop is new_loop
+    await player.leave_channel()
     new_loop.close()
 
 
