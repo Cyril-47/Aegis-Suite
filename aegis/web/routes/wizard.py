@@ -218,7 +218,7 @@ async def wizard_guilds(request: Request):
                 guilds = await resp.json()
                 if not guilds:
                     return []
-                return [{"id": str(g["id"]), "name": g["name"]} for g in guilds]
+                return [{"id": str(g["id"]), "name": g["name"], "permissions": str(g.get("permissions", "0"))} for g in guilds]
     except asyncio.TimeoutError:
         raise HTTPException(status_code=400, detail="Guild enumeration timed out.")
     except Exception as e:

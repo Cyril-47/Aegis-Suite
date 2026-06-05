@@ -121,6 +121,50 @@
           "overwrites": []
         }
       ]
+    },
+    {
+      "name": "🛡️ STAFF AREA",
+      "position": 4,
+      "overwrites": [
+        {
+          "target_type": "role",
+          "target_name": "@everyone",
+          "allow": 0,
+          "deny": 1024
+        },
+        {
+          "target_type": "role",
+          "target_name": "Admin",
+          "allow": 1024,
+          "deny": 0
+        },
+        {
+          "target_type": "role",
+          "target_name": "Moderator",
+          "allow": 1024,
+          "deny": 0
+        }
+      ],
+      "channels": [
+        {
+          "name": "staff-chat",
+          "type": "text",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "mod-logs",
+          "type": "text",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "Staff Meeting",
+          "type": "voice",
+          "position": 3,
+          "overwrites": []
+        }
+      ]
     }
   ],
   "uncategorized_channels": []

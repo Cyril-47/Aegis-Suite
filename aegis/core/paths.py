@@ -73,3 +73,23 @@ class Paths:
             except Exception:
                 pass
 
+        # 5. Populate builtin templates directory with read-only JSON templates from resource bundle
+        try:
+            import shutil
+            import sys
+            try:
+                base_path = sys._MEIPASS
+            except AttributeError:
+                base_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            
+            src_builtin = Path(base_path) / "templates" / "builtin"
+            if src_builtin.exists() and src_builtin.is_dir():
+                for filename in os.listdir(src_builtin):
+                    if filename.endswith(".json"):
+                        src_file = src_builtin / filename
+                        dst_file = self.templates_builtin / filename
+                        # Always overwrite builtin templates to ensure they match the bundle version
+                        shutil.copy2(src_file, dst_file)
+        except Exception:
+            pass
+

@@ -2,9 +2,9 @@ name: Aegis CI/CD Verification
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ master ]
+    branches: [ main, master ]
 
 jobs:
   lint-and-test:

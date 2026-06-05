@@ -17,8 +17,28 @@
       ]
     },
     {
-      "name": "💬 STAFF INTERACTIVE",
+      "name": "🛡️ STAFF INTERACTIVE",
       "position": 2,
+      "overwrites": [
+        {
+          "target_type": "role",
+          "target_name": "@everyone",
+          "allow": 0,
+          "deny": 1024
+        },
+        {
+          "target_type": "role",
+          "target_name": "Admin",
+          "allow": 1024,
+          "deny": 0
+        },
+        {
+          "target_type": "role",
+          "target_name": "Support Staff",
+          "allow": 1024,
+          "deny": 0
+        }
+      ],
       "channels": [
         {"name": "staff-chat", "type": "text", "position": 1},
         {"name": "Staff Meeting", "type": "voice", "position": 2}

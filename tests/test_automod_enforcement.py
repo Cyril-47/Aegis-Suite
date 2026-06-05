@@ -175,3 +175,80 @@ async def test_automod_deduplication(monkeypatch):
     assert "Contains Discord invite link (unauthorized)" in reason
     assert "Contains links (unauthorized)" in reason
     assert "Mention spam" in reason
+
+@pytest.mark.asyncio
+async def test_automod_logs_auto_creation(monkeypatch):
+    bot = bot_manager.DiscordOptimizerBot(command_prefix="!", intents=discord.Intents.default())
+    bot.config = {}
+    
+    automod_settings = {
+        "enabled": True,
+        "block_profanity": False,
+        "block_links": True,
+        "block_invites": True,
+        "max_mentions": 10,
+        "profanity_words": [],
+        "log_channel_id": None,
+        "log_channel_name": "automod-logs"
+    }
+    
+    guild_config = {
+        "automod_settings": automod_settings.copy()
+    }
+    
+    monkeypatch.setattr(utils, "load_config", lambda: {})
+    monkeypatch.setattr(utils, "get_guild_automod_settings", lambda config, guild_id: automod_settings)
+    monkeypatch.setattr(utils, "get_guild_config", lambda guild_id: guild_config)
+    
+    saved_guild_config = []
+    def mock_save_guild_config(guild_id, conf):
+        saved_guild_config.append((guild_id, conf))
+    monkeypatch.setattr(utils, "save_guild_config", mock_save_guild_config)
+    
+    created_channel = MagicMock(spec=discord.TextChannel)
+    created_channel.id = 987654
+    created_channel.name = "automod-logs"
+    created_channel.send = AsyncMock()
+    
+    guild = MagicMock(spec=discord.Guild)
+    guild.id = 12345
+    guild.get_channel.return_value = None
+    guild.text_channels = []
+    guild.me.guild_permissions.manage_channels = True
+    
+    admin_role = MagicMock(spec=discord.Role)
+    admin_role.name = "Admin"
+    mod_role = MagicMock(spec=discord.Role)
+    mod_role.name = "Moderator"
+    guild.roles = [admin_role, mod_role]
+    
+    guild.create_text_channel = AsyncMock(return_value=created_channel)
+    
+    user = MagicMock(spec=discord.Member)
+    user.mention = "<@777>"
+    user.name = "testuser"
+    user.id = 777
+    
+    await bot.log_infraction(guild, user, "Reason details", "message content", "general")
+    
+    assert guild.create_text_channel.called
+    args, kwargs = guild.create_text_channel.call_args
+    assert kwargs.get("name") == "automod-logs"
+    assert kwargs.get("reason") == "Auto-created default AutoMod infraction log channel"
+    
+    overwrites = kwargs.get("overwrites")
+    assert overwrites is not None
+    assert overwrites[guild.default_role].view_channel is False
+    assert overwrites[admin_role].view_channel is True
+    assert overwrites[mod_role].view_channel is True
+    
+    assert created_channel.send.called
+    send_embed = created_channel.send.call_args[1].get("embed")
+    assert send_embed is not None
+    assert send_embed.title == "🛡️ AutoMod Infraction Logged"
+    
+    assert len(saved_guild_config) == 1
+    assert saved_guild_config[0][0] == "12345"
+    assert saved_guild_config[0][1]["automod_settings"]["log_channel_id"] == "987654"
+    assert saved_guild_config[0][1]["automod_settings"]["log_channel_name"] == "automod-logs"
+
