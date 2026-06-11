@@ -2038,7 +2038,8 @@ function setupEventListeners() {
     btnSaveCmds.addEventListener('click', async () => {
       try {
         showToast('Deploying custom commands...', 'info');
-        const res = await fetch('/api/commands', {
+        const url = activeGuildId ? `/api/commands?guild_id=${activeGuildId}` : '/api/commands';
+        const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(localCustomCommands)
