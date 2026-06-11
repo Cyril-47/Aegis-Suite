@@ -528,7 +528,8 @@ async def get_config(request: Request, guild_id: Optional[str] = None):
         config["welcome_settings"] = guild_conf.get("welcome_settings", config.get("welcome_settings", {}))
         config["automod_settings"] = guild_conf.get("automod_settings", config.get("automod_settings", {}))
         config["ticket_settings"] = guild_conf.get("ticket_settings", config.get("ticket_settings", {}))
-        config["custom_commands"] = guild_conf.get("custom_commands", config.get("custom_commands", {}))
+        guild_cmds = guild_conf.get("custom_commands")
+        config["custom_commands"] = guild_cmds if guild_cmds else config.get("custom_commands", {})
         config["leveling_settings"] = guild_conf.get("leveling_settings", config.get("leveling_settings", {}))
         
     return config
