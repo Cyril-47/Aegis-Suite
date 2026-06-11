@@ -651,6 +651,7 @@ input[type="color"]::-webkit-color-swatch {
   height: 36px;
   border-radius: 50%;
   background-color: var(--bg-primary);
+  object-fit: cover;
 }
 
 .bot-badge-info {
@@ -828,6 +829,7 @@ input[type="color"]::-webkit-color-swatch {
   border-radius: 50%;
   box-shadow: 0 0 20px rgba(99, 102, 241, 0.25);
   border: 3px solid var(--primary);
+  object-fit: cover;
 }
 
 .bot-ping-status {
@@ -920,6 +922,7 @@ input[type="color"]::-webkit-color-swatch {
   height: 48px;
   border-radius: 50%;
   border: 1px solid var(--card-border);
+  object-fit: cover;
 }
 
 .guild-avatar[src=""] {
@@ -1399,6 +1402,7 @@ input[type="color"]::-webkit-color-swatch {
   height: 40px;
   border-radius: 50%;
   flex-shrink: 0;
+  object-fit: cover;
 }
 
 .discord-message-content {
@@ -1467,6 +1471,7 @@ input[type="color"]::-webkit-color-swatch {
   height: 60px;
   border-radius: 50%;
   flex-shrink: 0;
+  object-fit: cover;
 }
 
 .discord-embed-footer {

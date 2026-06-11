@@ -7,6 +7,7 @@ let socket = null;
 let localCustomCommands = {};
 let rolePanelButtons = [];
 let serverRoles = [];
+let customPresetsMap = {};
 
 // Hosting Mode state (server is the source of truth; do NOT cache here as authoritative — Req 5.5)
 let hostingMode = { value: null, pendingTarget: null };
@@ -395,6 +396,7 @@ function refreshActiveTabContent() {
     fetchTemplates();
   } else if (tab === 'tab-embed-builder') {
     populateEmbedTargetChannels(activeGuildId);
+    fetchCustomPresets(activeGuildId);
     updateEmbedPreview();
   } else if (tab === 'tab-giveaways') {
     populateGiveawayChannels(activeGuildId);
@@ -529,9 +531,10 @@ async function checkStatus() {
   }
 }
 
-async function fetchConfig() {
+async function fetchConfig(guildId = null) {
   try {
-    const res = await fetch('/api/config');
+    const url = guildId ? `/api/config?guild_id=${guildId}` : '/api/config';
+    const res = await fetch(url);
     if (!res.ok) return;
     currentConfig = await res.json();
     savedClientId = currentConfig.client_id || '';
@@ -575,12 +578,12 @@ function updateBotBadge(data) {
     botUsername.textContent = 'Connecting...';
     botStatus.textContent = 'Connecting';
     botStatus.className = 'status-connecting';
-    botAvatar.src = 'https://discord.com/assets/c09c2a688b139c15814e578d0554c9a6.png';
+    botAvatar.src = '/static/bot_logo.png';
   } else {
     botUsername.textContent = 'Optimizer Bot';
     botStatus.textContent = 'Offline';
     botStatus.className = 'status-offline';
-    botAvatar.src = 'https://discord.com/assets/c09c2a688b139c15814e578d0554c9a6.png';
+    botAvatar.src = '/static/bot_logo.png';
     
     // Disable/Lock selector
     document.getElementById('server-select').disabled = true;
@@ -605,7 +608,7 @@ function updateOverviewCard(data) {
     botOverviewId.textContent = data.bot_user.id;
     botOverviewGuilds.textContent = data.bot_user.guilds_count;
   } else {
-    botOverviewAvatar.src = 'https://discord.com/assets/c09c2a688b139c15814e578d0554c9a6.png';
+    botOverviewAvatar.src = '/static/bot_logo.png';
     botOverviewStatusText.textContent = data.status.toUpperCase();
     botOverviewStatusWrapper.classList.remove('online');
     botOverviewUsername.textContent = '-';
@@ -748,6 +751,7 @@ async function handleServerSelection(guildId) {
     if (backupCard) backupCard.classList.add('hidden');
     // Clear audit views
     clearAuditView();
+    await fetchConfig(); // Call fetchConfig to restore global defaults
     return;
   }
   
@@ -764,6 +768,7 @@ async function handleServerSelection(guildId) {
     
     populateServerOverview(report.guild_info);
     populateGuildChannels(guildId);
+    await fetchConfig(guildId); // Call fetchConfig to dynamically reload forms
     refreshActiveTabContent(); // Refresh active tab data when server changes
   } catch (err) {
     showToast('Failed to retrieve server specifications.', 'error');
@@ -1028,7 +1033,8 @@ async function saveWelcomeSettings(e) {
   };
   
   try {
-    const res = await fetch('/api/config', {
+    const url = activeGuildId ? `/api/config?guild_id=${activeGuildId}` : '/api/config';
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(currentConfig)
@@ -1099,7 +1105,8 @@ async function saveAutomodSettings(e) {
   };
   
   try {
-    const res = await fetch('/api/config', {
+    const url = activeGuildId ? `/api/config?guild_id=${activeGuildId}` : '/api/config';
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(currentConfig)
@@ -2076,7 +2083,8 @@ function setupEventListeners() {
       
       try {
         showToast('Saving ticket configurations...', 'info');
-        const res = await fetch('/api/config', {
+        const url = activeGuildId ? `/api/config?guild_id=${activeGuildId}` : '/api/config';
+        const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(currentConfig)
@@ -3071,10 +3079,18 @@ function addEmbedFieldWithData(name, value, inline) {
       </div>
     </div>
     <div class="flex-between mt-2">
-      <label class="toggle-group font-size-08" style="display:inline-flex; align-items:center; gap:8px;">
-        <input type="checkbox" class="field-inline-checkbox" ${inline ? 'checked' : ''}>
-        <span>Inline Field</span>
-      </label>
+      <div style="display: flex; gap: 6px;">
+        <label class="toggle-group font-size-08" style="display:inline-flex; align-items:center; gap:8px; margin-right: 15px;">
+          <input type="checkbox" class="field-inline-checkbox" ${inline ? 'checked' : ''}>
+          <span>Inline Field</span>
+        </label>
+        <button type="button" class="btn btn-secondary btn-small btn-field-move-up" title="Move Up" style="padding: 2px 6px;">
+          <i class="fa-solid fa-chevron-up"></i>
+        </button>
+        <button type="button" class="btn btn-secondary btn-small btn-field-move-down" title="Move Down" style="padding: 2px 6px;">
+          <i class="fa-solid fa-chevron-down"></i>
+        </button>
+      </div>
       <button type="button" class="btn btn-secondary btn-small text-danger btn-remove-field">
         <i class="fa-solid fa-trash-can"></i> Remove
       </button>
@@ -3083,6 +3099,22 @@ function addEmbedFieldWithData(name, value, inline) {
   
   fieldItem.querySelectorAll('input').forEach(input => {
     input.addEventListener('input', updateEmbedPreview);
+  });
+  
+  fieldItem.querySelector('.btn-field-move-up').addEventListener('click', () => {
+    const prev = fieldItem.previousElementSibling;
+    if (prev && prev.classList.contains('embed-field-item')) {
+      container.insertBefore(fieldItem, prev);
+      updateEmbedPreview();
+    }
+  });
+  
+  fieldItem.querySelector('.btn-field-move-down').addEventListener('click', () => {
+    const next = fieldItem.nextElementSibling;
+    if (next && next.classList.contains('embed-field-item')) {
+      container.insertBefore(next, fieldItem);
+      updateEmbedPreview();
+    }
   });
   
   fieldItem.querySelector('.btn-remove-field').addEventListener('click', () => {
@@ -4475,6 +4507,10 @@ function initGiveawaysTab() {
   if (embedTemplateSelect) {
     embedTemplateSelect.addEventListener('change', () => {
       const preset = embedTemplateSelect.value;
+      const deleteBtn = document.getElementById('btn-embed-delete-preset');
+      if (deleteBtn) {
+        deleteBtn.disabled = !preset.startsWith('custom:');
+      }
       if (!preset) return;
       
       const titleInput = document.getElementById('embed-title');
@@ -4485,9 +4521,43 @@ function initGiveawaysTab() {
       const imageInput = document.getElementById('embed-image');
       const footerInput = document.getElementById('embed-footer-text');
       const footerIconInput = document.getElementById('embed-footer-icon');
+      const plainTextInput = document.getElementById('embed-plain-text');
+      const authorNameInput = document.getElementById('embed-author-name');
+      const authorIconInput = document.getElementById('embed-author-icon');
+      const timestampInput = document.getElementById('embed-timestamp');
       
       const fieldsContainer = document.getElementById('embed-fields-container');
       if (fieldsContainer) fieldsContainer.innerHTML = '';
+      
+      if (preset.startsWith('custom:')) {
+        const name = preset.substring(7);
+        const data = customPresetsMap[name];
+        if (data) {
+          if (titleInput) titleInput.value = data.title || '';
+          if (descInput) descInput.value = data.description || '';
+          if (plainTextInput) plainTextInput.value = data.plainText || '';
+          if (authorNameInput) authorNameInput.value = data.authorName || '';
+          if (authorIconInput) authorIconInput.value = data.authorIcon || '';
+          if (colorHex) {
+            colorHex.value = data.color || '#6366F1';
+            if (colorPicker) colorPicker.value = colorHex.value;
+          }
+          if (thumbnailInput) thumbnailInput.value = data.thumbnail || '';
+          if (imageInput) imageInput.value = data.image || '';
+          if (footerInput) footerInput.value = data.footerText || '';
+          if (footerIconInput) footerIconInput.value = data.footerIcon || '';
+          if (timestampInput) timestampInput.checked = !!data.includeTimestamp;
+          
+          if (data.fields && Array.isArray(data.fields)) {
+            data.fields.forEach(field => {
+              addEmbedFieldWithData(field.name, field.value, field.inline !== false);
+            });
+          }
+          updateEmbedPreview();
+          showToast(`Custom preset "${name}" loaded successfully.`, 'success');
+        }
+        return;
+      }
       
       if (preset === 'welcome') {
         if (titleInput) titleInput.value = '👋 Welcome to the Server!';
@@ -4543,16 +4613,181 @@ function initGiveawaysTab() {
         if (footerIconInput && shouldOverwriteValue(footerIconInput.value)) footerIconInput.value = '/static/bot_logo.png';
       }
       
-      embedTemplateSelect.value = '';
       updateEmbedPreview();
       showToast('Template preset loaded successfully.', 'success');
     });
   }
+
+  // Save Custom Preset Click Listener
+  const btnSavePreset = document.getElementById('btn-embed-save-preset');
+  if (btnSavePreset) {
+    btnSavePreset.addEventListener('click', async () => {
+      if (!activeGuildId) {
+        showToast('Please select a Discord server first.', 'warning');
+        return;
+      }
+      const name = prompt("Enter a name for the custom embed preset:");
+      if (name === null) return;
+      const cleanName = name.trim();
+      if (!cleanName) {
+        showToast('Preset name cannot be empty.', 'warning');
+        return;
+      }
+      
+      const state = {
+        plainText: document.getElementById('embed-plain-text')?.value || '',
+        authorName: document.getElementById('embed-author-name')?.value || '',
+        authorIcon: document.getElementById('embed-author-icon')?.value || '',
+        title: document.getElementById('embed-title')?.value || '',
+        description: document.getElementById('embed-description-text')?.value || '',
+        color: document.getElementById('embed-color-hex')?.value || '#6366F1',
+        thumbnail: document.getElementById('embed-thumbnail')?.value || '',
+        image: document.getElementById('embed-image')?.value || '',
+        footerText: document.getElementById('embed-footer-text')?.value || '',
+        footerIcon: document.getElementById('embed-footer-icon')?.value || '',
+        includeTimestamp: document.getElementById('embed-timestamp')?.checked || false,
+        fields: getEmbedFields()
+      };
+      
+      try {
+        showToast('Saving custom preset...', 'info');
+        const res = await fetch(`/api/guilds/${activeGuildId}/embeds/presets/${encodeURIComponent(cleanName)}`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify(state)
+        });
+        
+        if (res.ok) {
+          showToast(`Custom preset "${cleanName}" saved successfully!`, 'success');
+          await fetchCustomPresets(activeGuildId);
+        } else {
+          const err = await res.json();
+          showToast(err.detail || 'Failed to save custom preset.', 'error');
+        }
+      } catch (e) {
+        showToast('Network error saving preset.', 'error');
+      }
+    });
+  }
+
+  // Delete Custom Preset Click Listener
+  const btnDeletePreset = document.getElementById('btn-embed-delete-preset');
+  if (btnDeletePreset) {
+    btnDeletePreset.addEventListener('click', async () => {
+      if (!activeGuildId) return;
+      const select = document.getElementById('embed-template-preset');
+      const preset = select.value;
+      if (!preset || !preset.startsWith('custom:')) return;
+      const name = preset.substring(7);
+      
+      const confirmDelete = confirm(`Are you sure you want to delete the custom preset "${name}"?`);
+      if (!confirmDelete) return;
+      
+      try {
+        showToast('Deleting custom preset...', 'info');
+        const res = await fetch(`/api/guilds/${activeGuildId}/embeds/presets/${encodeURIComponent(name)}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${authToken}`
+          }
+        });
+        
+        if (res.ok) {
+          showToast(`Custom preset "${name}" deleted successfully!`, 'success');
+          await fetchCustomPresets(activeGuildId);
+        } else {
+          const err = await res.json();
+          showToast(err.detail || 'Failed to delete custom preset.', 'error');
+        }
+      } catch (e) {
+        showToast('Network error deleting preset.', 'error');
+      }
+    });
+  }
+
+  // Markdown Toolbar helper click listeners
+  document.querySelectorAll('.btn-md-helper').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const prefix = btn.getAttribute('data-md');
+      const suffix = btn.getAttribute('data-suffix') || '';
+      const textarea = document.getElementById('embed-description-text');
+      if (textarea) {
+        insertAtCursor(textarea, prefix, suffix);
+      }
+    });
+  });
+
+  // Variable helper badges click listeners
+  document.querySelectorAll('.btn-var-helper').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const variable = btn.getAttribute('data-var');
+      const textarea = document.getElementById('embed-description-text');
+      if (textarea) {
+        insertAtCursor(textarea, variable);
+      }
+    });
+  });
 }
 
 // Helper to append fields for presets
 function addEmbedFieldPreset(name, value, inline) {
   addEmbedFieldWithData(name, value, inline);
+}
+
+// Helper to insert text at cursor position in textarea
+function insertAtCursor(textarea, prefix, suffix = '') {
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const text = textarea.value;
+  const selected = text.substring(start, end);
+  const replacement = prefix + selected + suffix;
+  textarea.value = text.substring(0, start) + replacement + text.substring(end);
+  textarea.focus();
+  textarea.selectionStart = start + prefix.length;
+  textarea.selectionEnd = start + prefix.length + selected.length;
+  // trigger input event to update preview
+  textarea.dispatchEvent(new Event('input'));
+}
+
+async function fetchCustomPresets(guildId) {
+  const container = document.getElementById('custom-presets-group');
+  const deleteBtn = document.getElementById('btn-embed-delete-preset');
+  if (!container || !guildId) return;
+  
+  try {
+    const res = await fetch(`/api/guilds/${guildId}/embeds/presets`, {
+      headers: {
+        'Authorization': `Bearer ${authToken}`
+      }
+    });
+    if (!res.ok) return;
+    const presets = await res.json();
+    customPresetsMap = presets;
+    
+    container.innerHTML = '';
+    
+    const keys = Object.keys(presets);
+    if (keys.length === 0) {
+      container.innerHTML = '<option disabled>No custom presets saved</option>';
+    } else {
+      keys.sort().forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = `custom:${name}`;
+        opt.textContent = `⭐ ${name}`;
+        container.appendChild(opt);
+      });
+    }
+    
+    document.getElementById('embed-template-preset').value = '';
+    if (deleteBtn) deleteBtn.disabled = true;
+  } catch (err) {
+    console.error('Error fetching custom presets:', err);
+  }
 }
 
 // Populate Giveaway Destination Channels Dropdown

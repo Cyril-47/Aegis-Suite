@@ -20,12 +20,12 @@ bot_task = None
 
 # Regular Expressions for Safe AutoMod Enforcement (Backtracking Protected)
 DISCORD_INVITE_PATTERN = re.compile(
-    r'(?:https?://)?(?:www\.)?(?:discord\.(?:gg|io|me|li|club)|discord(?:app)?\.com/invite)/([a-zA-Z0-9_-]{2,32})',
+    r'(?:https?://)?(?:www\.)?(?:discord\.(?:gg|io|me|li|club)|discord(?:app)?\.com/invite)/([a-zA-Z0-9_-]{1,32})',
     re.IGNORECASE
 )
 
 URL_DOMAIN_PATTERN = re.compile(
-    r'(?:https?://)?(?:www\.)?([a-zA-Z0-9][-a-zA-Z0-9]*[a-zA-Z0-9]\.[a-zA-Z]{2,24}(?:\.[a-zA-Z]{2,24})*)',
+    r'(?:https?://)?(?:www\.)?([a-zA-Z0-9](?:[-a-zA-Z0-9]*[a-zA-Z0-9])?\.[a-zA-Z]{2,24}(?:\.[a-zA-Z]{2,24})*)',
     re.IGNORECASE
 )
 
@@ -327,6 +327,16 @@ class DiscordOptimizerBot(commands.Bot):
         if isinstance(error, commands.CommandInvokeError):
             error = error.original
 
+        if isinstance(error, commands.CommandNotFound):
+            # Check if this message was actually a custom command
+            msg_clean = ctx.message.content.strip()
+            custom_cmds = utils.get_guild_custom_commands(self.config, ctx.guild.id) if ctx.guild else {}
+            custom_cmds_lower = {k.lower(): v for k, v in custom_cmds.items()}
+            if msg_clean.lower() in custom_cmds_lower:
+                return
+            logger.warning(f"Command not found: {ctx.message.content}")
+            return
+
         if isinstance(error, commands.MissingPermissions):
             try:
                 msg = "❌ You do not have permission to run this command."
@@ -443,11 +453,27 @@ class DiscordOptimizerBot(commands.Bot):
 
     async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
         # Clean up music player when bot leaves voice (Tier 4.2)
-        if member.id == self.user.id and after.channel is None:
-            player = self.music_players.pop(member.guild.id, None)
-            if player and player.disconnect_task and not player.disconnect_task.done():
-                player.disconnect_task.cancel()
-            return
+        if member.id == self.user.id:
+            player = self.music_players.get(member.guild.id)
+            if after.channel is None:
+                player = self.music_players.pop(member.guild.id, None)
+                if player:
+                    if player.disconnect_task and not player.disconnect_task.done():
+                        player.disconnect_task.cancel()
+                    player.disconnect_task = None
+                    player.auto_leave_reason = None
+                return
+            elif before.channel is None and after.channel is not None:
+                # Bot joined a channel. Check if alone
+                if player:
+                    if player.disconnect_task and not player.disconnect_task.done():
+                        player.disconnect_task.cancel()
+                        player.disconnect_task = None
+                        player.auto_leave_reason = None
+                    human_members = [m for m in after.channel.members if not m.bot]
+                    if len(human_members) == 0:
+                        player._start_auto_leave_timer(60, "alone")
+                        logger.info(f"Bot joined voice channel '{after.channel.name}' alone. Will auto-disconnect in 60s.")
 
         # Handle auto-disconnect when bot is alone in a voice channel
         player = self.music_players.get(member.guild.id)
@@ -468,23 +494,14 @@ class DiscordOptimizerBot(commands.Bot):
                     
                 human_members = [m for m in bot_channel.members if not m.bot]
                 if len(human_members) == 0:
-                    # Start auto-disconnect timer if not already active (Tier 1.6)
-                    if not player.disconnect_task or player.disconnect_task.done():
-                        async def auto_disconnect(pl, ch):
-                            await asyncio.sleep(300)
-                            if pl.voice_client and pl.voice_client.channel == ch:
-                                humans = [m for m in ch.members if not m.bot]
-                                if len(humans) == 0:
-                                    await pl.leave_channel()
-                                    logger.info(f"Auto-disconnected from voice channel '{ch.name}' due to inactivity.")
-                        
-                        player.disconnect_task = asyncio.create_task(auto_disconnect(player, bot_channel))
-                        logger.info(f"Bot is alone in voice channel '{bot_channel.name}'. Will auto-disconnect in 5 minutes.")
+                    player._start_auto_leave_timer(60, "alone")
+                    logger.info(f"Bot is alone in voice channel '{bot_channel.name}'. Will auto-disconnect in 60 seconds.")
                 else:
                     # Cancel disconnect timer if humans returned/are present
                     if player.disconnect_task and not player.disconnect_task.done():
                         player.disconnect_task.cancel()
                         player.disconnect_task = None
+                        player.auto_leave_reason = None
                         logger.info(f"Cancelled auto-disconnect for voice channel '{bot_channel.name}' because members joined.")
 
     async def on_interaction(self, interaction: discord.Interaction):
@@ -628,17 +645,18 @@ class DiscordOptimizerBot(commands.Bot):
         # Check custom commands
         custom_cmds = utils.get_guild_custom_commands(config, message.guild.id)
         msg_clean = message.content.strip()
-        if msg_clean in custom_cmds:
+        custom_cmds_lower = {k.lower(): v for k, v in custom_cmds.items()}
+        if msg_clean.lower() in custom_cmds_lower:
             try:
                 self.stats["commands_today"] = self.stats.get("commands_today", 0) + 1
-                await message.channel.send(custom_cmds[msg_clean])
+                await message.channel.send(custom_cmds_lower[msg_clean.lower()])
                 logger.info(f"Executed custom command '{msg_clean}' in #{message.channel.name}")
                 return
             except Exception as e:
                 logger.error(f"Error sending custom command response: {e}")
 
         # Process Leveling XP reward
-        leveling_cfg = config.get("leveling_settings", {})
+        leveling_cfg = utils.get_guild_leveling_settings(config, message.guild.id)
         if leveling_cfg.get("enabled", False):
             ignored_ch = leveling_cfg.get("ignored_channels", [])
             ignored_rl = leveling_cfg.get("ignored_roles", [])
@@ -647,7 +665,8 @@ class DiscordOptimizerBot(commands.Bot):
             if str(message.channel.id) in ignored_ch:
                 user_ignored = True
             else:
-                for role in message.author.roles:
+                author_roles = getattr(message.author, "roles", [])
+                for role in author_roles:
                     if str(role.id) in ignored_rl:
                         user_ignored = True
                         break

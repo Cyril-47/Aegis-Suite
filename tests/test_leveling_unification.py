@@ -45,3 +45,57 @@ def test_leveling_database_round_trip():
         # Restore original state
         leveling.leveling_system.engine = old_engine
         leveling.leveling_system.xp_data = old_xp_data
+
+
+def test_guild_specific_leveling_config(monkeypatch, tmp_path):
+    import utils
+    # Override CONFIG_PATH for isolated testing
+    monkeypatch.setattr(utils, "CONFIG_PATH", str(tmp_path / "config.json"))
+    
+    # 1. Reset configuration
+    config = utils.load_config()
+    config["leveling_settings"] = {
+        "enabled": False,
+        "xp_per_message": 15,
+        "xp_cooldown_seconds": 60,
+        "level_up_channel": None,
+        "level_roles": {},
+        "ignored_channels": [],
+        "ignored_roles": []
+    }
+    config["guild_configs"] = {}
+    utils.save_config(config)
+
+    # 2. Verify fallback is used initially
+    settings_1 = utils.get_guild_leveling_settings(config, "guild_1")
+    assert settings_1["enabled"] is False
+    assert settings_1["xp_per_message"] == 15
+
+    # 3. Modify and save leveling configuration for guild_1
+    guild_conf_1 = utils.get_guild_config("guild_1")
+    guild_conf_1["leveling_settings"] = {
+        "enabled": True,
+        "xp_per_message": 50,
+        "xp_cooldown_seconds": 30,
+        "level_up_channel": "123456",
+        "level_roles": {},
+        "ignored_channels": [],
+        "ignored_roles": []
+    }
+    utils.save_guild_config("guild_1", guild_conf_1)
+
+    # 4. Reload and assert guild-specific settings are retrieved correctly
+    reloaded_config = utils.load_config()
+    
+    # guild_1 should have the custom settings
+    settings_1_reloaded = utils.get_guild_leveling_settings(reloaded_config, "guild_1")
+    assert settings_1_reloaded["enabled"] is True
+    assert settings_1_reloaded["xp_per_message"] == 50
+    assert settings_1_reloaded["xp_cooldown_seconds"] == 30
+    assert settings_1_reloaded["level_up_channel"] == "123456"
+
+    # guild_2 should still fall back to the global config (which is enabled=False)
+    settings_2_reloaded = utils.get_guild_leveling_settings(reloaded_config, "guild_2")
+    assert settings_2_reloaded["enabled"] is False
+    assert settings_2_reloaded["xp_per_message"] == 15
+

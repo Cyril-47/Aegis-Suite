@@ -333,7 +333,10 @@ def test_put_hosting_mode_admin_local_pc(
 
     # A new CONFIG_CHANGE audit entry was prepended naming both values.
     audit_after = _read_audit_log()
-    assert len(audit_after) == len(audit_before) + 1, (
+    expected_len = len(audit_before) + 1
+    if len(audit_before) >= 1000:
+        expected_len = 1000
+    assert len(audit_after) == expected_len, (
         "Exactly one audit entry should have been appended by a successful "
         "PUT. Before: {} entries; after: {} entries.".format(
             len(audit_before), len(audit_after)

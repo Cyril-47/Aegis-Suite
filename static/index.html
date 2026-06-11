@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- Style Sheet -->
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/style.css?v=1.0.1">
   <link rel="stylesheet" href="/static/responsive.css">
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -347,7 +347,7 @@
 
       <div class="bot-badge-container">
         <div class="bot-badge glass-inner">
-          <img id="bot-avatar" src="https://discord.com/assets/c09c2a688b139c15814e578d0554c9a6.png" alt="Bot Avatar">
+          <img id="bot-avatar" src="/static/bot_logo.png" alt="Bot Avatar">
           <div class="bot-badge-info">
             <h4 id="bot-username">Loading Bot...</h4>
             <span id="bot-status" class="status-offline">Offline</span>
@@ -475,7 +475,7 @@
               </div>
               <div class="card-body bot-details-grid">
                 <div class="bot-visual">
-                  <img id="bot-overview-avatar" src="https://discord.com/assets/c09c2a688b139c15814e578d0554c9a6.png" alt="Bot Avatar" class="large-avatar">
+                  <img id="bot-overview-avatar" src="/static/bot_logo.png" alt="Bot Avatar" class="large-avatar">
                   <div class="bot-ping-status">
                     <span class="status-indicator"></span>
                     <span id="bot-overview-status-text">DISCONNECTED</span>
@@ -825,7 +825,7 @@
               </div>
               <div class="card-body flex-center bg-discord-chat">
                 <div class="discord-message">
-                  <img src="https://discord.com/assets/c09c2a688b139c15814e578d0554c9a6.png" class="discord-author-avatar" alt="Bot avatar">
+                  <img src="/static/bot_logo.png" class="discord-author-avatar" alt="Bot avatar">
                   <div class="discord-message-content">
                     <div class="discord-message-header">
                       <span class="discord-author-name">Server Optimizer Bot</span>
@@ -838,7 +838,7 @@
                           <h4 id="preview-embed-title" class="discord-embed-title">Welcome to the Server, GamerName!</h4>
                           <div id="preview-embed-desc" class="discord-embed-description">We are thrilled to have you here! Please make sure to check out the rules and have a wonderful time.</div>
                         </div>
-                        <img src="https://discord.com/assets/c09c2a688b139c15814e578d0554c9a6.png" class="discord-embed-thumbnail" alt="User avatar">
+                        <img src="/static/bot_logo.png" class="discord-embed-thumbnail" alt="User avatar">
                       </div>
                       <div class="discord-embed-footer">Member #1</div>
                     </div>
@@ -1109,7 +1109,7 @@
               </div>
               <div class="card-body flex-center bg-discord-chat flex-column py-5">
                 <div class="discord-message">
-                  <img src="https://discord.com/assets/c09c2a688b139c15814e578d0554c9a6.png" class="discord-author-avatar" alt="Bot avatar">
+                  <img src="/static/bot_logo.png" class="discord-author-avatar" alt="Bot avatar">
                   <div class="discord-message-content">
                     <div class="discord-message-header">
                       <span class="discord-author-name">Server Optimizer Bot</span>
@@ -1261,14 +1261,27 @@
                 <form id="embed-builder-form">
                   <div class="input-group" style="border: 1px dashed rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; background-color: rgba(255,255,255,0.02); margin-bottom: 20px;">
                     <label for="embed-template-preset" style="font-weight: 600; color: var(--primary); display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-wand-magic-sparkles"></i> Load Embed Template Preset:</label>
-                    <select id="embed-template-preset" class="glass-input" style="border-color: rgba(99, 102, 241, 0.4);">
-                      <option value="">-- Choose a Preset Template --</option>
-                      <option value="welcome">👋 Welcome / Greeting Embed</option>
-                      <option value="rules">📜 Server Rules & Regulations</option>
-                      <option value="announcement">📢 Server Announcement</option>
-                      <option value="giveaway">🎉 Giveaway Announcement</option>
-                      <option value="support">🎟️ Support Ticket Info</option>
-                    </select>
+                    <div style="display: flex; gap: 10px; margin-top: 6px;">
+                      <select id="embed-template-preset" class="glass-input" style="border-color: rgba(99, 102, 241, 0.4); flex: 1;">
+                        <option value="">-- Choose a Preset Template --</option>
+                        <optgroup label="Built-in Presets" id="builtin-presets-group">
+                          <option value="welcome">👋 Welcome / Greeting Embed</option>
+                          <option value="rules">📜 Server Rules & Regulations</option>
+                          <option value="announcement">📢 Server Announcement</option>
+                          <option value="giveaway">🎉 Giveaway Announcement</option>
+                          <option value="support">🎟️ Support Ticket Info</option>
+                        </optgroup>
+                        <optgroup label="Custom Presets" id="custom-presets-group">
+                          <!-- Populated dynamically -->
+                        </optgroup>
+                      </select>
+                      <button type="button" id="btn-embed-save-preset" class="btn btn-secondary btn-glow" style="white-space: nowrap; padding: 10px 15px;" title="Save current configuration as preset">
+                        <i class="fa-solid fa-floppy-disk"></i> Save Custom
+                      </button>
+                      <button type="button" id="btn-embed-delete-preset" class="btn btn-secondary text-danger" style="white-space: nowrap; padding: 10px 15px;" title="Delete selected custom preset" disabled>
+                        <i class="fa-solid fa-trash-can"></i> Delete
+                      </button>
+                    </div>
                   </div>
 
                   <div class="input-group">
@@ -1304,8 +1317,27 @@
                       <input type="text" id="embed-title" placeholder="e.g. Server Announcement">
                     </div>
                     <div class="input-group">
-                      <label for="embed-description">Embed Description:</label>
+                      <div class="flex-between mb-1">
+                        <label for="embed-description-text" style="margin-bottom: 0;">Embed Description:</label>
+                        <div class="markdown-toolbar" style="display: flex; gap: 4px;">
+                          <button type="button" class="btn btn-secondary btn-md-helper" data-md="**" data-suffix="**" title="Bold" style="padding: 4px 8px; font-size: 0.75rem;"><i class="fa-solid fa-bold"></i></button>
+                          <button type="button" class="btn btn-secondary btn-md-helper" data-md="*" data-suffix="*" title="Italics" style="padding: 4px 8px; font-size: 0.75rem;"><i class="fa-solid fa-italic"></i></button>
+                          <button type="button" class="btn btn-secondary btn-md-helper" data-md="__" data-suffix="__" title="Underline" style="padding: 4px 8px; font-size: 0.75rem;"><i class="fa-solid fa-underline"></i></button>
+                          <button type="button" class="btn btn-secondary btn-md-helper" data-md="~~" data-suffix="~~" title="Strikethrough" style="padding: 4px 8px; font-size: 0.75rem;"><i class="fa-solid fa-strikethrough"></i></button>
+                          <button type="button" class="btn btn-secondary btn-md-helper" data-md="`" data-suffix="`" title="Inline Code" style="padding: 4px 8px; font-size: 0.75rem;"><i class="fa-solid fa-code"></i></button>
+                          <button type="button" class="btn btn-secondary btn-md-helper" data-md="```&#10;" data-suffix="&#10;```" title="Code Block" style="padding: 4px 8px; font-size: 0.75rem;"><i class="fa-solid fa-file-code"></i></button>
+                          <button type="button" class="btn btn-secondary btn-md-helper" data-md="[" data-suffix="](url)" title="Link" style="padding: 4px 8px; font-size: 0.75rem;"><i class="fa-solid fa-link"></i></button>
+                        </div>
+                      </div>
                       <textarea id="embed-description-text" rows="5" placeholder="Description support standard markdown..."></textarea>
+                      <div class="preset-links-container" style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 5px; align-items: center;">
+                        <span style="font-size: 0.7rem; color: var(--text-muted);">Insert Variable:</span>
+                        <span class="btn-var-helper" data-var="{user}" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">{user}</span>
+                        <span class="btn-var-helper" data-var="{username}" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">{username}</span>
+                        <span class="btn-var-helper" data-var="{server}" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">{server}</span>
+                        <span class="btn-var-helper" data-var="{channel}" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">{channel}</span>
+                        <span class="btn-var-helper" data-var="{membercount}" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">{membercount}</span>
+                      </div>
                     </div>
                     <div class="grid-2-col">
                       <div class="input-group">
@@ -1321,10 +1353,10 @@
                         <div class="preset-links-container" style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 5px;">
                           <span style="font-size: 0.7rem; color: var(--text-muted); align-self: center;">Presets:</span>
                           <span class="preset-link-thumb" data-url="/static/bot_logo.png" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">Bot Logo</span>
-                          <span class="preset-link-thumb" data-url="https://i.imgur.com/T0bZUXk.png" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">Welcome</span>
-                          <span class="preset-link-thumb" data-url="https://i.imgur.com/V9l5Nn0.png" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">Warning</span>
-                          <span class="preset-link-thumb" data-url="https://i.imgur.com/f8V03Jq.png" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">Success</span>
-                          <span class="preset-link-thumb" data-url="https://i.imgur.com/NlVd7s7.png" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">Gift</span>
+                          <span class="preset-link-thumb" data-url="https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?auto=format&fit=crop&w=150&q=80" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">Welcome</span>
+                          <span class="preset-link-thumb" data-url="https://images.unsplash.com/photo-1590250596386-414194011430?auto=format&fit=crop&w=150&q=80" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">Warning</span>
+                          <span class="preset-link-thumb" data-url="https://images.unsplash.com/photo-1578269174936-2709b5a5e0e3?auto=format&fit=crop&w=150&q=80" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">Success</span>
+                          <span class="preset-link-thumb" data-url="https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&w=150&q=80" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">Gift</span>
                         </div>
                       </div>
                     </div>
@@ -1338,7 +1370,7 @@
                       <div class="preset-links-container" style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 5px;">
                         <span style="font-size: 0.7rem; color: var(--text-muted); align-self: center;">Presets:</span>
                         <span class="preset-link-image" data-url="/static/bot_banner.png" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">Bot Banner</span>
-                        <span class="preset-link-image" data-url="https://i.imgur.com/WcI9L8F.png" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">Lofi Music</span>
+                        <span class="preset-link-image" data-url="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=600&q=80" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">Lofi Music</span>
                         <span class="preset-link-image" data-url="https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=600&q=80" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">Gaming</span>
                         <span class="preset-link-image" data-url="https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&w=600&q=80" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">Party</span>
                       </div>
@@ -1404,7 +1436,7 @@
               <div class="card-body bg-discord-chat flex-column py-5">
                 <!-- Outer message simulation -->
                 <div class="discord-message" style="width: 100%; max-width: 520px;">
-                  <img src="https://discord.com/assets/c09c2a688b139c15814e578d0554c9a6.png" class="discord-author-avatar" alt="Bot avatar">
+                  <img src="/static/bot_logo.png" class="discord-author-avatar" alt="Bot avatar">
                   <div class="discord-message-content">
                     <div class="discord-message-header">
                       <span class="discord-author-name">Server Optimizer Bot</span>
@@ -2191,6 +2223,6 @@
   <div id="toast-container" class="toast-container"></div>
 
   <!-- Script -->
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=1.0.1"></script>
 </body>
 </html>

@@ -27,15 +27,15 @@ def main() -> int:
             print("Dashboard URL not found for running instance.")
         return 0
 
-    # Onboarding Wizard - Launch if credentials are missing (Phase 4 requirement)
-    import first_run_wizard
-    if not first_run_wizard.credentials_already_exist(paths.root):
-        print("\n[+] Credentials not found. Starting first-run configuration wizard...")
-        success = first_run_wizard.run_first_run_wizard(paths.root)
-        if not success:
-            print("[-] Configuration wizard aborted or failed. Exiting.")
-            guard.release()
-            return 1
+    # Onboarding Wizard - Bypass console/terminal wizard, boot straight into Web GUI Setup
+    # import first_run_wizard
+    # if not first_run_wizard.credentials_already_exist(paths.root):
+    #     print("\n[+] Credentials not found. Starting first-run configuration wizard...")
+    #     success = first_run_wizard.run_first_run_wizard(paths.root)
+    #     if not success:
+    #         print("[-] Configuration wizard aborted or failed. Exiting.")
+    #         guard.release()
+    #         return 1
 
     # 3. Setup logging (Redacts secrets automatically - C4)
     setup_logging(paths)
