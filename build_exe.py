@@ -91,6 +91,7 @@ def main():
         "-m",
         "PyInstaller",
         "--onefile",
+        "--noconsole",
         "--name=AegisOptimizer",
         "--add-data", "static;static",
         "--add-data", f"{discord_bin};discord/bin",
