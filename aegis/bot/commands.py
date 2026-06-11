@@ -30,21 +30,8 @@ def register_commands(bot: commands.Bot) -> None:
             await ctx.send("❌ A connection code was already generated for this server recently. Please use that code or wait 5 minutes before generating a new one.", ephemeral=True)
             return
             
-        await ctx.defer(ephemeral=True)
-        
         code = "".join(random.choices(string.ascii_uppercase + string.digits, k=6))
         
-        with utils.config_lock:
-            config = utils.load_config()
-            pending = config.setdefault("pending_pairings", {})
-            pending[code] = {
-                "guild_id": str(ctx.guild.id),
-                "guild_name": ctx.guild.name,
-                "expires_at": time.time() + 600,
-                "attempts": 0
-            }
-            utils.save_config(config)
-            
         embed = discord.Embed(
             title="🔗 Dashboard Connection Link",
             description=(
@@ -54,7 +41,36 @@ def register_commands(bot: commands.Bot) -> None:
             ),
             color=discord.Color.blue()
         )
-        await ctx.send(embed=embed, ephemeral=True)
+        
+        if ctx.interaction:
+            await ctx.defer(ephemeral=True)
+            with utils.config_lock:
+                config = utils.load_config()
+                pending = config.setdefault("pending_pairings", {})
+                pending[code] = {
+                    "guild_id": str(ctx.guild.id),
+                    "guild_name": ctx.guild.name,
+                    "expires_at": time.time() + 600,
+                    "attempts": 0
+                }
+                utils.save_config(config)
+            await ctx.send(embed=embed, ephemeral=True)
+        else:
+            try:
+                await ctx.author.send(embed=embed)
+                with utils.config_lock:
+                    config = utils.load_config()
+                    pending = config.setdefault("pending_pairings", {})
+                    pending[code] = {
+                        "guild_id": str(ctx.guild.id),
+                        "guild_name": ctx.guild.name,
+                        "expires_at": time.time() + 600,
+                        "attempts": 0
+                    }
+                    utils.save_config(config)
+                await ctx.send("I've sent your dashboard connection code via DM.")
+            except discord.Forbidden:
+                await ctx.send("I couldn't send you a DM.\nPlease enable Direct Messages and try again.")
 
     # unlink command
     @bot.hybrid_command(name="unlink", description="Revokes the web dashboard link for this server.")
@@ -183,7 +199,7 @@ def register_commands(bot: commands.Bot) -> None:
             if not player.voice_client or not player.voice_client.is_connected():
                 await player.join_channel(ctx.author.voice.channel.id)
                 
-            song = await player.add_to_queue(query)
+            song = await player.add_to_queue(query, requester_id=ctx.author.id)
             if isinstance(song, dict) and song.get('playlist'):
                 msg = f"➕ Added **{song['title']}** ({song['count']} tracks) to the queue!"
                 if song.get('limit_reached'):

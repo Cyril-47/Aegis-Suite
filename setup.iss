@@ -1,10 +1,10 @@
-; Inno Setup Script for Aegis Optimizer (v2.2.0-RC3)
+; Inno Setup Script for Aegis Optimizer (v2.2.2)
 ; Installs to per-user Local AppData to avoid administrative privilege requirements.
 ; This allows non-technical users to run the setup without UAC prompts.
 
 [Setup]
 AppName=Aegis Optimizer
-AppVersion=2.2.0-RC3
+AppVersion=2.2.2
 AppPublisher=Aegis Team
 DefaultDirName={localappdata}\Programs\Aegis
 DefaultGroupName=Aegis Optimizer
