@@ -21,8 +21,16 @@ async def test_music_module_solo_vc_bypass_exactly_one_human():
     ctx.author.guild_permissions = MagicMock()
     ctx.author.guild_permissions.administrator = False
     
+    # Mock voice channel and connection state for author
+    author_voice = MagicMock()
+    author_voice.channel = MagicMock()
+    author_voice.channel.id = 777777
+    ctx.author.voice = author_voice
+    
     # Mock voice client with exactly one human (the caller) and one bot
     voice_client = MagicMock()
+    voice_client.channel = MagicMock()
+    voice_client.channel.id = 777777
     ctx.guild.voice_client = voice_client
     
     caller_member = MagicMock()
@@ -52,8 +60,16 @@ async def test_music_module_solo_vc_bypass_multiple_humans(monkeypatch):
     ctx.author.guild_permissions = MagicMock()
     ctx.author.guild_permissions.administrator = False
     
+    # Mock voice channel and connection state for author
+    author_voice = MagicMock()
+    author_voice.channel = MagicMock()
+    author_voice.channel.id = 777777
+    ctx.author.voice = author_voice
+    
     # Mock voice client with multiple humans
     voice_client = MagicMock()
+    voice_client.channel = MagicMock()
+    voice_client.channel.id = 777777
     ctx.guild.voice_client = voice_client
     
     caller_member = MagicMock()
@@ -102,3 +118,39 @@ async def test_universal_decorator_gate_raises_missing_permissions(monkeypatch):
         
     err_str = str(exc_info.value).upper()
     assert "TEST" in err_str and "COMMAND" in err_str
+
+
+@pytest.mark.asyncio
+async def test_music_vc_mismatch_and_admin_bypass():
+    """Verify that VC mismatch blocks control commands for normal users, but admins/owners bypass it."""
+    # Scenario A: User is not in a voice channel
+    ctx = MagicMock()
+    ctx.guild = MagicMock()
+    ctx.guild.id = 123456
+    ctx.guild.owner_id = 999999
+    ctx.author = MagicMock()
+    ctx.author.id = 111111
+    ctx.author.roles = []
+    ctx.author.guild_permissions = MagicMock()
+    ctx.author.guild_permissions.administrator = False
+    ctx.author.voice = None
+    
+    assert await check_music_permission(ctx, CommandRegistry.MUSIC_PAUSE) is False
+
+    # Scenario B: User is in a different channel than the bot
+    author_voice = MagicMock()
+    author_voice.channel = MagicMock()
+    author_voice.channel.id = 888888  # Different channel
+    ctx.author.voice = author_voice
+    
+    voice_client = MagicMock()
+    voice_client.channel = MagicMock()
+    voice_client.channel.id = 777777  # Bot is in 777777
+    ctx.guild.voice_client = voice_client
+    
+    assert await check_music_permission(ctx, CommandRegistry.MUSIC_PAUSE) is False
+
+    # Scenario C: Owner bypasses mismatch
+    ctx.author.id = ctx.guild.owner_id  # Set caller as owner
+    assert await check_music_permission(ctx, CommandRegistry.MUSIC_PAUSE) is True
+
