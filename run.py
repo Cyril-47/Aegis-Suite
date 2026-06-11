@@ -52,7 +52,21 @@ def prepare_environment():
                 
         # 2. Check and install dependencies
         print("\n[+] Verifying and installing dependencies...")
-        dependencies = ["discord.py[voice]", "fastapi", "uvicorn", "websockets", "yt-dlp", "PyNaCl", "pydantic", "davey"]
+        dependencies = [
+            "discord.py[voice]",
+            "fastapi",
+            "uvicorn[standard]",
+            "websockets",
+            "yt-dlp",
+            "PyNaCl",
+            "pydantic",
+            "davey",
+            "sqlalchemy",
+            "alembic",
+            "jinja2",
+            "httpx",
+            "Pillow"
+        ]
         if shutil.which("uv"):
             ret = run_command(["uv", "pip", "install"] + dependencies)
         else:
