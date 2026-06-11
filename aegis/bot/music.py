@@ -1,6 +1,7 @@
 import discord
 import asyncio
 import logging
+from typing import Optional
 import re
 import urllib.request
 import urllib.parse
@@ -472,7 +473,7 @@ class MusicPlayer:
             logger.error(f"Error starting playback: {e}. Skipping...")
             self.loop.create_task(self.play_next())
 
-    async def add_to_queue(self, query: str) -> dict:
+    async def add_to_queue(self, query: str, requester_id: Optional[int] = None) -> dict:
         """Searches YouTube or resolves Spotify metadata and adds song(s) to queue."""
         self.loop = asyncio.get_running_loop()
         if not yt_dlp:
@@ -520,7 +521,8 @@ class MusicPlayer:
                         'query': track['query'],
                         'duration': 0,
                         'thumbnail': None,
-                        'resolved': False
+                        'resolved': False,
+                        'requester_id': requester_id
                     }
                     self.queue.append(song_info)
                     songs_added.append(song_info)
@@ -581,7 +583,8 @@ class MusicPlayer:
                         'webpage_url': video_url,
                         'duration': entry.get('duration', 0),
                         'thumbnail': entry.get('thumbnail'),
-                        'resolved': False
+                        'resolved': False,
+                        'requester_id': requester_id
                     }
                     self.queue.append(song_info)
                     songs_added.append(song_info)
@@ -617,7 +620,8 @@ class MusicPlayer:
                     'webpage_url': song_data.get('webpage_url'),
                     'duration': song_data.get('duration', 0),
                     'thumbnail': song_data.get('thumbnail'),
-                    'resolved': True
+                    'resolved': True,
+                    'requester_id': requester_id
                 }
                 
                 if song_info.get('webpage_url'):
@@ -639,6 +643,7 @@ class MusicPlayer:
         except Exception as e:
             logger.error(f"Search failed for query '{query}': {e}")
             raise e
+
 
     def pause(self):
         if self.voice_client and self.voice_client.is_playing():

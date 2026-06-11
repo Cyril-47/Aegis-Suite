@@ -2,6 +2,16 @@ import utils
 from typing import List
 from aegis.core.permissions.registry import CommandRegistry
 
+MUSIC_CONTROL_PERMISSIONS = {
+    CommandRegistry.MUSIC_PAUSE,
+    CommandRegistry.MUSIC_RESUME,
+    CommandRegistry.MUSIC_SKIP,
+    CommandRegistry.MUSIC_STOP,
+    CommandRegistry.MUSIC_VOLUME,
+    CommandRegistry.MUSIC_SHUFFLE,
+    CommandRegistry.MUSIC_CLEARQUEUE
+}
+
 class PermissionResolver:
     @staticmethod
     def is_destructive(command_name: str) -> bool:
@@ -37,8 +47,8 @@ class PermissionResolver:
 
         guild_configs = config.get("guild_configs", {})
         if not guild_configs:
-            # Fail-closed for destructive commands
-            if PermissionResolver.is_destructive(command_name):
+            # Fail-closed for destructive/music control commands
+            if PermissionResolver.is_destructive(command_name) or command_name in MUSIC_CONTROL_PERMISSIONS:
                 return False
             return True
 
@@ -56,6 +66,8 @@ class PermissionResolver:
         if not cmd_rules or command_name not in cmd_rules:
             if PermissionResolver.is_destructive(command_name):
                 return admin_role in user_roles_str if admin_role else False
+            if command_name in MUSIC_CONTROL_PERMISSIONS:
+                return (mod_role in user_roles_str or admin_role in user_roles_str) if (mod_role or admin_role) else False
             return True
 
         rule = cmd_rules[command_name]
@@ -76,3 +88,4 @@ class PermissionResolver:
             return any(r in user_roles_str for r in target_roles)
             
         return False
+

@@ -1,14 +1,29 @@
 from discord.ext import commands
-from aegis.core.permissions.resolver import PermissionResolver
+from aegis.core.permissions.resolver import PermissionResolver, MUSIC_CONTROL_PERMISSIONS
 from aegis.core.permissions.registry import CommandRegistry
 import utils
 
 async def check_music_permission(ctx: commands.Context, command_name: str) -> bool:
-    # 1. Guild Owner & Discord Admin bypass (fast path)
-    is_admin_or_owner = ctx.author.id == ctx.guild.owner_id or ctx.author.guild_permissions.administrator
+    # 1. Bot Owner, Guild Owner, Discord Admin, Configured Admin role, Configured Moderator role checks
+    is_authorized = False
     
-    # Check if the user has the configured admin/moderator role
-    if not is_admin_or_owner:
+    # 1.1 Bot owner check
+    if ctx.bot.owner_id:
+        is_authorized = ctx.author.id == ctx.bot.owner_id
+    elif ctx.bot.owner_ids:
+        is_authorized = ctx.author.id in ctx.bot.owner_ids
+    else:
+        try:
+            is_authorized = await ctx.bot.is_owner(ctx.author)
+        except Exception:
+            pass
+
+    # 1.2 Guild owner & Discord Administrator check
+    if not is_authorized:
+        is_authorized = ctx.author.id == ctx.guild.owner_id or ctx.author.guild_permissions.administrator
+
+    # 1.3 Configured Admin & Moderator role check
+    if not is_authorized:
         try:
             config = utils.load_config()
             guild_conf = config.get("guild_configs", {}).get(str(ctx.guild.id), {})
@@ -18,15 +33,15 @@ async def check_music_permission(ctx: commands.Context, command_name: str) -> bo
             
             user_roles_str = [str(r.id) for r in ctx.author.roles]
             if (admin_role_id and str(admin_role_id) in user_roles_str) or (mod_role_id and str(mod_role_id) in user_roles_str):
-                is_admin_or_owner = True
+                is_authorized = True
         except Exception:
             pass
 
-    if is_admin_or_owner:
+    if is_authorized:
         return True
 
-    # 2. VC checking for playback control commands
-    control_commands = {
+    # 2. VC checking for commands that require voice channel presence
+    vc_required_commands = {
         CommandRegistry.MUSIC_PLAY,
         CommandRegistry.MUSIC_PAUSE,
         CommandRegistry.MUSIC_RESUME,
@@ -37,7 +52,7 @@ async def check_music_permission(ctx: commands.Context, command_name: str) -> bo
         CommandRegistry.MUSIC_CLEARQUEUE
     }
     
-    if command_name in control_commands:
+    if command_name in vc_required_commands:
         # User must be in a voice channel
         author_voice = getattr(ctx.author, "voice", None)
         if not author_voice or not author_voice.channel:
@@ -49,13 +64,23 @@ async def check_music_permission(ctx: commands.Context, command_name: str) -> bo
             if author_voice.channel.id != voice_client.channel.id:
                 return False
 
-    # 3. Voice Channel Solo Bypass Check
-    # If the user is the only non-bot human in the voice channel, they can control playback
-    voice_client = ctx.guild.voice_client
-    if voice_client and voice_client.channel:
-        humans = [m for m in voice_client.channel.members if not m.bot]
-        if len(humans) == 1 and humans[0].id == ctx.author.id:
-            return True
+    # 3. Requester and Solo VC check for control commands
+    if command_name in MUSIC_CONTROL_PERMISSIONS:
+        # 3.1 User who started the currently playing track
+        player = None
+        if hasattr(ctx.bot, "get_music_player"):
+            player = ctx.bot.get_music_player(ctx.guild.id)
+        if player and player.current:
+            requester_id = player.current.get("requester_id")
+            if requester_id and requester_id == ctx.author.id:
+                return True
+
+        # 3.2 Voice Channel Solo Bypass Check (only non-bot humans)
+        voice_client = ctx.guild.voice_client
+        if voice_client and voice_client.channel:
+            humans = [m for m in voice_client.channel.members if not m.bot]
+            if len(humans) == 1 and humans[0].id == ctx.author.id:
+                return True
 
     # 4. Fallback to standard PermissionResolver
     user_roles = [str(role.id) for role in ctx.author.roles]
