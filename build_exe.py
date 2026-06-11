@@ -3,6 +3,7 @@ import sys
 import shutil
 import secrets
 import subprocess
+import discord
 from PIL import Image
 
 # Path helper functions are located in utils.py
@@ -83,6 +84,8 @@ def main():
             except Exception as e:
                 print(f"[-] Warning: Failed to clean {folder}: {e}")
 
+    discord_bin = os.path.join(os.path.dirname(discord.__file__), "bin")
+
     cmd = [
         sys.executable,
         "-m",
@@ -90,6 +93,7 @@ def main():
         "--onefile",
         "--name=AegisOptimizer",
         "--add-data", "static;static",
+        "--add-data", f"{discord_bin};discord/bin",
         "--add-data", "templates;templates",
         "--add-data", "alembic.ini;.",
         "--add-data", "aegis/db/migrations;aegis/db/migrations",
