@@ -733,22 +733,42 @@ async def get_commands(request: Request):
     return config.get("custom_commands", {})
 
 @router.post("/api/commands")
-async def save_commands(request: Request, commands: dict = Body(...)):
+async def save_commands(request: Request, commands: dict = Body(...), guild_id: Optional[str] = None):
     auth_header = request.headers.get("Authorization")
     token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else ""
     session_guild_id = auth.get_session_guild_id(token)
     session_role = auth.get_session_role(token)
     
     if session_role == "tenant" and session_guild_id:
-        guild_conf = utils.get_guild_config(session_guild_id)
+        target_guild_id = session_guild_id
+    elif session_role == "admin" and guild_id:
+        target_guild_id = guild_id
+    else:
+        target_guild_id = None
+
+    if target_guild_id and target_guild_id != "global":
+        guild_conf = utils.get_guild_config(target_guild_id)
         guild_conf["custom_commands"] = commands
-        utils.save_guild_config(session_guild_id, guild_conf)
+        utils.save_guild_config(target_guild_id, guild_conf)
         
+        # Update AppCore ConfigStore reference
+        core = getattr(request.app.state, "core", None)
+        if not core:
+            from aegis.core.app_core import _active_cores
+            if _active_cores:
+                core = _active_cores[-1]
+        if core:
+            from aegis.config.loader import ConfigStore
+            try:
+                core.config = ConfigStore.load(core.paths)
+            except Exception as e:
+                logger.error(f"Failed to reload AppCore config: {e}")
+                
         bot = bot_manager.get_bot()
         if bot and bot.is_ready():
             bot.config = utils.load_config()
             
-        audit_log.log_action("admin", "CONFIG_CHANGE", f"Configured {len(commands)} custom commands for server {session_guild_id}", session_guild_id)
+        audit_log.log_action("admin", "CONFIG_CHANGE", f"Configured {len(commands)} custom commands for server {target_guild_id}", target_guild_id)
         return {"status": "success"}
         
     config = utils.load_config()
@@ -756,7 +776,20 @@ async def save_commands(request: Request, commands: dict = Body(...)):
     success = utils.save_config(config)
     if not success:
         raise HTTPException(status_code=500, detail="Failed to save custom commands.")
-    
+        
+    # Update AppCore ConfigStore reference
+    core = getattr(request.app.state, "core", None)
+    if not core:
+        from aegis.core.app_core import _active_cores
+        if _active_cores:
+            core = _active_cores[-1]
+    if core:
+        from aegis.config.loader import ConfigStore
+        try:
+            core.config = ConfigStore.load(core.paths)
+        except Exception as e:
+            logger.error(f"Failed to reload AppCore config: {e}")
+            
     bot = bot_manager.get_bot()
     if bot and bot.is_ready():
         bot.config = config

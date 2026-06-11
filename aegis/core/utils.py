@@ -525,7 +525,10 @@ def get_guild_ticket_settings(config, guild_id: str) -> dict:
 def get_guild_custom_commands(config, guild_id: str) -> dict:
     guild_configs = config.get("guild_configs", {})
     guild_conf = guild_configs.get(str(guild_id), {})
-    return guild_conf.get("custom_commands", config.get("custom_commands", {}))
+    cmds = guild_conf.get("custom_commands")
+    if not cmds:
+        return config.get("custom_commands", {})
+    return cmds
 
 def get_guild_leveling_settings(config, guild_id: str) -> dict:
     guild_configs = config.get("guild_configs", {})

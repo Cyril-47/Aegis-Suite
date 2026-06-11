@@ -290,3 +290,28 @@ async def test_cyril_auto_responders(monkeypatch):
     await bot.on_message(msg_regex)
     assert msg_regex.channel.send.called
     assert msg_regex.channel.send.call_args[1].get("content") == "@GUN What's up mi Miga"
+
+@pytest.mark.asyncio
+async def test_cyril_custom_commands(monkeypatch):
+    """Test custom command triggers for Cyril's server."""
+    bot = bot_manager.DiscordOptimizerBot(command_prefix="!", intents=discord.Intents.default())
+    bot.config = {
+        "guild_configs": {
+            "1509050530369114162": {
+                "custom_commands": {
+                    "!website": "Visit our official website at https://example.com!",
+                    "!rules": "Please read #rules-and-info. Be respectful and have fun!"
+                }
+            }
+        }
+    }
+    bot.process_commands = AsyncMock()
+    monkeypatch.setattr(utils, "get_guild_automod_settings", lambda config, guild_id: {"enabled": False})
+    monkeypatch.setattr(utils, "get_guild_leveling_settings", lambda config, guild_id: {"enabled": False})
+
+    # Test !website custom command trigger
+    msg = MockMessage("!website")
+    await bot.on_message(msg)
+    assert msg.channel.send.called
+    assert "Visit our official website" in msg.channel.send.call_args[0][0]
+
