@@ -149,7 +149,12 @@ def main():
         "--hidden-import", "fastapi",
         "--hidden-import", "pydantic",
         "--hidden-import", "websockets",
+        "--hidden-import", "_cffi_backend",
         "--hidden-import", "nacl",
+        "--hidden-import", "nacl.secret",
+        "--hidden-import", "nacl.signing",
+        "--hidden-import", "nacl.utils",
+        "--collect-submodules", "nacl",
         "--hidden-import", "alembic",
         "--hidden-import", "sqlalchemy",
     ]
