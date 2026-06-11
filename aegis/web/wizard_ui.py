@@ -2,7 +2,52 @@ def get_wizard_html(health_payload: dict) -> str:
     """Returns a premium, glassmorphic, responsive dark-themed Setup Wizard HTML page.
     Implements exactly 4 steps: Connect Bot, Select Server, Verify Permissions, and Complete Setup.
     """
-    
+    import os
+    token_preset = bool(os.environ.get("DISCORD_BOT_TOKEN"))
+    if token_preset:
+        token_input_html = """
+                <div class="form-group">
+                    <label for="discord-token">Discord Bot Token</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="discord-token" value="••••••••••••••••••••" disabled />
+                    </div>
+                </div>
+                <div class="success-box" style="margin-top: 16px;">
+                    ✓ Discord bot token is pre-configured via the system environment. You may proceed.
+                </div>
+        """
+        password_fields_html = ""
+        btn_text = "Proceed"
+        js_token_validated = "true"
+    else:
+        token_input_html = """
+                <div class="form-group">
+                    <label for="discord-token">Discord Bot Token</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="discord-token" placeholder="Paste Discord Bot token here..." />
+                        <button type="button" class="btn-toggle-visibility" onclick="togglePassword('discord-token')">👁️</button>
+                    </div>
+                </div>
+        """
+        password_fields_html = """
+                <div class="form-group" id="pwd-group-1">
+                    <label for="admin-password">Create Admin Password</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="admin-password" placeholder="Min 8 characters..." />
+                        <button type="button" class="btn-toggle-visibility" onclick="togglePassword('admin-password')">👁️</button>
+                    </div>
+                </div>
+                <div class="form-group" id="pwd-group-2">
+                    <label for="confirm-password">Confirm Admin Password</label>
+                    <div class="input-wrapper">
+                        <input type="password" id="confirm-password" placeholder="Confirm your password..." />
+                        <button type="button" class="btn-toggle-visibility" onclick="togglePassword('confirm-password')">👁️</button>
+                    </div>
+                </div>
+        """
+        btn_text = "Validate & Save Token"
+        js_token_validated = "false"
+
     html = """<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -478,15 +523,10 @@ def get_wizard_html(health_payload: dict) -> str:
             <div class="wizard-step-panel active" id="step-panel-1">
                 <h2>Discord Bot Connection</h2>
                 <p class="description">Enter your Discord application's Bot Token. This credentials key is stored securely in the local DPAPI Secret Store on your system.</p>
-                <div class="form-group">
-                    <label for="discord-token">Discord Bot Token</label>
-                    <div class="input-wrapper">
-                        <input type="password" id="discord-token" placeholder="Paste Discord Bot token here..." />
-                        <button type="button" class="btn-toggle-visibility" onclick="toggleToken()">👁️</button>
-                    </div>
-                </div>
+                %%TOKEN_INPUT_HTML%%
+                %%PASSWORD_FIELDS_HTML%%
                 <div style="margin-top: 15px;">
-                    <button class="btn btn-primary" onclick="verifyToken()" id="btn-verify-token">Validate & Save Token</button>
+                    <button class="btn btn-primary" onclick="verifyToken()" id="btn-verify-token">%%BTN_TEXT%%</button>
                 </div>
                 <div class="warning-box" style="margin-top: 16px;">
                     ⚠️ <strong>Gateway Intents Notice:</strong> Successful token validation verifies bot credentials, but <em>cannot</em> verify if privileged Gateway Intents (Presence, Server Members, Message Content) are enabled in the <a href="https://discord.com/developers/applications" target="_blank" style="color: #818cf8; text-decoration: underline;">Discord Developer Portal</a>. Please ensure these intents are enabled under the "Bot" tab of your application settings.
@@ -549,7 +589,7 @@ def get_wizard_html(health_payload: dict) -> str:
         let currentStep = 1;
         const totalSteps = 4;
         
-        let tokenValidated = false;
+        let tokenValidated = %%JS_TOKEN_VALIDATED%%;
         let selectedGuildId = "";
         let selectedGuildName = "";
         let selectedGuildPermissions = "0";
@@ -625,42 +665,84 @@ def get_wizard_html(health_payload: dict) -> str:
             }
         }
 
-        toggleToken = function() {
-            const input = document.getElementById("discord-token");
-            input.type = input.type === "password" ? "text" : "password";
+        function togglePassword(id) {
+            const input = document.getElementById(id);
+            if (input) {
+                input.type = input.type === "password" ? "text" : "password";
+            }
         }
 
         function showOverlay(title, text) {
-            document.getElementById("overlay-title").innerText = title;
-            document.getElementById("overlay-text").innerText = text;
-            document.getElementById("progress-overlay").classList.remove("hidden");
+            const overlayTitle = document.getElementById("overlay-title");
+            const overlayText = document.getElementById("overlay-text");
+            if (overlayTitle) overlayTitle.innerText = title;
+            if (overlayText) overlayText.innerText = text;
+            const progressOverlay = document.getElementById("progress-overlay");
+            if (progressOverlay) progressOverlay.classList.remove("hidden");
         }
 
         function hideOverlay() {
-            document.getElementById("progress-overlay").classList.add("hidden");
+            const progressOverlay = document.getElementById("progress-overlay");
+            if (progressOverlay) progressOverlay.classList.add("hidden");
         }
 
         async function verifyToken() {
-            const token = document.getElementById("discord-token").value.trim();
+            const tokenInput = document.getElementById("discord-token");
+            const token = tokenInput ? tokenInput.value.trim() : "";
             const errBox = document.getElementById("token-error");
             const successBox = document.getElementById("token-success");
             
-            errBox.classList.add("hidden");
-            successBox.classList.add("hidden");
+            if (errBox) errBox.classList.add("hidden");
+            if (successBox) successBox.classList.add("hidden");
+            
+            if (token === "••••••••••••••••••••") {
+                tokenValidated = true;
+                nextStep();
+                return;
+            }
             
             if (!token) {
-                errBox.innerText = "Token cannot be empty.";
-                errBox.classList.remove("hidden");
+                if (errBox) {
+                    errBox.innerText = "Token cannot be empty.";
+                    errBox.classList.remove("hidden");
+                }
                 return;
+            }
+            
+            // Validate password inputs if not preset
+            const passwordInput = document.getElementById("admin-password");
+            const confirmInput = document.getElementById("confirm-password");
+            let password = "";
+            if (passwordInput && confirmInput) {
+                password = passwordInput.value.trim();
+                const confirm = confirmInput.value.trim();
+                if (password.length < 8) {
+                    if (errBox) {
+                        errBox.innerText = "Admin password must be at least 8 characters.";
+                        errBox.classList.remove("hidden");
+                    }
+                    return;
+                }
+                if (password !== confirm) {
+                    if (errBox) {
+                        errBox.innerText = "Passwords do not match.";
+                        errBox.classList.remove("hidden");
+                    }
+                    return;
+                }
             }
             
             showOverlay("Validating Token", "Connecting to Discord auth gateway...");
             
             try {
+                const payload = { token: token };
+                if (password) {
+                    payload.admin_password = password;
+                }
                 const response = await fetch("/wizard/token", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ token: token })
+                    body: JSON.stringify(payload)
                 });
                 
                 const data = await response.json();
@@ -668,21 +750,28 @@ def get_wizard_html(health_payload: dict) -> str:
                 
                 if (response.ok) {
                     tokenValidated = true;
-                    successBox.classList.remove("hidden");
-                    document.getElementById("btn-next").disabled = false;
+                    if (successBox) successBox.classList.remove("hidden");
+                    const nextBtn = document.getElementById("btn-next");
+                    if (nextBtn) nextBtn.disabled = false;
                     setTimeout(nextStep, 1000);
                 } else {
                     tokenValidated = false;
-                    document.getElementById("btn-next").disabled = true;
-                    errBox.innerText = data.detail || "Validation failed.";
-                    errBox.classList.remove("hidden");
+                    const nextBtn = document.getElementById("btn-next");
+                    if (nextBtn) nextBtn.disabled = true;
+                    if (errBox) {
+                        errBox.innerText = data.detail || "Validation failed.";
+                        errBox.classList.remove("hidden");
+                    }
                 }
             } catch (e) {
                 hideOverlay();
                 tokenValidated = false;
-                document.getElementById("btn-next").disabled = true;
-                errBox.innerText = "Failed to reach backend API server: " + e;
-                errBox.classList.remove("hidden");
+                const nextBtn = document.getElementById("btn-next");
+                if (nextBtn) nextBtn.disabled = true;
+                if (errBox) {
+                    errBox.innerText = "Failed to reach backend API server: " + e;
+                    errBox.classList.remove("hidden");
+                }
             }
         }
 
@@ -838,4 +927,8 @@ def get_wizard_html(health_payload: dict) -> str:
 </body>
 </html>
 """
+    html = html.replace("%%TOKEN_INPUT_HTML%%", token_input_html)
+    html = html.replace("%%PASSWORD_FIELDS_HTML%%", password_fields_html)
+    html = html.replace("%%BTN_TEXT%%", btn_text)
+    html = html.replace("%%JS_TOKEN_VALIDATED%%", js_token_validated)
     return html

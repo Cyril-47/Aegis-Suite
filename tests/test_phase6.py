@@ -60,11 +60,20 @@ def test_wizard_token_validation_success(app_and_client):
     assert core.config.client_id == "123456789"
     assert core.config.is_setup_complete() is False # not complete until finish
 
-    # Verify secret is saved to .env file
-    env_path = core.paths.root / ".env"
-    assert env_path.exists()
-    content = env_path.read_text(encoding="utf-8")
-    assert f"DISCORD_BOT_TOKEN={valid_token}" in content
+    # Verify secret is saved to .env/env.enc file
+    from secret_store import is_dpapi_available, decrypt_env_file
+    if is_dpapi_available():
+        enc_path = core.paths.root / ".env.enc"
+        assert enc_path.exists()
+        content_bytes = decrypt_env_file(enc_path)
+        assert content_bytes is not None
+        content = content_bytes.decode("utf-8")
+        assert f"DISCORD_BOT_TOKEN={valid_token}" in content
+    else:
+        env_path = core.paths.root / ".env"
+        assert env_path.exists()
+        content = env_path.read_text(encoding="utf-8")
+        assert f"DISCORD_BOT_TOKEN={valid_token}" in content
 
 def test_wizard_token_validation_failure(app_and_client):
     core, client = app_and_client

@@ -585,10 +585,10 @@ async def optimize_guild_structure(guild: discord.Guild, preset: str, handling: 
     guild_conf = utils.get_guild_config(str(guild.id))
     if welcome_channel_created:
         guild_conf["welcome_settings"]["channel_id"] = str(welcome_channel_created.id)
-        guild_conf["welcome_settings"]["channel_name"] = welcome_channel_created.name
+        guild_conf["welcome_settings"]["channel_name"] = str(welcome_channel_created.name)
     if log_channel_created:
         guild_conf["automod_settings"]["log_channel_id"] = str(log_channel_created.id)
-        guild_conf["automod_settings"]["log_channel_name"] = log_channel_created.name
+        guild_conf["automod_settings"]["log_channel_name"] = str(log_channel_created.name)
     utils.save_guild_config(str(guild.id), guild_conf)
 
     logger.info(f"Server optimization complete for guild '{guild.name}'. preset={preset}")

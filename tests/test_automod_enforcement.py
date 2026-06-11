@@ -52,11 +52,14 @@ async def test_automod_regex_patterns():
     assert DISCORD_INVITE_PATTERN.findall("Join discord.gg/abc") == ["abc"]
     assert DISCORD_INVITE_PATTERN.findall("Click here: https://discord.com/invite/xyz-123 now") == ["xyz-123"]
     assert DISCORD_INVITE_PATTERN.findall("discordapp.com/invite/code") == ["code"]
+    assert DISCORD_INVITE_PATTERN.findall("Join discord.gg/a") == ["a"]
     
     # Verify url domain pattern
     assert URL_DOMAIN_PATTERN.findall("Go to https://google.com") == ["google.com"]
     assert URL_DOMAIN_PATTERN.findall("Check this: sub.example.org/page?query=1") == ["sub.example.org"]
     assert URL_DOMAIN_PATTERN.findall("www.test.co.uk") == ["test.co.uk"]
+    assert URL_DOMAIN_PATTERN.findall("Go to https://x.com") == ["x.com"]
+    assert URL_DOMAIN_PATTERN.findall("short link g.co/test") == ["g.co"]
 
 @pytest.mark.asyncio
 async def test_automod_links_and_invites_blocking(monkeypatch):

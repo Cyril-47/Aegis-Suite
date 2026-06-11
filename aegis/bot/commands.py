@@ -184,7 +184,13 @@ def register_commands(bot: commands.Bot) -> None:
                 await player.join_channel(ctx.author.voice.channel.id)
                 
             song = await player.add_to_queue(query)
-            await ctx.send(f"➕ Added **{song['title']}** to the queue!")
+            if isinstance(song, dict) and song.get('playlist'):
+                msg = f"➕ Added **{song['title']}** ({song['count']} tracks) to the queue!"
+                if song.get('limit_reached'):
+                    msg += f" (Capped at limit. Skipped {song['skipped']} tracks)"
+                await ctx.send(msg)
+            else:
+                await ctx.send(f"➕ Added **{song['title']}** to the queue!")
         except Exception as e:
             await ctx.send(f"❌ Error: {e}")
 
@@ -338,15 +344,14 @@ def register_commands(bot: commands.Bot) -> None:
     @universal_permission_check(CommandRegistry.LEVEL_SET_ROLE)
     async def level_setrole(ctx: commands.Context, level: int, role: discord.Role):
         import utils
-        config = utils.load_config()
-        if "leveling_settings" not in config:
-            config["leveling_settings"] = {}
-        if "level_roles" not in config["leveling_settings"]:
-            config["leveling_settings"]["level_roles"] = {}
-            
-        config["leveling_settings"]["level_roles"][str(level)] = str(role.id)
-        utils.save_config(config)
-        bot.config = config
+        guild_id = str(ctx.guild.id)
+        guild_conf = utils.get_guild_config(guild_id)
+        leveling_settings = guild_conf.setdefault("leveling_settings", {})
+        level_roles = leveling_settings.setdefault("level_roles", {})
+        level_roles[str(level)] = str(role.id)
+        utils.save_guild_config(guild_id, guild_conf)
+        
+        bot.config = utils.load_config()
         
         await ctx.send(f"✅ Users reaching Level **{level}** will now automatically receive the **{role.name}** role!")
 

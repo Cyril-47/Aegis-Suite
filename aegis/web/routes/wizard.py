@@ -3,7 +3,7 @@ import asyncio
 import logging
 import base64
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import HTMLResponse, FileResponse, RedirectResponse
 from pydantic import BaseModel
@@ -21,6 +21,7 @@ router = APIRouter()
 
 class TokenPayload(BaseModel):
     token: str
+    admin_password: Optional[str] = None
 
 class RestorePayload(BaseModel):
     backup_name: str
@@ -152,33 +153,60 @@ async def wizard_token(request: Request, payload: TokenPayload):
         raise HTTPException(status_code=400, detail="Invalid token format: client ID could not be extracted.")
 
     # Save to Secret Store (.env and .env.enc)
+    import secrets as secrets_module
+    import auth
+    
     os.environ["DISCORD_BOT_TOKEN"] = token
+    os.environ["CLIENT_ID"] = client_id
+    if not os.environ.get("JWT_SECRET"):
+        os.environ["JWT_SECRET"] = secrets_module.token_hex(32)
+        
+    if payload.admin_password:
+        hashed_pwd = auth.hash_password(payload.admin_password)
+        os.environ["ADMIN_PASSWORD_HASH"] = hashed_pwd
+
     from utils import get_writeable_path
     env_path = get_writeable_path(".env")
     
-    env_lines = []
-    token_updated = False
+    env_vars = {}
     if os.path.exists(env_path):
-        with open(env_path, "r", encoding="utf-8") as f:
-            for line in f:
-                if line.strip().startswith("DISCORD_BOT_TOKEN="):
-                    env_lines.append(f"DISCORD_BOT_TOKEN={token}\n")
-                    token_updated = True
-                else:
-                    env_lines.append(line)
-                    
-    if not token_updated:
-        env_lines.append(f"DISCORD_BOT_TOKEN={token}\n")
+        try:
+            with open(env_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, _, v = line.partition("=")
+                        env_vars[k.strip()] = v.strip()
+        except Exception as e:
+            logger.error(f"Error reading .env file: {e}")
+            
+    # Update values
+    env_vars["DISCORD_BOT_TOKEN"] = token
+    env_vars["CLIENT_ID"] = client_id
+    if os.environ.get("JWT_SECRET"):
+        env_vars["JWT_SECRET"] = os.environ["JWT_SECRET"]
+    if os.environ.get("ADMIN_PASSWORD_HASH"):
+        env_vars["ADMIN_PASSWORD_HASH"] = os.environ["ADMIN_PASSWORD_HASH"]
+    if os.environ.get("BOT_API_URL"):
+        env_vars["BOT_API_URL"] = os.environ["BOT_API_URL"]
         
-    with open(env_path, "w", encoding="utf-8") as f:
-        f.writelines(env_lines)
+    try:
+        with open(env_path, "w", encoding="utf-8") as f:
+            for k, v in env_vars.items():
+                f.write(f"{k}={v}\n")
+    except Exception as e:
+        logger.error(f"Failed to write .env: {e}")
         
     # Re-encrypt under DPAPI if active
     from secret_store import is_dpapi_available, encrypt_env_file
     enc_path = get_writeable_path(".env.enc")
-    if is_dpapi_available() and os.path.exists(enc_path):
+    if is_dpapi_available():
         try:
             encrypt_env_file(Path(env_path), Path(enc_path))
+            try:
+                os.unlink(env_path)
+            except Exception as e:
+                logger.error(f"Failed to delete plaintext .env: {e}")
         except Exception as e:
             logger.error(f"Failed to encrypt env file: {e}")
 

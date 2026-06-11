@@ -171,6 +171,15 @@ class PermissionRoles(BaseModel):
     admin_role_id: Optional[str] = None
     moderator_role_id: Optional[str] = None
 
+class LevelingConfigModel(BaseModel):
+    enabled: bool = False
+    xp_per_message: int = 15
+    xp_cooldown_seconds: int = 60
+    level_up_channel: Optional[str] = None
+    level_roles: dict = Field(default_factory=dict)
+    ignored_channels: List[str] = Field(default_factory=list)
+    ignored_roles: List[str] = Field(default_factory=list)
+
 class ConfigModel(BaseModel):
     client_id: str
     welcome_settings: WelcomeSettingsModel
@@ -180,6 +189,7 @@ class ConfigModel(BaseModel):
     admin_password_hash: Optional[str] = ""
     command_permissions: Dict[str, CommandPermissionRule] = Field(default_factory=dict)
     permission_roles: PermissionRoles = Field(default_factory=PermissionRoles)
+    leveling_settings: Optional[LevelingConfigModel] = None
 
 class HostingModePutRequest(BaseModel):
     # Dedicated request body for PUT /api/hosting-mode. The handler enforces
@@ -251,14 +261,7 @@ class ScheduledMessageModel(BaseModel):
     enabled: bool = True
     next_run: Optional[str] = None
 
-class LevelingConfigModel(BaseModel):
-    enabled: bool
-    xp_per_message: int
-    xp_cooldown_seconds: int
-    level_up_channel: Optional[str] = None
-    level_roles: dict
-    ignored_channels: List[str] = Field(default_factory=list)
-    ignored_roles: List[str] = Field(default_factory=list)
+# LevelingConfigModel moved above ConfigModel
 
 class AutoResponderModel(BaseModel):
     id: Optional[str] = None
@@ -495,7 +498,7 @@ async def put_hosting_mode(request: Request, body: dict = Body(...)):
     return {"status": "success", "hosting_mode": new_value}
 
 @router.get("/api/config")
-async def get_config(request: Request):
+async def get_config(request: Request, guild_id: Optional[str] = None):
     auth_header = request.headers.get("Authorization")
     token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else ""
     session_guild_id = auth.get_session_guild_id(token)
@@ -514,18 +517,24 @@ async def get_config(request: Request):
     # Hide password hash
     config["admin_password_hash"] = "********" if os.environ.get("ADMIN_PASSWORD_HASH") else ""
         
-    if session_role == "tenant":
+    if session_role == "admin":
+        target_guild_id = guild_id if guild_id else "global"
+    else:
+        target_guild_id = session_guild_id
+
+    if target_guild_id and target_guild_id != "global":
         # Resolve guild-specific configs (Tier 5.6)
-        guild_conf = utils.get_guild_config(session_guild_id)
-        config["welcome_settings"] = guild_conf["welcome_settings"]
-        config["automod_settings"] = guild_conf["automod_settings"]
-        config["ticket_settings"] = guild_conf["ticket_settings"]
-        config["custom_commands"] = guild_conf["custom_commands"]
+        guild_conf = utils.get_guild_config(target_guild_id)
+        config["welcome_settings"] = guild_conf.get("welcome_settings", config.get("welcome_settings", {}))
+        config["automod_settings"] = guild_conf.get("automod_settings", config.get("automod_settings", {}))
+        config["ticket_settings"] = guild_conf.get("ticket_settings", config.get("ticket_settings", {}))
+        config["custom_commands"] = guild_conf.get("custom_commands", config.get("custom_commands", {}))
+        config["leveling_settings"] = guild_conf.get("leveling_settings", config.get("leveling_settings", {}))
         
     return config
 
 @router.post("/api/config")
-async def save_config(config_data: ConfigModel, request: Request):
+async def save_config(config_data: ConfigModel, request: Request, guild_id: Optional[str] = None):
     auth_header = request.headers.get("Authorization")
     token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else ""
     session_guild_id = auth.get_session_guild_id(token)
@@ -539,6 +548,47 @@ async def save_config(config_data: ConfigModel, request: Request):
     new_data = config_data.model_dump()
     
     if session_role == "admin":
+        target_guild_id = guild_id if guild_id else "global"
+    else:
+        target_guild_id = session_guild_id
+
+    if target_guild_id and target_guild_id != "global":
+        # Save to guild-specific configs (Tier 5.6)
+        guild_conf = utils.get_guild_config(target_guild_id)
+        guild_conf["welcome_settings"] = new_data["welcome_settings"]
+        guild_conf["automod_settings"] = new_data["automod_settings"]
+        if new_data.get("ticket_settings"):
+            guild_conf["ticket_settings"] = new_data["ticket_settings"]
+        if new_data.get("custom_commands"):
+            guild_conf["custom_commands"] = new_data["custom_commands"]
+        if new_data.get("leveling_settings"):
+            guild_conf["leveling_settings"] = new_data["leveling_settings"]
+            
+        utils.save_guild_config(target_guild_id, guild_conf)
+        
+        # Update AppCore ConfigStore reference
+        core = getattr(request.app.state, "core", None)
+        if not core:
+            from aegis.core.app_core import _active_cores
+            if _active_cores:
+                core = _active_cores[-1]
+        if core:
+            from aegis.config.loader import ConfigStore
+            try:
+                core.config = ConfigStore.load(core.paths)
+            except Exception as e:
+                logger.error(f"Failed to reload AppCore config: {e}")
+
+        # Update running bot references
+        bot = bot_manager.get_bot()
+        if bot:
+            bot.config = utils.load_config()
+            logger.info(f"Bot configuration updated in-memory for guild {target_guild_id}.")
+            
+        audit_log.log_action("admin", "CONFIG_CHANGE", f"Dashboard configuration saved for server {target_guild_id}", target_guild_id)
+        return {"status": "success", "token_changed": False}
+        
+    else:
         # Global administrator configuration saving
         # Defensive: drop any stray bot_token field; tokens live only in server .env
         new_data.pop("bot_token", None)
@@ -576,40 +626,6 @@ async def save_config(config_data: ConfigModel, request: Request):
             logger.info("Bot configuration updated in-memory.")
             
         audit_log.log_action("admin", "CONFIG_CHANGE", "Dashboard configuration saved")
-        return {"status": "success", "token_changed": False}
-        
-    else:
-        # Tenant administrator configuration saving (Tier 5.6)
-        guild_conf = utils.get_guild_config(session_guild_id)
-        guild_conf["welcome_settings"] = new_data["welcome_settings"]
-        guild_conf["automod_settings"] = new_data["automod_settings"]
-        if new_data.get("ticket_settings"):
-            guild_conf["ticket_settings"] = new_data["ticket_settings"]
-        if new_data.get("custom_commands"):
-            guild_conf["custom_commands"] = new_data["custom_commands"]
-            
-        utils.save_guild_config(session_guild_id, guild_conf)
-        
-        # Update AppCore ConfigStore reference
-        core = getattr(request.app.state, "core", None)
-        if not core:
-            from aegis.core.app_core import _active_cores
-            if _active_cores:
-                core = _active_cores[-1]
-        if core:
-            from aegis.config.loader import ConfigStore
-            try:
-                core.config = ConfigStore.load(core.paths)
-            except Exception as e:
-                logger.error(f"Failed to reload AppCore config: {e}")
-
-        # Update running bot references
-        bot = bot_manager.get_bot()
-        if bot:
-            bot.config = utils.load_config()
-            logger.info("Bot configuration updated in-memory for tenant.")
-            
-        audit_log.log_action("admin", "CONFIG_CHANGE", f"Dashboard configuration saved for server {session_guild_id}", session_guild_id)
         return {"status": "success", "token_changed": False}
 
 @router.get("/api/guilds")
@@ -1228,7 +1244,38 @@ async def get_music_status(guild_id: str):
     player = bot.get_music_player(parse_id(guild_id, "guild_id"))
     if not player:
         raise HTTPException(status_code=404, detail="Guild/Player not found.")
-    return player.get_status()
+    status = player.get_status()
+    if "queue" in status:
+        status["queue"] = status["queue"][:50]
+    return status
+
+@router.get("/api/guilds/{guild_id}/music/queue")
+async def get_music_queue(guild_id: str, page: int = 1, limit: int = 20):
+    bot = get_active_bot()
+    player = bot.get_music_player(parse_id(guild_id, "guild_id"))
+    if not player:
+        raise HTTPException(status_code=404, detail="Guild/Player not found.")
+    
+    if page < 1:
+        page = 1
+    if limit < 1:
+        limit = 20
+        
+    queue = player.queue
+    total_items = len(queue)
+    start = (page - 1) * limit
+    end = start + limit
+    
+    paginated_items = queue[start:end]
+    total_pages = (total_items + limit - 1) // limit if total_items > 0 else 1
+    
+    return {
+        "page": page,
+        "limit": limit,
+        "total_items": total_items,
+        "total_pages": total_pages,
+        "items": paginated_items
+    }
 
 @router.get("/api/guilds/{guild_id}/voice-channels")
 async def get_voice_channels(guild_id: str):
@@ -1495,7 +1542,7 @@ async def get_leveling_leaderboard(guild_id: str):
             "messages": item["messages"],
             "rank": item["rank"],
             "username": member.name if member else f"User {item['user_id']}",
-            "avatar_url": str(member.display_avatar.url) if member and hasattr(member, 'display_avatar') else "https://discord.com/assets/c09c2a688b139c15814e578d0554c9a6.png"
+            "avatar_url": str(member.display_avatar.url) if member and hasattr(member, 'display_avatar') else "/static/bot_logo.png"
         })
     return full_leaderboard
 
@@ -1508,12 +1555,14 @@ async def get_member_rank(guild_id: str, member_id: str):
 @router.get("/api/guilds/{guild_id}/leveling/config")
 async def get_leveling_config(guild_id: str):
     config = utils.load_config()
-    return config.get("leveling_settings", {})
+    return utils.get_guild_leveling_settings(config, guild_id)
 
 @router.post("/api/guilds/{guild_id}/leveling/config")
 async def save_leveling_config(guild_id: str, request: LevelingConfigModel):
     config = utils.load_config()
-    config["leveling_settings"] = request.model_dump()
+    guild_configs = config.setdefault("guild_configs", {})
+    guild_conf = guild_configs.setdefault(str(guild_id), {})
+    guild_conf["leveling_settings"] = request.model_dump()
     utils.save_config(config)
     
     bot = bot_manager.get_bot()
@@ -1702,6 +1751,73 @@ async def send_embed_message(guild_id: str, request: EmbedSendRequest):
     except Exception as e:
         logger.error(f"Failed to send custom embed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/guilds/{guild_id}/embeds/presets")
+async def get_custom_presets(guild_id: str, request: Request):
+    auth_header = request.headers.get("Authorization")
+    token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else ""
+    session_guild_id = auth.get_session_guild_id(token)
+    session_role = auth.get_session_role(token)
+    
+    if session_role == "tenant" and session_guild_id:
+        if str(guild_id) != session_guild_id:
+            raise HTTPException(status_code=403, detail="Forbidden: Mismatched guild ID.")
+            
+    guild_conf = utils.get_guild_config(guild_id)
+    return guild_conf.get("custom_embed_presets", {})
+
+@router.post("/api/guilds/{guild_id}/embeds/presets/{preset_name}")
+async def save_custom_preset(guild_id: str, preset_name: str, payload: dict, request: Request):
+    auth_header = request.headers.get("Authorization")
+    token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else ""
+    session_guild_id = auth.get_session_guild_id(token)
+    session_role = auth.get_session_role(token)
+    
+    if session_role == "tenant" and session_guild_id:
+        if str(guild_id) != session_guild_id:
+            raise HTTPException(status_code=403, detail="Forbidden: Mismatched guild ID.")
+            
+    config = utils.load_config()
+    guild_configs = config.setdefault("guild_configs", {})
+    guild_conf = guild_configs.setdefault(str(guild_id), {})
+    custom_presets = guild_conf.setdefault("custom_embed_presets", {})
+    custom_presets[preset_name] = payload
+    utils.save_config(config)
+    
+    bot = bot_manager.get_bot()
+    if bot:
+        bot.config = config
+        
+    audit_log.log_action("dashboard", "CONFIG_CHANGE", f"Saved custom embed preset '{preset_name}'", guild_id)
+    return {"status": "success"}
+
+@router.delete("/api/guilds/{guild_id}/embeds/presets/{preset_name}")
+async def delete_custom_preset(guild_id: str, preset_name: str, request: Request):
+    auth_header = request.headers.get("Authorization")
+    token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else ""
+    session_guild_id = auth.get_session_guild_id(token)
+    session_role = auth.get_session_role(token)
+    
+    if session_role == "tenant" and session_guild_id:
+        if str(guild_id) != session_guild_id:
+            raise HTTPException(status_code=403, detail="Forbidden: Mismatched guild ID.")
+            
+    config = utils.load_config()
+    guild_configs = config.setdefault("guild_configs", {})
+    guild_conf = guild_configs.get(str(guild_id), {})
+    custom_presets = guild_conf.get("custom_embed_presets", {}) if guild_conf else None
+    if not custom_presets or preset_name not in custom_presets:
+        raise HTTPException(status_code=404, detail="Preset not found.")
+        
+    del custom_presets[preset_name]
+    utils.save_config(config)
+    
+    bot = bot_manager.get_bot()
+    if bot:
+        bot.config = config
+        
+    audit_log.log_action("dashboard", "CONFIG_CHANGE", f"Deleted custom embed preset '{preset_name}'", guild_id)
+    return {"status": "success"}
 
 # Live Web Console WebSocket Endpoint
 @router.websocket("/ws/logs")
