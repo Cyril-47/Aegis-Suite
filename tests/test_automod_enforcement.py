@@ -2,11 +2,11 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 import discord
 
-import utils
-import bot_manager
+import aegis.core.utils as utils
+import aegis.bot.bot_manager as bot_manager
 
 # Import patterns from bot_manager
-from bot_manager import DISCORD_INVITE_PATTERN, URL_DOMAIN_PATTERN
+from aegis.bot.bot_manager import DISCORD_INVITE_PATTERN, URL_DOMAIN_PATTERN
 
 class MockChannel:
     def __init__(self, name="general", id=111):

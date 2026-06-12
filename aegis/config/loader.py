@@ -67,7 +67,7 @@ class ConfigStore:
 
     def save(self) -> None:
         """Atomic write configuration file and drop a backups/config snapshot."""
-        import utils
+        import aegis.core.utils as utils
         
         config_file = self.paths.config_file
         # Ensure directories exist

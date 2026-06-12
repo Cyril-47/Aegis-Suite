@@ -25,7 +25,7 @@ def register_commands(bot: commands.Bot) -> None:
             await ctx.send("This command can only be used inside a Discord server.", ephemeral=True)
             return
             
-        import utils
+        import aegis.core.utils as utils
         if not utils.can_generate_code(ctx.guild.id):
             await ctx.send("❌ A connection code was already generated for this server recently. Please use that code or wait 5 minutes before generating a new one.", ephemeral=True)
             return
@@ -83,11 +83,11 @@ def register_commands(bot: commands.Bot) -> None:
             return
             
         guild_id = str(ctx.guild.id)
-        import auth
+        import aegis.core.auth as auth
         auth.revoke_guild_sessions(guild_id)
         
         details = "Sessions revoked."
-        import utils
+        import aegis.core.utils as utils
         if purge:
             with utils.config_lock:
                 config = utils.load_config()
@@ -102,7 +102,7 @@ def register_commands(bot: commands.Bot) -> None:
                 
                 utils.save_config(config)
             
-            import utils as bot_utils
+            import aegis.core.utils as bot_utils
             giveaways = await bot_utils.load_giveaways()
             to_delete = [msg_id for msg_id, gw in giveaways.items() if gw.get("guild_id") == guild_id]
             for msg_id in to_delete:
@@ -111,7 +111,7 @@ def register_commands(bot: commands.Bot) -> None:
             
             details += " Guild configuration, custom commands, scheduled messages, auto-responders, and giveaways purged."
             
-        import audit_log
+        import aegis.core.audit_log as audit_log
         audit_log.log_action(f"discord_admin:{ctx.author.id}", "DEAUTHORIZE_ACTION", f"Unlinked server {guild_id}. Purge={purge}", guild_id)
         
         embed = discord.Embed(
@@ -132,7 +132,7 @@ def register_commands(bot: commands.Bot) -> None:
     async def slash_audit(ctx: commands.Context):
         await ctx.defer(ephemeral=True)
         try:
-            from bot_manager import audit_guild_data
+            from aegis.bot.bot_manager import audit_guild_data
             audit_report = audit_guild_data(ctx.guild)
             score = audit_report["score"]
             
@@ -170,7 +170,7 @@ def register_commands(bot: commands.Bot) -> None:
 
         await ctx.send(f"⚙️ Starting server optimization under preset **{preset}** and handling **{handling}**... (This will take a moment)", ephemeral=True)
         try:
-            from bot_manager import optimize_guild_structure
+            from aegis.bot.bot_manager import optimize_guild_structure
             success = await optimize_guild_structure(ctx.guild, preset, handling)
             if success:
                 await ctx.send("✅ Server optimization complete! Welcome and logs channels have been successfully established.", ephemeral=True)
@@ -199,6 +199,7 @@ def register_commands(bot: commands.Bot) -> None:
             if not player.voice_client or not player.voice_client.is_connected():
                 await player.join_channel(ctx.author.voice.channel.id)
                 
+            player.last_text_channel = ctx.channel
             song = await player.add_to_queue(query, requester_id=ctx.author.id)
             if isinstance(song, dict) and song.get('playlist'):
                 msg = f"➕ Added **{song['title']}** ({song['count']} tracks) to the queue!"
@@ -207,8 +208,11 @@ def register_commands(bot: commands.Bot) -> None:
                 await ctx.send(msg)
             else:
                 await ctx.send(f"➕ Added **{song['title']}** to the queue!")
+        except RuntimeError as e:
+            await ctx.send(f"❌ {e}")
         except Exception as e:
-            await ctx.send(f"❌ Error: {e}")
+            logger.error(f"Music play error: {e}")
+            await ctx.send("❌ Failed to play song. Check that FFmpeg is installed and the URL is valid.")
 
     @bot.hybrid_command(name="pause", description="Pauses current playback.")
     @music_permission_gate(CommandRegistry.MUSIC_PAUSE)
@@ -359,7 +363,7 @@ def register_commands(bot: commands.Bot) -> None:
     @app_commands.default_permissions(administrator=True)
     @universal_permission_check(CommandRegistry.LEVEL_SET_ROLE)
     async def level_setrole(ctx: commands.Context, level: int, role: discord.Role):
-        import utils
+        import aegis.core.utils as utils
         guild_id = str(ctx.guild.id)
         guild_conf = utils.get_guild_config(guild_id)
         leveling_settings = guild_conf.setdefault("leveling_settings", {})
@@ -389,7 +393,7 @@ def register_commands(bot: commands.Bot) -> None:
         prize: Optional[str] = None,
         channel: Optional[discord.TextChannel] = None
     ):
-        from bot_manager import parse_duration, start_giveaway_bot, reroll_giveaway_bot
+        from aegis.bot.bot_manager import parse_duration, start_giveaway_bot, reroll_giveaway_bot
         action = action.lower().strip()
 
         # Giveaway command permission check mapping
@@ -413,7 +417,7 @@ def register_commands(bot: commands.Bot) -> None:
         )
         if not allowed:
             raise commands.MissingPermissions([f"Missing permissions to run command {gw_cmd}"])
-        import utils
+        import aegis.core.utils as utils
         if action == "start":
             if not prize:
                 await ctx.send("❌ You must specify a prize to start a giveaway.", ephemeral=True)

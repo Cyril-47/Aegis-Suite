@@ -37,7 +37,6 @@ def redact_string(text: str) -> str:
     # 3. Heuristic secret key value redaction
     def repl(match: re.Match) -> str:
         full_match = match.group(0)
-        val = match.group(3)
         
         # Locate the start and end of the value inside the full match
         start_val = match.start(3) - match.start(0)
@@ -108,7 +107,7 @@ def setup_logging(paths: Paths) -> None:
 
     # Configure Web Console Handler
     try:
-        from utils import WebConsoleHandler
+        from aegis.core.utils import WebConsoleHandler
         web_handler = WebConsoleHandler()
         web_handler.setLevel(logging.INFO)
         web_handler.setFormatter(formatter)

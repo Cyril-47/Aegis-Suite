@@ -2,7 +2,7 @@ import time
 import random
 import logging
 import discord
-import utils
+import aegis.core.utils as utils
 
 logger = logging.getLogger("aegis.bot.giveaways")
 

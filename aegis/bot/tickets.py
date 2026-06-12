@@ -2,7 +2,7 @@ import asyncio
 import logging
 import discord
 import re
-import utils
+import aegis.core.utils as utils
 
 logger = logging.getLogger("DiscordBot.tickets")
 

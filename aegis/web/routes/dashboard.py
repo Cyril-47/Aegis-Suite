@@ -5,10 +5,10 @@ import sys
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, HTTPException, Body, Request
 from pydantic import BaseModel, Field
 from typing import List, Optional
-import utils
-import bot_manager
-import auth
-import audit_log
+import aegis.core.utils as utils
+import aegis.bot.bot_manager as bot_manager
+import aegis.core.auth as auth
+import aegis.core.audit_log as audit_log
 
 # Configure logging
 logger = logging.getLogger("WebServer")
@@ -119,7 +119,7 @@ def get_active_bot():
         core = _active_cores[0]
         if hasattr(core, "bot"):
             return core.bot
-    import bot_manager
+    import aegis.bot.bot_manager as bot_manager
     return bot_manager.get_bot()
 
 # Lifespan logic is handled by AppCore lifecycle state transitions
@@ -132,64 +132,13 @@ if not getattr(sys, 'frozen', False):
     os.makedirs(utils.get_writeable_path("static"), exist_ok=True)
 
 # Pydantic models for configuration
-from typing import Dict, Literal
-
-class WelcomeSettingsModel(BaseModel):
-    enabled: bool
-    channel_id: Optional[str] = None
-    channel_name: str
-    message_title: str
-    message_description: str
-    embed_color: str
-    auto_assign_roles: List[str] = Field(default_factory=list)
-
-class AutomodSettingsModel(BaseModel):
-    enabled: bool
-    block_profanity: bool
-    block_links: bool
-    max_mentions: int
-    log_channel_id: Optional[str] = None
-    log_channel_name: str
-    profanity_words: List[str] = Field(default_factory=list)
-    block_invites: bool = False
-    whitelisted_domains: List[str] = Field(default_factory=list)
-    whitelisted_invites: List[str] = Field(default_factory=list)
-
-class TicketSettingsModel(BaseModel):
-    enabled: bool
-    category_name: str
-    staff_role_name: str
-    ticket_channel_id: Optional[str] = None
-    panel_message_id: Optional[str] = None
-
-class CommandPermissionRule(BaseModel):
-    mode: Literal["everyone", "moderator", "admin", "owner", "role", "roles"]
-    role_id: Optional[str] = None
-    role_ids: List[str] = Field(default_factory=list)
-
-class PermissionRoles(BaseModel):
-    admin_role_id: Optional[str] = None
-    moderator_role_id: Optional[str] = None
-
-class LevelingConfigModel(BaseModel):
-    enabled: bool = False
-    xp_per_message: int = 15
-    xp_cooldown_seconds: int = 60
-    level_up_channel: Optional[str] = None
-    level_roles: dict = Field(default_factory=dict)
-    ignored_channels: List[str] = Field(default_factory=list)
-    ignored_roles: List[str] = Field(default_factory=list)
-
-class ConfigModel(BaseModel):
-    client_id: str
-    welcome_settings: WelcomeSettingsModel
-    automod_settings: AutomodSettingsModel
-    ticket_settings: Optional[TicketSettingsModel] = None
-    custom_commands: Optional[dict] = Field(default_factory=dict)
-    admin_password_hash: Optional[str] = ""
-    command_permissions: Dict[str, CommandPermissionRule] = Field(default_factory=dict)
-    permission_roles: PermissionRoles = Field(default_factory=PermissionRoles)
-    leveling_settings: Optional[LevelingConfigModel] = None
+from typing import Dict
+from aegis.config.schema import (
+    CommandPermissionRule,
+    PermissionRoles,
+    LevelingSettingsModel as LevelingConfigModel,
+    ConfigModel
+)
 
 class HostingModePutRequest(BaseModel):
     # Dedicated request body for PUT /api/hosting-mode. The handler enforces
@@ -809,8 +758,6 @@ async def setup_tickets(request: TicketSetupRequest, req_data: Request):
         if str(request.guild_id) != session_guild_id:
             raise HTTPException(status_code=403, detail="Forbidden: You cannot deploy support tickets to another server")
             
-    bot = get_active_bot()
-        
     success = await bot_manager.deploy_ticket_panel_message(
         parse_id(request.guild_id, "guild_id"), 
         parse_id(request.channel_id, "channel_id")
@@ -937,8 +884,6 @@ async def deploy_role_panel(request: RolePanelDeployRequest, req_data: Request):
         if str(request.guild_id) != session_guild_id:
             raise HTTPException(status_code=403, detail="Forbidden: Mismatched guild ID in role panel deploy request.")
             
-    bot = get_active_bot()
-        
     buttons_list = []
     for btn in request.buttons:
         buttons_list.append({
@@ -1033,7 +978,6 @@ async def get_builtin_templates():
                             data = json.load(f)
                         
                         roles_count = len(data.get("roles", []))
-                        categories_count = len(data.get("categories", []))
                         channels_count = 0
                         for cat in data.get("categories", []):
                             channels_count += len(cat.get("channels", []))

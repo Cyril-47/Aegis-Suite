@@ -9,8 +9,8 @@ import discord
 from aegis.core.app_core import AppCore
 from aegis.config.loader import ConfigStore
 from aegis.core.logging_setup import setup_logging
-import utils
-import bot_manager
+import aegis.core.utils as utils
+import aegis.bot.bot_manager as bot_manager
 from aegis.bot.music import MusicPlayer
 
 # Mock Discord classes for testing
@@ -77,9 +77,9 @@ def test_config_sync_updates_appcore_and_bot(paths_tmp, monkeypatch):
     monkeypatch.setattr(bot_manager, "bot_instance", bot)
     
     # Mock auth.get_session_role and auth.get_session_guild_id to allow admin
-    monkeypatch.setattr("auth.get_session_role", lambda token: "admin")
-    monkeypatch.setattr("auth.get_session_guild_id", lambda token: "12345")
-    monkeypatch.setattr("auth.validate_session", lambda token: True)
+    monkeypatch.setattr("aegis.core.auth.get_session_role", lambda token: "admin")
+    monkeypatch.setattr("aegis.core.auth.get_session_guild_id", lambda token: "12345")
+    monkeypatch.setattr("aegis.core.auth.validate_session", lambda token: True)
     
     from aegis.web.app import build_app
     app = build_app(core)
@@ -142,7 +142,7 @@ def test_live_console_broadcaster_redacts_secrets(paths_tmp):
     
     root_logger = logging.getLogger()
     # Confirm WebConsoleHandler is present
-    from utils import WebConsoleHandler
+    from aegis.core.utils import WebConsoleHandler
     web_handlers = [h for h in root_logger.handlers if isinstance(h, WebConsoleHandler)]
     assert len(web_handlers) > 0
     web_handler = web_handlers[0]
@@ -301,7 +301,7 @@ async def test_scheduled_messages_loop_timezone_safety(monkeypatch):
     bot.get_guild.return_value = mock_guild
     
     # Call the loop logic using bot_manager's function on the mock bot
-    from bot_manager import DiscordOptimizerBot as RealAegisBot
+    from aegis.bot.bot_manager import DiscordOptimizerBot as RealAegisBot
     await RealAegisBot.scheduler_loop(bot)
     
     # Verify both messages were successfully processed and sent
@@ -346,7 +346,7 @@ async def test_music_player_dynamic_loop_update(monkeypatch):
 # --- 9. VOICE STATE UPDATE SCOPING & TIMERS TEST ---
 @pytest.mark.asyncio
 async def test_on_voice_state_update_scoping_and_timers():
-    from bot_manager import DiscordOptimizerBot
+    from aegis.bot.bot_manager import DiscordOptimizerBot
     
     # Construct mock bot
     bot = MagicMock(spec=DiscordOptimizerBot)
@@ -392,7 +392,7 @@ async def test_on_voice_state_update_scoping_and_timers():
     
     # Trigger voice state update for Guild B
     task_b = player_b.disconnect_task
-    from bot_manager import DiscordOptimizerBot as RealBot
+    from aegis.bot.bot_manager import DiscordOptimizerBot as RealBot
     await RealBot.on_voice_state_update(bot, member_b, before_b, after_b)
     
     # Since it's scoped to Guild B, player A's disconnect task should NOT be cancelled

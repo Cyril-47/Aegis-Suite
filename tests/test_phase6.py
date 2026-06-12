@@ -61,7 +61,7 @@ def test_wizard_token_validation_success(app_and_client):
     assert core.config.is_setup_complete() is False # not complete until finish
 
     # Verify secret is saved to .env/env.enc file
-    from secret_store import is_dpapi_available, decrypt_env_file
+    from aegis.core.secret_store import is_dpapi_available, decrypt_env_file
     if is_dpapi_available():
         enc_path = core.paths.root / ".env.enc"
         assert enc_path.exists()

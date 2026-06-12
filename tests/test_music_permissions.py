@@ -226,7 +226,7 @@ async def test_music_configured_moderator_bypass(monkeypatch):
             }
         }
     }
-    import utils
+    import aegis.core.utils as utils
     monkeypatch.setattr(utils, "load_config", lambda: config_data)
     
     ctx.author.voice = None
@@ -329,7 +329,7 @@ async def test_linkdashboard_prefix_dm_success(monkeypatch):
         ctx_sent.append(content)
     ctx.send = mock_ctx_send
     
-    import utils as bot_utils
+    import aegis.core.utils as bot_utils
     monkeypatch.setattr(bot_utils, "can_generate_code", lambda guild_id: True)
     
     config_data = {}
@@ -388,7 +388,7 @@ async def test_linkdashboard_prefix_dm_failure(monkeypatch):
         ctx_sent.append(content)
     ctx.send = mock_ctx_send
     
-    import utils as bot_utils
+    import aegis.core.utils as bot_utils
     monkeypatch.setattr(bot_utils, "can_generate_code", lambda guild_id: True)
     
     config_data = {}

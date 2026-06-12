@@ -282,7 +282,7 @@ def stubbed_app(monkeypatch):
     ``TestClient`` enters its context manager (which triggers the
     lifespan).
     """
-    import bot_manager
+    import aegis.bot.bot_manager as bot_manager
     from aegis.web.app import build_app
     from unittest.mock import MagicMock
     from aegis.core.paths import Paths
@@ -327,7 +327,7 @@ def admin_token(client, monkeypatch):
     original value afterwards) and exchanges the matching plaintext for
     a signed admin session token.
     """
-    import auth
+    import aegis.core.auth as auth
 
     test_password = "test-admin-password-T8-T10"
     test_hash = auth.hash_password(test_password)
@@ -499,7 +499,7 @@ def test_t10_post_config_ignores_stray_bot_token(
     # Build a valid ConfigModel payload from the current config.json so
     # the server's merge logic round-trips cleanly. Then attach the
     # stray ``bot_token`` field that the server must ignore.
-    import utils  # noqa: WPS433 (test-time import is intentional)
+    import aegis.core.utils as utils  # noqa: WPS433 (test-time import is intentional)
 
     current = utils.load_config()
     payload = {

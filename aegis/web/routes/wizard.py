@@ -98,7 +98,7 @@ def get_root(request: Request):
         reason = core.state.reason or ReasonCode.NEEDS_SETUP
         return get_recovery_html(reason, core.health.payload())
     else:
-        from utils import get_resource_path
+        from aegis.core.utils import get_resource_path
         index_path = os.path.join(get_resource_path("static"), "index.html")
         if os.path.exists(index_path):
             try:
@@ -154,7 +154,7 @@ async def wizard_token(request: Request, payload: TokenPayload):
 
     # Save to Secret Store (.env and .env.enc)
     import secrets as secrets_module
-    import auth
+    import aegis.core.auth as auth
     
     os.environ["DISCORD_BOT_TOKEN"] = token
     os.environ["CLIENT_ID"] = client_id
@@ -165,7 +165,7 @@ async def wizard_token(request: Request, payload: TokenPayload):
         hashed_pwd = auth.hash_password(payload.admin_password)
         os.environ["ADMIN_PASSWORD_HASH"] = hashed_pwd
 
-    from utils import get_writeable_path
+    from aegis.core.utils import get_writeable_path
     env_path = get_writeable_path(".env")
     
     env_vars = {}
@@ -198,7 +198,7 @@ async def wizard_token(request: Request, payload: TokenPayload):
         logger.error(f"Failed to write .env: {e}")
         
     # Re-encrypt under DPAPI if active
-    from secret_store import is_dpapi_available, encrypt_env_file
+    from aegis.core.secret_store import is_dpapi_available, encrypt_env_file
     enc_path = get_writeable_path(".env.enc")
     if is_dpapi_available():
         try:
@@ -227,7 +227,7 @@ async def wizard_token(request: Request, payload: TokenPayload):
 async def wizard_guilds(request: Request):
     """Enumerates guilds accessible to the validated token (with mock bypass)."""
     core = request.app.state.core
-    from utils import get_bot_token
+    from aegis.core.utils import get_bot_token
     config_dict = core.config.as_dict() if core.config else None
     token = get_bot_token(config_dict)
     if not token:
@@ -364,7 +364,7 @@ async def update_token(request: Request, payload: TokenPayload):
         )
         
     os.environ["DISCORD_BOT_TOKEN"] = token
-    from utils import get_writeable_path
+    from aegis.core.utils import get_writeable_path
     env_path = get_writeable_path(".env")
     
     env_lines = []
@@ -384,7 +384,7 @@ async def update_token(request: Request, payload: TokenPayload):
     with open(env_path, "w", encoding="utf-8") as f:
         f.writelines(env_lines)
         
-    from secret_store import is_dpapi_available, encrypt_env_file
+    from aegis.core.secret_store import is_dpapi_available, encrypt_env_file
     enc_path = get_writeable_path(".env.enc")
     if is_dpapi_available() and os.path.exists(enc_path):
         try:
@@ -420,7 +420,7 @@ def list_backups(request: Request):
 def restore_database(request: Request, payload: RestorePayload):
     """Restores the SQLite database from a selected backup file."""
     # Defense-in-depth admin session check
-    import auth
+    import aegis.core.auth as auth
     auth_header = request.headers.get("Authorization")
     token = None
     if auth_header and auth_header.startswith("Bearer "):
@@ -453,7 +453,7 @@ def restore_database(request: Request, payload: RestorePayload):
 def rebuild_database(request: Request):
     """Destroys and rebuilds SQLite database schema from scratch, running Alembic migrations."""
     # Defense-in-depth admin session check
-    import auth
+    import aegis.core.auth as auth
     auth_header = request.headers.get("Authorization")
     token = None
     if auth_header and auth_header.startswith("Bearer "):
@@ -521,7 +521,7 @@ async def retry_startup_checks(request: Request):
 async def restart_application(request: Request):
     """Initiates a background task to perform a clean graceful process shutdown."""
     # Defense-in-depth admin session check
-    import auth
+    import aegis.core.auth as auth
     auth_header = request.headers.get("Authorization")
     token = None
     if auth_header and auth_header.startswith("Bearer "):

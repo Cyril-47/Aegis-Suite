@@ -9,7 +9,7 @@ logger = logging.getLogger("aegis.db.engine")
 def make_engine(paths: Paths) -> Engine:
     """Creates a SQLAlchemy engine for SQLite at Paths.db_file with WAL and FK pragmas."""
     db_url = f"sqlite:///{paths.db_file.resolve()}"
-    logger.info(f"Creating database engine at {db_url}")
+    logger.info(f"Creating database engine at {paths.db_file.name}")
     
     engine = create_engine(
         db_url,

@@ -28,16 +28,17 @@ dependencies = [
     "pydantic>=2.0.0",
     "sqlalchemy>=2.0.0",
     "alembic>=1.11.0",
-    "davey>=0.0.1",
     "httpx>=0.27.0",
     "jinja2>=3.1.0",
     "Pillow>=10.0.0",
+    "PyJWT>=2.8.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0.0",
-    "pytest-asyncio>=0.21.0",
+    "pytest>=8.2.2",
+    "pytest-asyncio>=0.23.7",
+    "hypothesis>=6.102.2",
     "black>=23.0.0",
     "ruff>=0.0.260",
 ]
@@ -53,8 +54,6 @@ target-version = "py312"
 select = ["E", "F", "W"]
 ignore = [
     "E402", # Module level import not at top of file
-    "F401", # Unused imports
-    "F841", # Local variable assigned but unused
     "F811", # Redefinition of unused name
     "E501", # Line too long
     "W291", # Trailing whitespace

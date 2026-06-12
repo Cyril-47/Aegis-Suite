@@ -1,5 +1,5 @@
 import os
-from utils import get_writeable_path
+from aegis.core.utils import get_writeable_path
 from aegis.core.paths import Paths
 
 def test_secret_path_resolves_under_data_root():

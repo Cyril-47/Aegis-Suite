@@ -7,6 +7,8 @@ import asyncio
 import sys
 from collections import deque
 
+logger = logging.getLogger("utils")
+
 def get_writeable_path(filename: str) -> str:
     """Get path to a writeable file in the app directory (works for python script and built exe)"""
     try:
@@ -51,7 +53,7 @@ def load_env_file():
     encrypted_lines = None
     if os.path.exists(enc_path):
         try:
-            from secret_store import decrypt_env_file, CorruptedSecretFile
+            from aegis.core.secret_store import decrypt_env_file, CorruptedSecretFile
             try:
                 plaintext_bytes = decrypt_env_file(enc_path)
             except CorruptedSecretFile as exc:
@@ -137,11 +139,17 @@ def load_env_file():
             
             # Persist to .env.enc using DPAPI if available
             from pathlib import Path
-            from secret_store import is_dpapi_available, encrypt_env_file
+            from aegis.core.secret_store import is_dpapi_available, encrypt_env_file
             if is_dpapi_available():
                 try:
                     encrypt_env_file(Path(env_path), Path(enc_path))
                     print("[+] Successfully persisted generated JWT_SECRET to .env.enc via DPAPI!")
+                    if sys.platform == "win32":
+                        try:
+                            os.remove(env_path)
+                            print("[+] Plaintext .env removed after successful encryption.")
+                        except Exception as e:
+                            print(f"[-] Failed to delete plaintext .env: {e}")
                 except Exception as e:
                     print(f"[-] Failed to encrypt generated env file via DPAPI: {e}")
         except Exception as e:
@@ -157,6 +165,22 @@ def load_env_file():
                 for k, v in env_data.items():
                     f.write(f"{k}={v}\n")
             print("[+] Successfully migrated secrets from config.json to .env!")
+            
+            # Persist to .env.enc using DPAPI if available
+            from pathlib import Path
+            from aegis.core.secret_store import is_dpapi_available, encrypt_env_file
+            if is_dpapi_available():
+                try:
+                    encrypt_env_file(Path(env_path), Path(enc_path))
+                    print("[+] Successfully persisted migrated secrets to .env.enc via DPAPI!")
+                    if sys.platform == "win32":
+                        try:
+                            os.remove(env_path)
+                            print("[+] Plaintext .env removed after successful encryption.")
+                        except Exception as e:
+                            print(f"[-] Failed to delete plaintext .env: {e}")
+                except Exception as e:
+                    print(f"[-] Failed to encrypt migrated env file via DPAPI: {e}")
         except Exception as e:
             print(f"Error saving config.json after secret migration: {e}")
 
@@ -250,36 +274,82 @@ DEFAULT_CONFIG = {
 
 def load_config():
     with config_lock:
+        from pathlib import Path
+        from aegis.core.paths import Paths
+        from aegis.config.loader import ConfigStore
+        root_path = None
+        if CONFIG_PATH:
+            try:
+                root_path = Path(CONFIG_PATH).resolve().parent.parent
+            except Exception:
+                pass
+        paths = Paths(root=root_path)
         if not os.path.exists(CONFIG_PATH):
             save_config(DEFAULT_CONFIG)
             return DEFAULT_CONFIG
         try:
-            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-                config = json.load(f)
-                # Ensure nested keys exist (merging with defaults)
-                for k, v in DEFAULT_CONFIG.items():
-                    if k not in config or config[k] is None:
+            store = ConfigStore.load(paths)
+            config = store.as_dict()
+            # Ensure nested keys exist (merging with defaults)
+            for k, v in DEFAULT_CONFIG.items():
+                if k not in config or config[k] is None:
+                    config[k] = v
+                elif isinstance(v, dict):
+                    if not isinstance(config[k], dict):
                         config[k] = v
-                    elif isinstance(v, dict):
-                        if not isinstance(config[k], dict):
+                    else:
+                        for sub_k, sub_v in v.items():
+                            if sub_k not in config[k] or config[k][sub_k] is None:
+                                config[k][sub_k] = sub_v
+            return config
+        except Exception:
+            # Fallback to direct json.load or DEFAULT_CONFIG on validation failure
+            try:
+                with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+                    config = json.load(f)
+                    for k, v in DEFAULT_CONFIG.items():
+                        if k not in config or config[k] is None:
                             config[k] = v
-                        else:
-                            for sub_k, sub_v in v.items():
-                                if sub_k not in config[k] or config[k][sub_k] is None:
-                                    config[k][sub_k] = sub_v
-                return config
-        except Exception as e:
-            print(f"Error loading config: {e}")
+                        elif isinstance(v, dict):
+                            if not isinstance(config[k], dict):
+                                config[k] = v
+                            else:
+                                for sub_k, sub_v in v.items():
+                                    if sub_k not in config[k] or config[k][sub_k] is None:
+                                        config[k][sub_k] = sub_v
+                    return config
+            except Exception:
+                pass
+            logger.exception("Error loading config")
             return DEFAULT_CONFIG
 
 def save_config(config):
     with config_lock:
         try:
-            with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-                json.dump(config, f, indent=2)
+            from pathlib import Path
+            from aegis.core.paths import Paths
+            from aegis.config.loader import ConfigStore
+            from aegis.config.schema import validate_config
+            root_path = None
+            if CONFIG_PATH:
+                try:
+                    root_path = Path(CONFIG_PATH).resolve().parent.parent
+                except Exception:
+                    pass
+            paths = Paths(root=root_path)
+            model = validate_config(config)
+            store = ConfigStore(paths, model)
+            store.save()
             return True
-        except Exception as e:
-            print(f"Error saving config: {e}")
+        except Exception:
+            # Fallback to direct file save
+            try:
+                with open(CONFIG_PATH, "w", encoding="utf-8") as f:
+                    json.dump(config, f, indent=2)
+                return True
+            except Exception:
+                pass
+            logger.exception("Error saving config")
             return False
 
 # Log management
@@ -317,35 +387,6 @@ class WebConsoleHandler(logging.Handler):
                     pass
         except Exception:
             pass
-
-def setup_logging():
-    ensure_ffmpeg_path()
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
-    
-    # Console formatter
-    formatter = logging.Formatter('[%(asctime)s] [%(levelname)s] [%(name)s]: %(message)s', '%Y-%m-%d %H:%M:%S')
-    
-    # Avoid duplicate handlers on re-entry (Tier 4.3)
-    has_stream = any(isinstance(h, logging.StreamHandler) and not isinstance(h, WebConsoleHandler) for h in logger.handlers)
-    has_web = any(isinstance(h, WebConsoleHandler) for h in logger.handlers)
-    
-    if not has_stream:
-        # Stream Handler
-        sh = logging.StreamHandler()
-        sh.setFormatter(formatter)
-        logger.addHandler(sh)
-        
-    if not has_web:
-        # Web Console Handler
-        wh = WebConsoleHandler()
-        wh.setFormatter(formatter)
-        logger.addHandler(wh)
-    
-    # Reduce noisy libraries
-    logging.getLogger("discord").setLevel(logging.WARNING)
-    logging.getLogger("websockets").setLevel(logging.WARNING)
-    logging.getLogger("uvicorn").setLevel(logging.INFO)
 
 def is_regex_safe(pattern: str) -> bool:
     if not pattern:
@@ -440,7 +481,7 @@ def get_guild_id_by_code(code: str):
                 revoked_list.remove(guild_id)
                 # Ensure the in-memory set in auth.py is also cleared
                 try:
-                    import auth
+                    import aegis.core.auth as auth
                     auth._revoked_guilds.discard(guild_id)
                 except Exception:
                     pass
@@ -537,59 +578,68 @@ def get_guild_leveling_settings(config, guild_id: str) -> dict:
 
 # Isolated Giveaway Store (Tier 7.2)
 GIVEAWAYS_PATH = get_writeable_path("giveaways.json")
-class ThreadSafeReentrantAsyncLock:
-    """A thread-safe and reentrant async-compatible lock wrapper around threading.RLock.
-    Avoids asyncio.Lock deadlock when nested or called across threads (FastAPI vs Bot threads).
-    """
-    def __init__(self):
-        self._lock = threading.RLock()
 
+_giveaways_lock = None
+
+def _get_giveaways_lock() -> asyncio.Lock:
+    global _giveaways_lock
+    if _giveaways_lock is None:
+        _giveaways_lock = asyncio.Lock()
+    return _giveaways_lock
+
+class LazyAsyncLock:
     async def __aenter__(self):
-        self._lock.acquire()
-        return self
+        return await _get_giveaways_lock().__aenter__()
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        self._lock.release()
+        return await _get_giveaways_lock().__aexit__(exc_type, exc_val, exc_tb)
 
-giveaways_lock = ThreadSafeReentrantAsyncLock()
+giveaways_lock = LazyAsyncLock()
+
+def _migrate_giveaways(config):
+    gws = config.get("giveaways", {})
+    if gws:
+        with open(GIVEAWAYS_PATH, "w", encoding="utf-8") as f:
+            json.dump(gws, f, indent=2)
+        if "giveaways" in config:
+            del config["giveaways"]
+            save_config(config)
+        return gws
+    else:
+        with open(GIVEAWAYS_PATH, "w", encoding="utf-8") as f:
+            json.dump({}, f, indent=2)
+        return {}
+
+def _read_giveaways_file():
+    with open(GIVEAWAYS_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def _write_giveaways_file(data):
+    with open(GIVEAWAYS_PATH, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2)
 
 async def load_giveaways() -> dict:
     async with giveaways_lock:
-        if not os.path.exists(GIVEAWAYS_PATH):
-            # Try to migrate from config.json first to avoid data loss
+        if not await asyncio.to_thread(os.path.exists, GIVEAWAYS_PATH):
             config = load_config()
-            gws = config.get("giveaways", {})
-            if gws:
-                try:
-                    with open(GIVEAWAYS_PATH, "w", encoding="utf-8") as f:
-                        json.dump(gws, f, indent=2)
-                    if "giveaways" in config:
-                        del config["giveaways"]
-                        save_config(config)
-                except Exception as e:
-                    print(f"Error migrating giveaways: {e}")
+            try:
+                gws = await asyncio.to_thread(_migrate_giveaways, config)
                 return gws
-            else:
-                try:
-                    with open(GIVEAWAYS_PATH, "w", encoding="utf-8") as f:
-                        json.dump({}, f, indent=2)
-                except Exception as e:
-                    print(f"Error creating giveaways.json: {e}")
+            except Exception:
+                logger.exception("Error migrating giveaways")
                 return {}
         try:
-            with open(GIVEAWAYS_PATH, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception as e:
-            print(f"Error loading giveaways: {e}")
+            return await asyncio.to_thread(_read_giveaways_file)
+        except Exception:
+            logger.exception("Error loading giveaways")
             return {}
 
 async def save_giveaways(giveaways: dict) -> None:
     async with giveaways_lock:
         try:
-            with open(GIVEAWAYS_PATH, "w", encoding="utf-8") as f:
-                json.dump(giveaways, f, indent=2)
-        except Exception as e:
-            print(f"Error saving giveaways: {e}")
+            await asyncio.to_thread(_write_giveaways_file, giveaways)
+        except Exception:
+            logger.exception("Error saving giveaways")
 
 # Per-Guild Rate Limiter (Tier 8.2 & Tier 8.6)
 from collections import defaultdict

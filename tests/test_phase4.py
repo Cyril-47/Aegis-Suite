@@ -42,7 +42,7 @@ def test_fastapi_assembly(tmp_path, monkeypatch):
     assert app.state.core == core
     
     # Check static directory exists
-    from utils import get_resource_path
+    from aegis.core.utils import get_resource_path
     from pathlib import Path
     static_path = Path(get_resource_path("static"))
     assert static_path.exists()

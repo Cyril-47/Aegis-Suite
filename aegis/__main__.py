@@ -10,7 +10,39 @@ from aegis.core.app_core import AppCore
 
 logger = logging.getLogger("aegis.main")
 
+
+def _check_critical_deps():
+    """Logs the availability of critical optional dependencies at startup."""
+    import importlib
+    checks = [
+        ("discord", "discord.py (bot framework)"),
+        ("nacl", "PyNaCl (voice support)"),
+        ("yt_dlp", "yt-dlp (music streaming)"),
+        ("fastapi", "FastAPI (web dashboard)"),
+        ("uvicorn", "Uvicorn (web server)"),
+        ("sqlalchemy", "SQLAlchemy (database)"),
+        ("alembic", "Alembic (migrations)"),
+    ]
+    import shutil
+    ffmpeg_ok = shutil.which("ffmpeg") is not None
+
+    for mod_name, label in checks:
+        try:
+            importlib.import_module(mod_name)
+            logger.info(f"  [OK] {label}")
+        except ImportError:
+            logger.warning(f"  [MISSING] {label} — some features will be unavailable")
+
+    if ffmpeg_ok:
+        logger.info("  [OK] FFmpeg (media processing)")
+    else:
+        logger.warning("  [MISSING] FFmpeg — music playback and voice features will be unavailable")
+
 def main() -> int:
+    # 0. Load environment variables
+    from aegis.core.utils import load_env_file
+    load_env_file()
+
     # 1. Resolve paths
     paths = Paths()
     paths.ensure()
@@ -40,13 +72,16 @@ def main() -> int:
     # 3. Setup logging (Redacts secrets automatically - C4)
     setup_logging(paths)
     logger.info("Initializing Aegis Suite...")
+    logger.info("Checking dependencies:")
+    _check_critical_deps()
 
     # 4. Build AppCore and run
     core = AppCore(paths)
     core.guard = guard # Keep reference for release on shutdown
 
     # 5. Define signal handlers for graceful shutdown (Req 25.2, Req 1.4)
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
 
     async def shutdown_handler(sig_name):
         logger.info(f"Received signal {sig_name}, initiating graceful shutdown...")

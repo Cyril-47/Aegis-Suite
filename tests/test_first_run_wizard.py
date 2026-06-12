@@ -179,7 +179,7 @@ def test_persist_credentials_encrypts_when_dpapi_available(tmp_path, monkeypatch
     orchestration logic, not pywin32 itself (which has its own coverage
     in ``tests/test_secret_store.py``).
     """
-    import secret_store
+    import aegis.core.secret_store as secret_store
 
     fake_blob = "DISCORD_BOT_TOKEN=fake.token.value\nJWT_SECRET=abc\n"
 
@@ -218,7 +218,7 @@ def test_persist_credentials_keeps_plaintext_when_dpapi_unavailable(
     This is the Linux / non-pywin32 path. The function must not delete
     the plaintext file because there is nothing to replace it with.
     """
-    import secret_store
+    import aegis.core.secret_store as secret_store
 
     monkeypatch.setattr(secret_store, "is_dpapi_available", lambda: False)
 

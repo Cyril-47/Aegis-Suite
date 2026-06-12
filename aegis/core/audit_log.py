@@ -2,7 +2,7 @@ import json
 import os
 import datetime
 import threading
-import utils
+import aegis.core.utils as utils
 
 AUDIT_LOG_PATH = utils.get_writeable_path("audit_log.json")
 MAX_LOG_ENTRIES = 1000

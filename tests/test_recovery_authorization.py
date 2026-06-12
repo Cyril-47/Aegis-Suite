@@ -5,7 +5,7 @@ from aegis.config.schema import validate_config
 from aegis.core.state import LifecycleState, ReasonCode
 from aegis.web.app import build_app
 from aegis.core.app_core import AppCore
-import auth
+import aegis.core.auth as auth
 
 @pytest.fixture
 def core_app(paths_tmp, monkeypatch):

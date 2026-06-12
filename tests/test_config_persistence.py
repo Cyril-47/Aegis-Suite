@@ -1,4 +1,4 @@
-import utils
+import aegis.core.utils as utils
 
 def test_guild_config_persistence_audit(paths_tmp, monkeypatch):
     """ST-2: Guild Config Persistence Audit.
