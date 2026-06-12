@@ -7,8 +7,8 @@ import pytest
 # Add parent directory to path to locate application modules
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-import auth
-import utils
+import aegis.core.auth as auth
+import aegis.core.utils as utils
 
 # Setup environment variables for stateless testing
 os.environ["JWT_SECRET"] = "super-secret-validation-key-1234567890"

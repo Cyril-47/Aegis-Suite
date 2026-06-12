@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from sqlalchemy.orm import Session
 from aegis.db.models import SchemaMeta, ConfigKV, Template, Server
-from utils import get_resource_path
+from aegis.core.utils import get_resource_path
 
 logger = logging.getLogger("aegis.db.legacy_import")
 

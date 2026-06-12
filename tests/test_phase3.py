@@ -164,14 +164,14 @@ def test_req10_migrations_boot_flow(tmp_path):
     alembic_cfg = Config("alembic.ini")
     script = ScriptDirectory.from_config(alembic_cfg)
     head_rev = script.get_current_head()
-    assert head_rev == "baseline_v1"
+    assert head_rev == "add_revoked_tokens"
     
     # AC 4: Current revision equals head revision -> silent boot, no backups, no migrations
     Base.metadata.create_all(engine)
     # Manual stamp version
     with engine.begin() as conn:
         conn.execute(text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL PRIMARY KEY)"))
-        conn.execute(text("INSERT INTO alembic_version (version_num) VALUES ('baseline_v1')"))
+        conn.execute(text("INSERT INTO alembic_version (version_num) VALUES ('add_revoked_tokens')"))
         
     success, reason = run_migrations(paths, engine)
     assert success is True

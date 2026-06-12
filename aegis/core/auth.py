@@ -3,10 +3,29 @@ import os
 import base64
 import hmac
 import time
-import json
+import jwt
 
 SESSION_EXPIRY_SECONDS = 24 * 60 * 60  # 24 hours
 _revoked_tokens = set()
+_db_engine = None
+
+def set_db_engine(engine):
+    """Sets the database engine explicitly for testing or startup config."""
+    global _db_engine
+    _db_engine = engine
+
+def get_db_session():
+    """Retrieves a new SQLAlchemy database session if available, falling back to active cores."""
+    global _db_engine
+    engine = _db_engine
+    if engine is None:
+        from aegis.core.app_core import _active_cores
+        if _active_cores:
+            engine = _active_cores[-1].db
+    if engine is not None:
+        from sqlalchemy.orm import sessionmaker
+        return sessionmaker(bind=engine)()
+    return None
 
 def get_jwt_secret() -> str:
     """Retrieves the JWT signing secret from the environment."""
@@ -14,15 +33,6 @@ def get_jwt_secret() -> str:
     if not secret:
         return None
     return secret
-
-def base64url_encode(data: bytes) -> str:
-    """Encodes bytes to a base64url string without padding."""
-    return base64.urlsafe_b64encode(data).rstrip(b'=').decode('utf-8')
-    
-def base64url_decode(data: str) -> bytes:
-    """Decodes a base64url string back to bytes, adding padding if necessary."""
-    padding = '=' * (4 - (len(data) % 4))
-    return base64.urlsafe_b64decode((data + padding).encode('utf-8'))
 
 def hash_password(password: str) -> str:
     """Hashes a password using PBKDF2-SHA256."""
@@ -49,65 +59,55 @@ def verify_password(password: str, hashed_password: str) -> bool:
         return False
 
 def create_session(guild_id: str = "global", role: str = "admin") -> str:
-    """Generates a custom signed session token (JWT-like format) containing guild_id and role."""
+    """Generates a signed session token (JWT) containing guild_id and role."""
     secret = get_jwt_secret()
     if not secret:
         return ""
     payload = {
         "guild_id": guild_id,
         "role": role,
-        "exp": time.time() + SESSION_EXPIRY_SECONDS
+        "exp": int(time.time() + SESSION_EXPIRY_SECONDS)
     }
-    header = {"alg": "HS256", "typ": "JWT"}
-    
-    header_b64 = base64url_encode(json.dumps(header).encode('utf-8'))
-    payload_b64 = base64url_encode(json.dumps(payload).encode('utf-8'))
-    
-    signing_input = f"{header_b64}.{payload_b64}".encode('utf-8')
-    signature = hmac.new(secret.encode('utf-8'), signing_input, hashlib.sha256).digest()
-    signature_b64 = base64url_encode(signature)
-    
-    return f"{header_b64}.{payload_b64}.{signature_b64}"
+    return jwt.encode(payload, secret, algorithm="HS256")
 
 def decode_token(token: str) -> dict:
-    """Verifies and decodes a custom signed session token (JWT-like format)."""
+    """Verifies and decodes a signed session token (JWT)."""
     if not token:
         return None
+    secret = get_jwt_secret()
+    if not secret:
+        return None
     try:
-        parts = token.split('.')
-        if len(parts) != 3:
-            return None
-        header_b64, payload_b64, signature_b64 = parts
-        
-        secret = get_jwt_secret()
-        if not secret:
-            return None
-        signing_input = f"{header_b64}.{payload_b64}".encode('utf-8')
-        expected_signature = hmac.new(secret.encode('utf-8'), signing_input, hashlib.sha256).digest()
-        expected_signature_b64 = base64url_encode(expected_signature)
-        
-        # Use constant-time comparison to prevent timing attacks (Gap 2)
-        if not hmac.compare_digest(signature_b64.encode('utf-8'), expected_signature_b64.encode('utf-8')):
-            return None
-            
-        payload = json.loads(base64url_decode(payload_b64).decode('utf-8'))
-        # Check expiration
-        if time.time() > payload.get("exp", 0):
-            return None
-        return payload
-    except Exception:
+        return jwt.decode(token, secret, algorithms=["HS256"])
+    except jwt.PyJWTError:
         return None
 
 def is_token_revoked(token: str) -> bool:
-    """Checks if the token is in the blacklisted revocation set."""
-    return token in _revoked_tokens
+    """Checks if the token is in the blacklisted revocation set or database."""
+    if token in _revoked_tokens:
+        return True
+    
+    session = get_db_session()
+    if session is not None:
+        try:
+            from aegis.db.models import RevokedToken
+            row = session.query(RevokedToken).filter(RevokedToken.token == token).first()
+            if row is not None:
+                _revoked_tokens.add(token)
+                return True
+        except Exception as e:
+            print(f"Error checking revoked token in DB: {e}")
+        finally:
+            session.close()
+            
+    return False
 
 _revoked_guilds = set()
 
 def load_revoked_guilds():
     global _revoked_guilds
     try:
-        import utils
+        import aegis.core.utils as utils
         config = utils.load_config()
         _revoked_guilds = set(config.get("revoked_guilds", []))
     except Exception:
@@ -121,14 +121,13 @@ def is_guild_revoked(guild_id: str) -> bool:
     return str(guild_id) in _revoked_guilds
 
 def revoke_guild_sessions(guild_id: str):
-    """Revokes all active sessions for a guild and saves it to config.json (Tier 8.5)"""
+    """Revokes all active sessions for a guild and saves it to config.json"""
     global _revoked_guilds
     gid_str = str(guild_id)
     _revoked_guilds.add(gid_str)
     
-    # Save to config.json
     try:
-        import utils
+        import aegis.core.utils as utils
         with utils.config_lock:
             config = utils.load_config()
             revoked_list = config.setdefault("revoked_guilds", [])
@@ -165,18 +164,45 @@ def get_session_role(token: str) -> str:
     return payload.get("role")
 
 def destroy_session(token: str) -> bool:
-    """Revokes a session token by adding it to a local blacklist."""
+    """Revokes a session token by adding it to the local blacklist and database."""
     if token:
         _revoked_tokens.add(token)
+        session = get_db_session()
+        if session is not None:
+            try:
+                from aegis.db.models import RevokedToken
+                exists = session.query(RevokedToken).filter(RevokedToken.token == token).first()
+                if not exists:
+                    row = RevokedToken(token=token)
+                    session.add(row)
+                    session.commit()
+            except Exception as e:
+                print(f"Error persisting revoked token to DB: {e}")
+            finally:
+                session.close()
         return True
     return False
 
 def has_active_sessions() -> bool:
-    """Cleans up the local blacklist and returns if there is active state (stub for backward compatibility)."""
-    # Clean up expired revoked tokens to prevent memory leak
+    """Prunes expired revoked tokens from memory and database."""
     now = time.time()
     for t in list(_revoked_tokens):
         payload = decode_token(t)
         if not payload or now > payload.get("exp", 0):
             _revoked_tokens.discard(t)
+            
+    session = get_db_session()
+    if session is not None:
+        try:
+            from aegis.db.models import RevokedToken
+            rows = session.query(RevokedToken).all()
+            for row in rows:
+                payload = decode_token(row.token)
+                if not payload or now > payload.get("exp", 0):
+                    session.delete(row)
+            session.commit()
+        except Exception as e:
+            print(f"Error pruning expired revoked tokens in DB: {e}")
+        finally:
+            session.close()
     return True

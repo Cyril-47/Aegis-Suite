@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.2.4] - 2026-06-12
+
+### Added
+- Startup dependency checker that logs OK/MISSING status for all critical dependencies (discord.py, PyNaCl, yt-dlp, FFmpeg, etc.).
+- `--install-deps` CLI flag in `run.py` to force dependency installation.
+- `probe` parameter on `validate_token()` to skip live Discord API login during startup for faster boot.
+- `RevokedToken` SQLAlchemy model for persisting revoked session tokens in SQLite.
+- PyJWT integration replacing hand-rolled JWT implementation for session tokens.
+- Local bundling of FontAwesome 6.4.0 and Google Fonts (Inter, Outfit) for offline dashboard support.
+- `LevelingSettingsModel` and all missing fields added to `ConfigModel` schema.
+- `get_active_core()` helper to abstract safe access to the `_active_cores` registry.
+- Lazy-initialized `asyncio.Lock` replacing `ThreadSafeReentrantAsyncLock` for giveaway store.
+- `asyncio.to_thread` for all file I/O in giveaway load/save operations.
+
+### Changed
+- All root-level shim modules (`auth.py`, `bot_manager.py`, `utils.py`, `secret_store.py`, `leveling.py`, `audit_log.py`, `music_manager.py`) removed; all imports migrated to canonical `aegis.*` namespace.
+- `load_config()` and `save_config()` now delegate to `ConfigStore` under the hood with dynamic imports to avoid circular dependencies.
+- `run.py` rewritten to check for missing packages before installing; reads from `_PACKAGE_IMPORT_MAP` instead of a hardcoded list.
+- `load_env_file()` wrapped in try/except to prevent import-time crashes on malformed `.env` files.
+- Token and intents startup checks combined into a single `validate_token()` call to halve startup time.
+- Engine log output redacted to show only database filename, not absolute path.
+- Dashboard Pydantic models consolidated into `aegis/config/schema.py`; duplicate definitions removed from `dashboard.py`.
+- Ruff lint rules `F401` (unused imports) and `F841` (unused variables) enabled; all violations cleaned.
+- `asyncio.get_event_loop()` replaced with `asyncio.new_event_loop()` + `set_event_loop()` in `__main__.py`.
+- DPAPI `.env` deletion gated on `sys.platform == "win32"` to avoid breaking Linux/macOS dev environments.
+- CI workflow `verify.yml` updated to run pytest before PyInstaller build.
+- `.env` secrets rotated to placeholder values; `.env.backup` deleted; `config.json` sanitized.
+
+### Fixed
+- Music `MusicPlayer` import path corrected from `music_manager` shim to `aegis.bot.music`.
+- PyNaCl availability check moved to module level with clear error message.
+- FFmpeg missing now sends user-facing error message to Discord channel instead of silently failing.
+- User-facing error messages improved across bot commands (missing permissions, cooldowns, music failures).
+- `audioop` deprecation warning from discord.py (upstream issue, not actionable).
+
+### Removed
+- Unused `davey` dependency from `requirements.txt` and `pyproject.toml`.
+- Legacy `setup_logging()` function from `aegis/core/utils.py` (replaced by `aegis/core/logging_setup.py`).
+- `ThreadSafeReentrantAsyncLock` class (replaced by lazy `asyncio.Lock`).
+- Duplicate Pydantic model definitions from `aegis/web/routes/dashboard.py`.
+
+---
+
 ## [2.1.0-RC1] - 2026-06-03
 
 ### Added

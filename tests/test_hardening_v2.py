@@ -10,8 +10,8 @@ from aegis.web.app import build_app
 from aegis.core.app_core import AppCore
 from aegis.db.models import Base
 from aegis.db.maintenance import run_migrations
-import utils
-import auth
+import aegis.core.utils as utils
+import aegis.core.auth as auth
 
 def test_config_extra_preservation():
     """Verify ConfigModel uses extra='allow' and preserves unknown keys during parse and dump."""
@@ -47,7 +47,7 @@ def test_config_extra_preservation():
     
     # Verify extra fields are present in the model dictionary
     dump = model.model_dump()
-    for key in ["giveaways", "guild_configs", "scheduled_messages", "leveling_settings", "auto_responders"]:
+    for key in ["giveaways", "guild_configs", "scheduled_messages", "auto_responders"]:
         assert key in dump
         assert dump[key] == raw_data[key]
 

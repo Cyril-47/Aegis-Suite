@@ -5,8 +5,8 @@ import json
 
 from aegis.core.app_core import AppCore
 from aegis.config.loader import ConfigStore
-import utils
-import bot_manager
+import aegis.core.utils as utils
+import aegis.bot.bot_manager as bot_manager
 from aegis.web.app import build_app
 
 def test_custom_embed_presets_api(paths_tmp, monkeypatch):
@@ -67,9 +67,9 @@ def test_custom_embed_presets_api(paths_tmp, monkeypatch):
     monkeypatch.setattr(bot_manager, "bot_instance", bot)
     
     # Mock authentication checks - Admin
-    monkeypatch.setattr("auth.get_session_role", lambda token: "admin")
-    monkeypatch.setattr("auth.get_session_guild_id", lambda token: None)
-    monkeypatch.setattr("auth.validate_session", lambda token: True)
+    monkeypatch.setattr("aegis.core.auth.get_session_role", lambda token: "admin")
+    monkeypatch.setattr("aegis.core.auth.get_session_guild_id", lambda token: None)
+    monkeypatch.setattr("aegis.core.auth.validate_session", lambda token: True)
     
     app = build_app(core)
     client = TestClient(app)
@@ -114,8 +114,8 @@ def test_custom_embed_presets_api(paths_tmp, monkeypatch):
     assert res.status_code == 404
     
     # 5. Test tenant security boundaries (tenant for 12345 tries to access 99999 - should be 403 Forbidden)
-    monkeypatch.setattr("auth.get_session_role", lambda token: "tenant")
-    monkeypatch.setattr("auth.get_session_guild_id", lambda token: "12345")
+    monkeypatch.setattr("aegis.core.auth.get_session_role", lambda token: "tenant")
+    monkeypatch.setattr("aegis.core.auth.get_session_guild_id", lambda token: "12345")
     
     headers_tenant = {"Authorization": "Bearer tenant_token"}
     res = client.get("/api/guilds/99999/embeds/presets", headers=headers_tenant)

@@ -1,5 +1,5 @@
 import pytest
-import utils
+import aegis.core.utils as utils
 from aegis.core.permissions.resolver import PermissionResolver
 from aegis.core.permissions.registry import CommandRegistry
 

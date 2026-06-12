@@ -18,7 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-import secret_store  # noqa: E402
+import aegis.core.secret_store as secret_store  # noqa: E402
 
 
 pytestmark = pytest.mark.skipif(
@@ -135,7 +135,7 @@ def test_load_env_file_prefers_encrypted_over_plaintext(
 
     # Reroute utils.get_writeable_path to our temp dir so load_env_file
     # reads the test files instead of the real repo-root .env.
-    import utils
+    import aegis.core.utils as utils
 
     def fake_writeable_path(filename: str) -> str:
         return str(env_dir / filename)
@@ -174,7 +174,7 @@ def test_load_env_file_platform_env_takes_precedence(
         f"DISCORD_BOT_TOKEN={file_token}\n", encoding="utf-8"
     )
 
-    import utils
+    import aegis.core.utils as utils
 
     def fake_writeable_path(filename: str) -> str:
         return str(env_dir / filename)

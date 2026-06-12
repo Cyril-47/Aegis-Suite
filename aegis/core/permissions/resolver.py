@@ -1,4 +1,4 @@
-import utils
+import aegis.core.utils as utils
 from typing import List
 from aegis.core.permissions.registry import CommandRegistry
 

@@ -6,7 +6,7 @@ import discord.gateway
 
 # Monkeypatch removed. Native discord.py v2.7.x now supports gateway v=8 and E2EE/DAVE protocol directly.
 
-from bot_manager import DiscordOptimizerBot as LegacyDiscordOptimizerBot
+from aegis.bot.bot_manager import DiscordOptimizerBot as LegacyDiscordOptimizerBot
 
 logger = logging.getLogger("aegis.bot.runner")
 
@@ -26,7 +26,7 @@ def build_intents() -> discord.Intents:
     intents.voice_states = True
     return intents
 
-async def validate_token(token: str, timeout: float = 10.0) -> TokenVerdict:
+async def validate_token(token: str, timeout: float = 10.0, probe: bool = True) -> TokenVerdict:
     """Lightweight authentication probe and intent capability check.
     Completes the auth probe and privileged intents check.
     Returns TokenVerdict.
@@ -38,6 +38,9 @@ async def validate_token(token: str, timeout: float = 10.0) -> TokenVerdict:
     parts = token.split('.')
     if len(parts) != 3:
         return TokenVerdict.AUTH_FAILED
+
+    if not probe:
+        return TokenVerdict.OK
 
     intents = build_intents()
     client = discord.Client(intents=intents)
@@ -76,7 +79,7 @@ async def start_bot_task(core, token: str) -> None:
     """Supervised bot task. Registers relocated commands, instantiates the bot,
     and runs it until completion or cancellation.
     """
-    import bot_manager
+    import aegis.bot.bot_manager as bot_manager
     intents = build_intents()
     
     bot = DiscordOptimizerBot(core, command_prefix="!", intents=intents)

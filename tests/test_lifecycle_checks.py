@@ -9,7 +9,7 @@ from aegis.core.state import LifecycleState, ReasonCode
 from aegis.core.app_core import AppCore
 from aegis.core.lifecycle import run_startup_checks
 from aegis.web.app import build_app
-import auth
+import aegis.core.auth as auth
 
 def get_valid_config_data() -> dict:
     return {
@@ -327,8 +327,8 @@ async def test_recovery_endpoint_restart(paths_tmp, temp_appdata):
     mock_request.headers.get.return_value = "Bearer mock_token"
     
     from unittest.mock import patch
-    with patch("auth.validate_session", return_value=True), \
-         patch("auth.get_session_role", return_value="admin"):
+    with patch("aegis.core.auth.validate_session", return_value=True), \
+         patch("aegis.core.auth.get_session_role", return_value="admin"):
         from aegis.web.routes.wizard import restart_application
         response = await restart_application(mock_request)
         

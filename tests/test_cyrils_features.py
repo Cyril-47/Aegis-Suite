@@ -4,11 +4,11 @@ import discord
 import json
 import re
 
-import utils
-import bot_manager
+import aegis.core.utils as utils
+import aegis.bot.bot_manager as bot_manager
 from aegis.db.models import Base
 from sqlalchemy import create_engine
-import leveling
+import aegis.bot.leveling as leveling
 import aegis.bot.leveling
 
 class MockChannel:

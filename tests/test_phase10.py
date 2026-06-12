@@ -8,7 +8,7 @@ from aegis.db.legacy_import import run_legacy_import
 from aegis.core.single_instance import SingleInstanceGuard
 from aegis.web.app import build_app
 from aegis.core.app_core import AppCore
-import auth
+import aegis.core.auth as auth
 
 def test_legacy_importer_idempotency_and_preservation(paths_tmp):
     # Setup legacy files under paths_tmp.root

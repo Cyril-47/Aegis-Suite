@@ -1,7 +1,7 @@
 from discord.ext import commands
 from aegis.core.permissions.resolver import PermissionResolver, MUSIC_CONTROL_PERMISSIONS
 from aegis.core.permissions.registry import CommandRegistry
-import utils
+import aegis.core.utils as utils
 
 async def check_music_permission(ctx: commands.Context, command_name: str) -> bool:
     # 1. Bot Owner, Guild Owner, Discord Admin, Configured Admin role, Configured Moderator role checks

@@ -63,3 +63,10 @@ class MigrationLog(Base):
     backup_path = Column(String, nullable=True)
     status = Column(String, nullable=False)  # started, success, rolled_back
     ts = Column(DateTime, default=get_utcnow)
+
+class RevokedToken(Base):
+    """Table for storing revoked session tokens."""
+    __tablename__ = "revoked_tokens"
+    
+    token = Column(String, primary_key=True)
+    revoked_at = Column(DateTime, default=get_utcnow)

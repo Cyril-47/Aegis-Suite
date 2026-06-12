@@ -24,3 +24,8 @@ temp_appdata/
 temp_appdata_test/
 temp_test/
 *.db-journal
+.coverage
+Caddyfile
+FINAL_100_SCORE_AUDIT.md
+scratch_test_leveling.py
+scratch_list_templates.py

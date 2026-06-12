@@ -1,5 +1,5 @@
 from sqlalchemy import create_engine
-import leveling
+import aegis.bot.leveling as leveling
 import aegis.bot.leveling
 from aegis.db.models import Base
 
@@ -48,7 +48,7 @@ def test_leveling_database_round_trip():
 
 
 def test_guild_specific_leveling_config(monkeypatch, tmp_path):
-    import utils
+    import aegis.core.utils as utils
     # Override CONFIG_PATH for isolated testing
     monkeypatch.setattr(utils, "CONFIG_PATH", str(tmp_path / "config.json"))
     

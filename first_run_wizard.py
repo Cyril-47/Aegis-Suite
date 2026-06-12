@@ -275,7 +275,7 @@ def run_first_run_wizard(repo_root: Path) -> bool:
     # wizard module be imported by tests that don't need the full
     # FastAPI / discord.py dependency stack.
     sys.path.insert(0, str(repo_root))
-    import auth  # type: ignore  # noqa: WPS433 (intentional late import)
+    import aegis.core.auth as auth  # type: ignore  # noqa: WPS433 (intentional late import)
 
     admin_password_hash = auth.hash_password(admin_password)
     jwt_secret = secrets_module.token_hex(32)
@@ -345,7 +345,7 @@ def _persist_credentials(repo_root: Path, plaintext_blob: str) -> bool:
 
     sys.path.insert(0, str(repo_root))
     try:
-        import secret_store  # type: ignore  # noqa: WPS433
+        import aegis.core.secret_store as secret_store  # type: ignore  # noqa: WPS433
     except ImportError as exc:
         print(
             f"\n[!] Could not import secret_store ({exc}); leaving the "

@@ -71,7 +71,7 @@ class AppCore:
 
     def _start_bot_task_if_needed(self) -> None:
         if self._bot_task is None or self._bot_task.done():
-            from utils import get_bot_token
+            from aegis.core.utils import get_bot_token
             config_dict = self.config.as_dict() if self.config else None
             token = get_bot_token(config_dict)
             if not token:

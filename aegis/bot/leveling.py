@@ -44,7 +44,7 @@ class LevelingSystem:
             path = self.data_path
             if not path:
                 try:
-                    import utils
+                    import aegis.core.utils as utils
                     path = utils.get_writeable_path("leveling_data.json")
                 except Exception:
                     path = "leveling_data.json"
@@ -84,7 +84,7 @@ class LevelingSystem:
             path = self.data_path
             if not path:
                 try:
-                    import utils
+                    import aegis.core.utils as utils
                     path = utils.get_writeable_path("leveling_data.json")
                 except Exception:
                     path = "leveling_data.json"

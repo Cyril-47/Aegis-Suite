@@ -34,8 +34,8 @@ _REPO_ROOT_STR = str(REPO_ROOT)
 if _REPO_ROOT_STR not in sys.path:
     sys.path.insert(0, _REPO_ROOT_STR)
 
-import auth  # noqa: E402
-import utils  # noqa: E402
+import aegis.core.auth as auth  # noqa: E402
+import aegis.core.utils as utils  # noqa: E402
 from aegis.web.app import build_app
 from aegis.config.schema import ConfigModel
 from aegis.core.lifecycle import _bootstrap_hosting_mode_from_env
@@ -152,7 +152,7 @@ def stubbed_app(monkeypatch):
     ``ADMIN_PASSWORD_HASH`` to a known value so ``auth_middleware`` does
     not 403 every request through the password-not-yet-set branch.
     """
-    import bot_manager
+    import aegis.bot.bot_manager as bot_manager
     from unittest.mock import MagicMock
     from aegis.core.paths import Paths
     from aegis.core.state import LifecycleStateMachine
@@ -860,7 +860,7 @@ import tokenize  # noqa: E402
 INDEX_HTML_PATH = REPO_ROOT / "static" / "index.html"
 APP_JS_PATH = REPO_ROOT / "static" / "app.js"
 README_PATH = REPO_ROOT / "README.md"
-SECRET_STORE_PATH = REPO_ROOT / "secret_store.py"
+SECRET_STORE_PATH = REPO_ROOT / "aegis" / "core" / "secret_store.py"
 ENV_PATH = REPO_ROOT / ".env"
 ENV_ENC_PATH = REPO_ROOT / ".env.enc"
 

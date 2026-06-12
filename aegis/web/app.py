@@ -3,9 +3,9 @@ import re as pyre
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from utils import get_resource_path
-import auth
-import utils
+from aegis.core.utils import get_resource_path
+import aegis.core.auth as auth
+import aegis.core.utils as utils
 from aegis.web.routes.health import router as health_router
 from aegis.web.routes.dashboard import router as dashboard_router
 from aegis.web.routes.wizard import router as wizard_router
@@ -28,10 +28,6 @@ def build_app(core) -> FastAPI:
     async def auth_middleware(request: Request, call_next):
         path = request.url.path
         
-        setup_complete = False
-        if core.config:
-            setup_complete = core.config.is_setup_complete()
-            
         # Hardening Wizard and Recovery Routes
         if path.startswith("/wizard/") or path.startswith("/api/recovery/"):
             # 1. CSRF/Origin check for state-changing POST/PUT/DELETE requests

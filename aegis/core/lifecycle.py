@@ -23,7 +23,7 @@ def _bootstrap_hosting_mode_from_env() -> None:
     Maintainer choice.
     """
     valid = ("local_pc", "cloud")
-    import utils
+    import aegis.core.utils as utils
     config = utils.load_config()
     if config.get("hosting_mode") in valid:
         return
@@ -140,15 +140,15 @@ async def run_startup_checks(core, start_at: int = 0, end_at: Optional[int] = No
             core.health.database["at_head"] = False
             return "FATAL-to-bot", ReasonCode.DB_RECOVERY
 
-    # 5. Token Check
+    # 5. Token & Intents Check (combined to avoid double Discord API call)
     if start_at <= 5 and (end_at is None or end_at >= 5):
         try:
-            from utils import get_bot_token
+            from aegis.core.utils import get_bot_token
             from aegis.bot.runner import validate_token
             config_dict = core.config.as_dict() if core.config else None
             token = get_bot_token(config_dict)
 
-            verdict = await validate_token(token)
+            verdict = await validate_token(token, probe=False)
             if verdict in ("OK", "INTENT_FAILED"):
                 core.health.record_check("token", "OK")
             else:
@@ -161,30 +161,32 @@ async def run_startup_checks(core, start_at: int = 0, end_at: Optional[int] = No
             core.health.record_check("token", "FATAL-to-bot")
             return "FATAL-to-bot", ReasonCode.TOKEN_RECOVERY
 
-    # 6. Intents Check
+    # 6. Intents Check (reuses token validation result from check 5)
     if start_at <= 6 and (end_at is None or end_at >= 6):
-        try:
-            from utils import get_bot_token
-            from aegis.bot.runner import validate_token
-            config_dict = core.config.as_dict() if core.config else None
-            token = get_bot_token(config_dict)
-
-            verdict = await validate_token(token)
-            if verdict == "OK":
-                core.health.record_check("intents", "OK")
-                core.health.intents = "declared_enabled"
-            elif verdict == "INTENT_FAILED":
-                logger.info("Intents Check: intent-recovery")
-                core.health.record_check("intents", "FATAL-to-bot")
-                core.health.intents = "missing"
-                return "FATAL-to-bot", ReasonCode.INTENT_RECOVERY
-            else:
+        # Re-run validate_token only if we skipped check 5 (start_at > 5)
+        if start_at > 5:
+            try:
+                from aegis.core.utils import get_bot_token
+                from aegis.bot.runner import validate_token
+                config_dict = core.config.as_dict() if core.config else None
+                token = get_bot_token(config_dict)
+                verdict = await validate_token(token, probe=False)
+            except Exception as exc:
+                logger.exception("Intents check failed unexpectedly")
+                core.health.record_fatal(exc)
                 core.health.record_check("intents", "FATAL-to-bot")
                 core.health.intents = "unknown"
                 return "FATAL-to-bot", ReasonCode.INTENT_RECOVERY
-        except Exception as exc:
-            logger.exception("Intents check failed unexpectedly")
-            core.health.record_fatal(exc)
+
+        if verdict == "OK":
+            core.health.record_check("intents", "OK")
+            core.health.intents = "declared_enabled"
+        elif verdict == "INTENT_FAILED":
+            logger.info("Intents Check: intent-recovery")
+            core.health.record_check("intents", "FATAL-to-bot")
+            core.health.intents = "missing"
+            return "FATAL-to-bot", ReasonCode.INTENT_RECOVERY
+        else:
             core.health.record_check("intents", "FATAL-to-bot")
             core.health.intents = "unknown"
             return "FATAL-to-bot", ReasonCode.INTENT_RECOVERY

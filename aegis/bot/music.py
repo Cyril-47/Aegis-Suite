@@ -111,6 +111,13 @@ def _resolve_spotify_metadata(query: str) -> list[dict]:
     return media_title, results
 
 try:
+    import nacl  # noqa: F401
+    _nacl_available = True
+except ImportError:
+    _nacl_available = False
+    logger.warning("PyNaCl is missing. Discord voice support will be unavailable. Install with: pip install PyNaCl")
+
+try:
     import yt_dlp
     
     YTDL_OPTIONS = {
@@ -163,6 +170,7 @@ class MusicPlayer:
         self.idle_task = None
         self.resolved_track_cache = {}
         self.auto_leave_reason = None
+        self.last_text_channel = None
 
     def _start_auto_leave_timer(self, seconds: int, reason: str):
         """Starts an asynchronous timer to automatically leave the voice channel."""
@@ -213,10 +221,11 @@ class MusicPlayer:
         if not permissions.connect:
             raise ValueError("Bot does not have Connect permission in the target voice channel.")
             
-        try:
-            import nacl
-        except ImportError:
-            raise RuntimeError("Voice support is disabled because PyNaCl library is not installed.")
+        if not _nacl_available:
+            raise RuntimeError(
+                "Voice support is unavailable because PyNaCl is not installed. "
+                "Run: pip install PyNaCl"
+            )
             
         # Authoritative voice client check (Fix 4006)
         voice_client = self.guild.voice_client
@@ -453,6 +462,17 @@ class MusicPlayer:
             import shutil
             if not shutil.which("ffmpeg"):
                 logger.error("FFmpeg not found in PATH. Playback failed.")
+                if self.last_text_channel:
+                    try:
+                        asyncio.run_coroutine_threadsafe(
+                            self.last_text_channel.send(
+                                "❌ **Playback failed:** FFmpeg is not installed or not in PATH. "
+                                "Music playback requires FFmpeg. Download it from https://ffmpeg.org/download.html and add it to your system PATH."
+                            ),
+                            self.loop
+                        )
+                    except Exception:
+                        pass
                 return
                 
             if not next_song.get('url'):
@@ -477,7 +497,10 @@ class MusicPlayer:
         """Searches YouTube or resolves Spotify metadata and adds song(s) to queue."""
         self.loop = asyncio.get_running_loop()
         if not yt_dlp:
-            raise RuntimeError("yt-dlp is not installed on this system.")
+            raise RuntimeError(
+                "Music playback is unavailable because yt-dlp is not installed. "
+                "Run: pip install yt-dlp"
+            )
             
         loop = self.loop
         

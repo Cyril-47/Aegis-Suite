@@ -2,15 +2,13 @@ import asyncio
 import logging
 import discord
 from discord.ext import commands
-from discord import app_commands
-import utils
+import aegis.core.utils as utils
 import re
-import time
 import json
 import datetime
 from typing import Optional
-import auth
-import audit_log
+import aegis.core.auth as auth
+import aegis.core.audit_log as audit_log
 
 logger = logging.getLogger("DiscordBot")
 
@@ -34,7 +32,7 @@ def get_bot():
 
 from aegis.bot.tickets import TicketCloseView, TicketPanelView
 
-from aegis.bot.giveaways import GiveawayJoinView, start_giveaway_bot, reroll_giveaway_bot
+from aegis.bot.giveaways import GiveawayJoinView, start_giveaway_bot, reroll_giveaway_bot  # noqa: F401
 
 class DiscordOptimizerBot(commands.Bot):
     def __init__(self, *args, **kwargs):
@@ -65,7 +63,7 @@ class DiscordOptimizerBot(commands.Bot):
         if guild_id not in self.music_players:
             guild = self.get_guild(guild_id)
             if guild:
-                from music_manager import MusicPlayer
+                from aegis.bot.music import MusicPlayer
                 self.music_players[guild_id] = MusicPlayer(guild)
         return self.music_players.get(guild_id)
 
@@ -334,7 +332,6 @@ class DiscordOptimizerBot(commands.Bot):
             custom_cmds_lower = {k.lower(): v for k, v in custom_cmds.items()}
             if msg_clean.lower() in custom_cmds_lower:
                 return
-            logger.warning(f"Command not found: {ctx.message.content}")
             return
 
         if isinstance(error, commands.MissingPermissions):
@@ -348,9 +345,35 @@ class DiscordOptimizerBot(commands.Bot):
             except Exception:
                 pass
             return
-        
+
+        if isinstance(error, commands.BotMissingPermissions):
+            try:
+                perms = ", ".join(error.missing_permissions)
+                await ctx.send(f"❌ I'm missing required permissions: **{perms}**. Please ask a server admin to grant these permissions to my role.")
+            except Exception:
+                pass
+            return
+
+        if isinstance(error, commands.CommandOnCooldown):
+            try:
+                await ctx.send(f"⏳ This command is on cooldown. Try again in {error.retry_after:.1f}s.", delete_after=5.0)
+            except Exception:
+                pass
+            return
+
+        if isinstance(error, commands.NoPrivateMessage):
+            try:
+                await ctx.send("❌ This command can only be used inside a Discord server.")
+            except Exception:
+                pass
+            return
+
         # Log other errors
         logger.error(f"Error executing command: {error}", exc_info=error)
+        try:
+            await ctx.send("❌ Something went wrong while running this command. Please try again.", delete_after=10.0)
+        except Exception:
+            pass
 
     async def on_ready(self):
         logger.info(f"Bot logged in successfully as {self.user} (ID: {self.user.id})")
@@ -884,7 +907,7 @@ class DiscordOptimizerBot(commands.Bot):
 
 
 # Helper functions to call from API endpoints
-from aegis.bot.restructuring import audit_guild_data, optimize_guild_structure, backup_guild_layout, restore_guild_layout
+from aegis.bot.restructuring import audit_guild_data, optimize_guild_structure, backup_guild_layout, restore_guild_layout  # noqa: F401
 
 
 async def run_bot_safe(token):
@@ -962,7 +985,7 @@ async def stop_bot_service():
     logger.info("Bot stopped successfully.")
     return True
 
-from aegis.bot.tickets import deploy_ticket_panel_message
+from aegis.bot.tickets import deploy_ticket_panel_message  # noqa: F401
 
 
 async def deploy_role_panel_message(
