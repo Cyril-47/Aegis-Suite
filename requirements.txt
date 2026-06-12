@@ -15,8 +15,8 @@ Pillow==11.0.0
 pyinstaller==6.14.1
 
 # Windows-only dependencies for desktop shortcut creation
-pywin32==306; sys_platform == 'win32'
-winshell==0.6; sys_platform == 'win32'
+pywin32>=306; sys_platform == 'win32'
+winshell>=0.6; sys_platform == 'win32'
 
 # Aegis Suite Rewrite — Phase 1 dependencies
 sqlalchemy==2.0.31
