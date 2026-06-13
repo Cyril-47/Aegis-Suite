@@ -403,4 +403,134 @@ async def test_on_voice_state_update_scoping_and_timers():
     assert player_b.disconnect_task is None
 
 
+def test_audit_log_guild_filtering(paths_tmp, monkeypatch):
+    # Patch utils.CONFIG_PATH to use paths_tmp.config_file for test isolation
+    monkeypatch.setattr(utils, "CONFIG_PATH", paths_tmp.config_file)
+
+    # Initialize AppCore and DB engine
+    core = AppCore(paths_tmp)
+    from aegis.db.engine import make_engine
+    core.db = make_engine(paths_tmp)
+
+    # Create tables
+    from aegis.db.models import Base
+    Base.metadata.create_all(core.db)
+
+    # Insert mock audit logs using log_action
+    from aegis.core.audit_log import log_action
+    
+    # We monkeypatch get_db_session to return session bound to our test engine
+    # In aegis/core/audit_log.py, _get_db_session accesses _active_cores
+    # Since core is in _active_cores, it will automatically find core.db.
+    
+    log_action("admin", "CONFIG_CHANGE", "Config saved on Guild A", target="11111")
+    log_action("admin", "CONFIG_CHANGE", "Config saved on Guild B", target="22222")
+    log_action("system", "BOT_CONTROL", "System startup", target=None) # target=None is "global"
+
+    # Setup web client
+    monkeypatch.setattr("aegis.core.auth.get_session_role", lambda token: "admin")
+    monkeypatch.setattr("aegis.core.auth.get_session_guild_id", lambda token: None)
+    monkeypatch.setattr("aegis.core.auth.validate_session", lambda token: True)
+
+    from aegis.web.app import build_app
+    app = build_app(core)
+    client = TestClient(app)
+    headers = {"Authorization": "Bearer valid_token"}
+
+    # Case 1: Fetch all logs
+    res = client.get("/api/audit-log", headers=headers)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["total"] == 3
+    actions = [log["action"] for log in data["logs"]]
+    assert "Config saved on Guild A" in actions
+    assert "Config saved on Guild B" in actions
+    assert "System startup" in actions
+
+    # Case 2: Filter by Guild A
+    res = client.get("/api/audit-log?guild_id=11111", headers=headers)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["total"] == 1
+    assert data["logs"][0]["action"] == "Config saved on Guild A"
+    assert data["logs"][0]["target"] == "11111"
+
+    # Case 3: Filter by Global actions
+    res = client.get("/api/audit-log?guild_id=global", headers=headers)
+    assert res.status_code == 200
+    data = res.json()
+    assert data["total"] == 1
+    assert data["logs"][0]["action"] == "System startup"
+    assert data["logs"][0]["target"] == "global"
+
+
+def test_audit_log_actor_resolution(paths_tmp, monkeypatch):
+    from aegis.core.app_core import AppCore, _active_cores
+    from aegis.web.app import build_app
+    from aegis.core.audit_log import log_action
+    from unittest.mock import MagicMock
+    from aegis.db.engine import make_engine
+    from aegis.db.models import Base
+    from fastapi.testclient import TestClient
+    
+    # Reset active cores for clean test isolation
+    _active_cores.clear()
+    
+    # 1. Setup AppCore and DB
+    core = AppCore(paths_tmp)
+    core.db = make_engine(paths_tmp)
+    Base.metadata.create_all(core.db)
+    
+    # 2. Mock Bot and register
+    bot = MagicMock()
+    bot.is_ready.return_value = True
+    
+    # Mock guild and member
+    mock_guild = MagicMock()
+    mock_member = MagicMock()
+    mock_member.display_name = "CyrilName"
+    mock_member.name = "cyril_member"
+    mock_guild.get_member.return_value = mock_member
+    
+    bot.get_guild.return_value = mock_guild
+    
+    # Mock user fallback
+    mock_user = MagicMock()
+    mock_user.name = "fallback_user"
+    bot.get_user.return_value = mock_user
+    
+    core.bot = bot
+    
+    try:
+        # Log with discord: ID
+        log_action("discord:435686517738962946", "GIVEAWAY_ACTION", "Started giveaway", target="1509050530369114162")
+        
+        # Setup authentication mocks
+        monkeypatch.setattr("aegis.core.auth.get_session_role", lambda token: "admin")
+        monkeypatch.setattr("aegis.core.auth.get_session_guild_id", lambda token: None)
+        monkeypatch.setattr("aegis.core.auth.validate_session", lambda token: True)
+        
+        app = build_app(core)
+        client = TestClient(app)
+        headers = {"Authorization": "Bearer valid_token"}
+        
+        res = client.get("/api/audit-log", headers=headers)
+        assert res.status_code == 200
+        data = res.json()
+        assert data["total"] == 1
+        
+        # Verify the actor name resolved to member display name "CyrilName"
+        assert data["logs"][0]["actor"] == "CyrilName"
+        
+        # Verify get_guild was called with target guild ID
+        bot.get_guild.assert_called_with(1509050530369114162)
+        mock_guild.get_member.assert_called_with(435686517738962946)
+        
+    finally:
+        _active_cores.clear()
+
+
+
+
+
 

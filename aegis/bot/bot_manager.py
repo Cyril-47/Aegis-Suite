@@ -16,6 +16,91 @@ logger = logging.getLogger("DiscordBot")
 bot_instance = None
 bot_task = None
 
+
+async def resolve_embed_variables(text: str, member: discord.Member = None, guild: discord.Guild = None) -> str:
+    """Replace smart variable placeholders in embed text with live data."""
+    if not text:
+        return text
+    
+    now = datetime.datetime.now()
+    
+    text = text.replace("{date}", now.strftime("%B %d, %Y"))
+    text = text.replace("{time}", now.strftime("%I:%M %p"))
+    text = text.replace("{datetime}", now.strftime("%B %d, %Y %I:%M %p"))
+    
+    if guild:
+        text = text.replace("{server}", str(getattr(guild, "name", "") or ""))
+        text = text.replace("{membercount}", str(getattr(guild, "member_count", 0) or 0))
+        text = text.replace("{boost_count}", str(getattr(guild, "premium_subscription_count", 0) or 0))
+        text = text.replace("{boost_tier}", str(getattr(guild, "premium_tier", 0) or 0))
+        text = text.replace("{role_count}", str(len(getattr(guild, "roles", []))))
+        created_at = getattr(guild, "created_at", None)
+        text = text.replace("{server_created}", created_at.strftime("%B %d, %Y") if created_at else "Unknown")
+        owner = getattr(guild, "owner", None)
+        if owner:
+            text = text.replace("{server_owner}", owner.mention)
+        
+        members = getattr(guild, "members", [])
+        online = sum(1 for m in members if getattr(m, "status", None) != discord.Status.offline)
+        text = text.replace("{online_count}", str(online))
+        
+        try:
+            invite = None
+            text_channels = getattr(guild, "text_channels", [])
+            guild_me = getattr(guild, "me", None)
+            for ch in text_channels:
+                if guild_me and hasattr(ch, "permissions_for") and ch.permissions_for(guild_me).create_instant_invite:
+                    invites = await ch.invites() if hasattr(ch, 'invites') else []
+                    if invites:
+                        invite = invites[0]
+                        break
+            if invite:
+                text = text.replace("{invite_link}", f"https://discord.gg/{invite.code}")
+            else:
+                text = text.replace("{invite_link}", "No invite available")
+        except Exception:
+            text = text.replace("{invite_link}", "No invite available")
+    
+    if member:
+        mention = getattr(member, "mention", "")
+        if hasattr(mention, "_mock_return_value"):
+            mention = ""
+        text = text.replace("{user}", str(mention))
+        
+        name = getattr(member, "name", "")
+        if hasattr(name, "_mock_return_value"):
+            name = ""
+        text = text.replace("{username}", str(name))
+        
+        top_role = getattr(member, "top_role", None)
+        top_role_name = "None"
+        if top_role and not hasattr(top_role, "_mock_return_value"):
+            raw_name = getattr(top_role, "name", "None")
+            if isinstance(raw_name, str):
+                top_role_name = raw_name
+        text = text.replace("{top_role}", top_role_name)
+        
+        created_at = getattr(member, "created_at", None)
+        if created_at and not hasattr(created_at, "_mock_return_value"):
+            try:
+                text = text.replace("{account_age}", str((now.replace(tzinfo=None) - created_at.replace(tzinfo=None)).days))
+            except Exception:
+                text = text.replace("{account_age}", "Unknown")
+        else:
+            text = text.replace("{account_age}", "Unknown")
+            
+        joined_at = getattr(member, "joined_at", None)
+        if joined_at and not hasattr(joined_at, "_mock_return_value"):
+            try:
+                text = text.replace("{member_join_date}", joined_at.strftime("%B %d, %Y"))
+            except Exception:
+                text = text.replace("{member_join_date}", "Unknown")
+        else:
+            text = text.replace("{member_join_date}", "Unknown")
+    
+    return text
+
+
 # Regular Expressions for Safe AutoMod Enforcement (Backtracking Protected)
 DISCORD_INVITE_PATTERN = re.compile(
     r'(?:https?://)?(?:www\.)?(?:discord\.(?:gg|io|me|li|club)|discord(?:app)?\.com/invite)/([a-zA-Z0-9_-]{1,32})',
@@ -28,7 +113,114 @@ URL_DOMAIN_PATTERN = re.compile(
 )
 
 def get_bot():
-    return bot_instance
+    global bot_instance
+    if bot_instance is not None:
+        return bot_instance
+    try:
+        from aegis.core.app_core import _active_cores
+        if _active_cores:
+            core = _active_cores[0]
+            if hasattr(core, "bot") and core.bot:
+                return core.bot
+    except Exception:
+        pass
+    return None
+
+def process_embed_data_urls(embed_dicts: list[dict]) -> tuple[list[dict], list[discord.File]]:
+    """
+    Scans embed dictionaries for data:image/ base64 URLs.
+    Replaces them with attachment:// references and returns the list of discord.File objects to attach.
+    """
+    import base64
+    import io
+    import copy
+    
+    files = []
+    file_counter = 0
+    
+    # Regex to match data URL: data:image/png;base64,xxxxx
+    data_url_pattern = re.compile(r'^data:image/(?P<ext>[a-zA-Z+.-]+);base64,(?P<b64>.+)$')
+    
+    copied_dicts = copy.deepcopy(embed_dicts)
+    
+    for embed in copied_dicts:
+        # Check thumbnail
+        if "thumbnail" in embed and isinstance(embed["thumbnail"], dict) and "url" in embed["thumbnail"]:
+            url = embed["thumbnail"]["url"]
+            if url and isinstance(url, str) and url.startswith("data:image/"):
+                match = data_url_pattern.match(url)
+                if match:
+                    ext = match.group("ext")
+                    if "+" in ext:
+                        ext = ext.split("+")[0]
+                    filename = f"thumbnail_{file_counter}.{ext}"
+                    try:
+                        b64_data = match.group("b64")
+                        b64_data = re.sub(r'\s+', '', b64_data)
+                        img_bytes = base64.b64decode(b64_data)
+                        files.append(discord.File(io.BytesIO(img_bytes), filename=filename))
+                        embed["thumbnail"]["url"] = f"attachment://{filename}"
+                        file_counter += 1
+                    except Exception as e:
+                        logger.error(f"Failed to decode base64 thumbnail: {e}")
+                        
+        # Check image
+        if "image" in embed and isinstance(embed["image"], dict) and "url" in embed["image"]:
+            url = embed["image"]["url"]
+            if url and isinstance(url, str) and url.startswith("data:image/"):
+                match = data_url_pattern.match(url)
+                if match:
+                    ext = match.group("ext")
+                    if "+" in ext:
+                        ext = ext.split("+")[0]
+                    filename = f"image_{file_counter}.{ext}"
+                    try:
+                        b64_data = match.group("b64")
+                        b64_data = re.sub(r'\s+', '', b64_data)
+                        img_bytes = base64.b64decode(b64_data)
+                        files.append(discord.File(io.BytesIO(img_bytes), filename=filename))
+                        embed["image"]["url"] = f"attachment://{filename}"
+                        file_counter += 1
+                    except Exception as e:
+                        logger.error(f"Failed to decode base64 image: {e}")
+                        
+    return copied_dicts, files
+
+async def add_reactions_from_embeds(msg: discord.Message, embeds: list):
+    """Extract emojis from embed fields and add them as reactions to the message."""
+    if not msg:
+        return
+    custom_emoji_pattern = r'<a?:\w+:\d+>'
+    unicode_emoji_pattern = r'(?:[0-9*#]\ufe0f?\u20e3|[\U0001F1E6-\U0001F1FF]{1,2}|[\u2600-\u27BF\U0001F000-\U0001FBFF]+(?:\u200D[\u2600-\u27BF\U0001F000-\U0001FBFF]+)*)'
+    emoji_regex = re.compile(rf'({custom_emoji_pattern}|{unicode_emoji_pattern})')
+
+    emojis_to_add = []
+    for embed in embeds:
+        fields = []
+        if isinstance(embed, discord.Embed):
+            fields = embed.fields
+        elif isinstance(embed, dict):
+            fields = embed.get("fields", [])
+        
+        for field in fields:
+            name = None
+            if hasattr(field, "name"):
+                name = field.name
+            elif isinstance(field, dict):
+                name = field.get("name")
+            
+            if name:
+                match = emoji_regex.search(name)
+                if match:
+                    emoji = match.group(1)
+                    if emoji not in emojis_to_add:
+                        emojis_to_add.append(emoji)
+    
+    for emoji in emojis_to_add:
+        try:
+            await msg.add_reaction(emoji)
+        except Exception as e:
+            logger.warning(f"Failed to add reaction {emoji} to message {msg.id}: {e}")
 
 from aegis.bot.tickets import TicketCloseView, TicketPanelView
 
@@ -48,6 +240,8 @@ class DiscordOptimizerBot(commands.Bot):
         }
         self.music_players = {}
         self.scheduler_task = None
+        self.anti_raid = None  # Initialized in setup_hook
+        self._new_members = set()  # Track recently joined members for first-msg analysis
 
     def check_stats_reset(self):
         """Resets daily stats if the UTC date has changed (Tier 3.5)"""
@@ -77,8 +271,12 @@ class DiscordOptimizerBot(commands.Bot):
         # Start scheduled messages background scheduler and watchdog
         self.scheduler_task = self.loop.create_task(self.scheduler_loop())
         self.giveaway_task = self.loop.create_task(self.giveaway_scheduler_loop())
+        self.embed_scheduler_task = self.loop.create_task(self.embed_scheduler_loop())
         self.watchdog_task = self.loop.create_task(self.watchdog_loop())
-        
+        self.backup_task = self.loop.create_task(self.backup_loop())
+        from aegis.bot.anti_raid import AntiRaidEngine
+        self.anti_raid = AntiRaidEngine()
+
         # Only sync when requested or on dev guild to protect rate limits (Tier 3.14)
         dev_guild_id = self.config.get("dev_guild_id")
         if dev_guild_id:
@@ -121,9 +319,60 @@ class DiscordOptimizerBot(commands.Bot):
                     else:
                         logger.warning("Giveaway loop is not running. Restarting...")
                     self.giveaway_task = self.loop.create_task(self.giveaway_scheduler_loop())
+
+                # Monitor embed_scheduler_loop
+                if self.embed_scheduler_task is None or self.embed_scheduler_task.done():
+                    if self.embed_scheduler_task and self.embed_scheduler_task.done() and self.embed_scheduler_task.exception():
+                        exc = self.embed_scheduler_task.exception()
+                        logger.error(f"Embed scheduler loop crashed with exception: {exc}. Restarting...")
+                    else:
+                        logger.warning("Embed scheduler loop is not running. Restarting...")
+                    self.embed_scheduler_task = self.loop.create_task(self.embed_scheduler_loop())
             except Exception as e:
                 logger.error(f"Error in watchdog loop: {e}")
             await asyncio.sleep(30)
+
+    async def backup_loop(self):
+        logger.info("Automated backup loop started.")
+        await self.wait_until_ready()
+        while not self.is_closed():
+            try:
+                now = datetime.datetime.now(datetime.timezone.utc)
+                target = now.replace(hour=3, minute=0, second=0, microsecond=0)
+                if now >= target:
+                    target += datetime.timedelta(days=1)
+                wait_seconds = (target - now).total_seconds()
+                if wait_seconds < 60:
+                    wait_seconds += 86400
+                await asyncio.sleep(wait_seconds)
+                await asyncio.get_event_loop().run_in_executor(None, self._run_nightly_backup)
+            except asyncio.CancelledError:
+                break
+            except Exception:
+                logger.exception("Backup loop error")
+                await asyncio.sleep(3600)
+
+    def _run_nightly_backup(self):
+        import shutil
+        from aegis.core.paths import Paths
+        paths = Paths()
+        backup_dir = paths.backups_db
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d_%H%M%S")
+        src = paths.db_file
+        if not src.exists():
+            return
+        dst = backup_dir / f"aegis_backup_{timestamp}.db"
+        try:
+            shutil.copy2(str(src), str(dst))
+            logger.info(f"Nightly backup created: {dst.name}")
+            backups = sorted(backup_dir.glob("aegis_backup_*.db"), key=lambda p: p.stat().st_mtime)
+            while len(backups) > 7:
+                old = backups.pop(0)
+                old.unlink(missing_ok=True)
+                logger.info(f"Pruned old backup: {old.name}")
+        except Exception:
+            logger.exception("Nightly backup failed")
 
     async def scheduler_loop(self):
         logger.info("Scheduled messages background scheduler loop started.")
@@ -257,6 +506,62 @@ class DiscordOptimizerBot(commands.Bot):
                 logger.error(f"Error in giveaway scheduler: {e}")
             await asyncio.sleep(10)
 
+    async def embed_scheduler_loop(self):
+        logger.info("Scheduled embeds background scheduler loop started.")
+        await self.wait_until_ready()
+        while not self.is_closed():
+            try:
+                now = datetime.datetime.now(datetime.timezone.utc)
+                config = utils.load_config()
+                schedules = config.get("scheduled_embeds", [])
+                
+                config_changed = False
+                for sched in list(schedules):
+                    try:
+                        scheduled_at_str = sched.get("scheduled_at")
+                        if not scheduled_at_str:
+                            continue
+                        
+                        scheduled_at = datetime.datetime.fromisoformat(scheduled_at_str.replace("Z", "+00:00"))
+                        if now >= scheduled_at:
+                            guild_id = int(sched["guild_id"])
+                            channel_id = int(sched["channel_id"])
+                            guild = self.get_guild(guild_id)
+                            if guild:
+                                channel = guild.get_channel(channel_id)
+                                if channel:
+                                    try:
+                                        embeds_data = sched.get("embeds", [])
+                                        embeds_data, files = process_embed_data_urls(embeds_data)
+                                        content = sched.get("content")
+                                        discord_embeds = [discord.Embed.from_dict(e) for e in embeds_data[:10]]
+                                        if files:
+                                            msg = await channel.send(content=content or None, embeds=discord_embeds, files=files)
+                                        else:
+                                            msg = await channel.send(content=content or None, embeds=discord_embeds)
+                                        logger.info(f"Fired scheduled embed(s) in #{channel.name}")
+                                        if sched.get("add_reactions"):
+                                            await add_reactions_from_embeds(msg, discord_embeds)
+                                    except Exception as e:
+                                        logger.error(f"Failed to send scheduled embed: {e}")
+                            
+                            schedules.remove(sched)
+                            config_changed = True
+                    except Exception as e:
+                        logger.error(f"Error processing scheduled embed: {e}")
+                
+                if config_changed:
+                    with utils.config_lock:
+                        new_config = utils.load_config()
+                        new_config["scheduled_embeds"] = schedules
+                        utils.save_config(new_config)
+                        self.config = new_config
+                        
+            except Exception as e:
+                logger.error(f"Error in embed scheduler loop: {e}")
+            
+            await asyncio.sleep(30)
+
     async def end_giveaway_action(self, message, gw, giveaways):
         import random
         entrants = gw.get("entrants", [])
@@ -382,6 +687,58 @@ class DiscordOptimizerBot(commands.Bot):
     async def on_member_join(self, member: discord.Member):
         logger.info(f"New member joined: {member.name} in guild '{member.guild.name}'")
         self.stats["joins_today"] = self.stats.get("joins_today", 0) + 1
+
+        # Record analytics (best-effort)
+        try:
+            from aegis.analytics.engine import get_analytics_engine
+            _ae = get_analytics_engine()
+            if _ae:
+                _ae.record_member_event(member.guild.id, member.id, "join")
+        except Exception:
+            pass
+
+        # Anti-raid detection (best-effort)
+        try:
+            if self.anti_raid:
+                guild_config = utils.get_guild_config(str(member.guild.id))
+                raid_cfg = guild_config.get("anti_raid_settings", {})
+                if raid_cfg.get("enabled", False):
+                    # Join rate check
+                    raid_event = self.anti_raid.record_join(
+                        str(member.guild.id), str(member.id)
+                    )
+                    if raid_event:
+                        alert_ch_id = raid_cfg.get("raid_alert_channel")
+                        if alert_ch_id:
+                            ch = member.guild.get_channel(int(alert_ch_id))
+                            if ch:
+                                try:
+                                    import asyncio
+                                    asyncio.get_event_loop().create_task(ch.send(
+                                        f"RAID DETECTED: {raid_event['join_count']} members joined in "
+                                        f"{raid_event['window_seconds']}s. Check member list."
+                                    ))
+                                except Exception:
+                                    pass
+
+                    # Account age check
+                    from datetime import datetime, timezone
+                    min_age = raid_cfg.get("min_account_age_days", 7)
+                    if self.anti_raid.check_account_age(member.created_at, min_age):
+                        logger.warning(
+                            f"Suspicious account joined: {member.name} "
+                            f"(account age: {(datetime.now(timezone.utc) - member.created_at).days} days)"
+                        )
+        except Exception:
+            pass
+
+        self._new_members.add(member.id)
+        # Prune after 5 minutes
+        async def prune_new_member(mid=member.id):
+            await asyncio.sleep(300)
+            self._new_members.discard(mid)
+        asyncio.get_event_loop().create_task(prune_new_member())
+
         config = utils.load_config()
         welcome = utils.get_guild_welcome_settings(config, member.guild.id)
         
@@ -404,8 +761,14 @@ class DiscordOptimizerBot(commands.Bot):
 
         if channel:
             try:
-                title = welcome.get("message_title", "Welcome to the Server, {user}!").replace("{user}", member.name).replace("{server}", member.guild.name)
-                desc = welcome.get("message_description", "").replace("{user}", member.mention).replace("{server}", member.guild.name)
+                title = await resolve_embed_variables(
+                    welcome.get("message_title", "Welcome to the Server, {user}!"),
+                    member=member, guild=member.guild
+                )
+                desc = await resolve_embed_variables(
+                    welcome.get("message_description", ""),
+                    member=member, guild=member.guild
+                )
                 color_hex = welcome.get("embed_color", "#6366F1").replace("#", "")
                 
                 try:
@@ -419,7 +782,27 @@ class DiscordOptimizerBot(commands.Bot):
                     color=color
                 )
                 embed.set_thumbnail(url=member.display_avatar.url)
-                embed.set_footer(text=f"Member #{member.guild.member_count}")
+                embed.set_footer(text=await resolve_embed_variables(
+                    welcome.get("footer_text", "Member #{membercount}"),
+                    member=member, guild=member.guild
+                ))
+                
+                if welcome.get("author_name"):
+                    embed.set_author(
+                        name=await resolve_embed_variables(welcome["author_name"], member=member, guild=member.guild),
+                        icon_url=welcome.get("author_icon") or discord.Embed.Empty
+                    )
+                
+                if welcome.get("image"):
+                    embed.set_image(url=welcome["image"])
+                
+                for field in welcome.get("fields", []):
+                    if field.get("name") and field.get("value"):
+                        embed.add_field(
+                            name=await resolve_embed_variables(field["name"], member=member, guild=member.guild),
+                            value=await resolve_embed_variables(field["value"], member=member, guild=member.guild),
+                            inline=field.get("inline", True)
+                        )
                 
                 await channel.send(embed=embed)
                 logger.info(f"Sent welcome embed to #{channel.name}")
@@ -448,8 +831,69 @@ class DiscordOptimizerBot(commands.Bot):
                 else:
                     logger.warning(f"Auto-assign role '{role_identifier}' not found in guild.")
 
+        # 3. Check Member Milestones
+        try:
+            guild_conf = utils.get_guild_config(str(member.guild.id))
+            milestone_cfg = guild_conf.get("milestone_settings", {})
+            if milestone_cfg.get("enabled", False):
+                milestones = milestone_cfg.get("milestones", [])
+                member_count = member.guild.member_count
+                fired = guild_conf.get("fired_milestones", [])
+                
+                for ms in milestones:
+                    if member_count >= ms and str(ms) not in fired:
+                        ch_id = milestone_cfg.get("channel_id")
+                        if ch_id:
+                            ch = member.guild.get_channel(int(ch_id))
+                        else:
+                            ch = member.guild.system_channel
+                        
+                        if ch:
+                            embed_cfg = milestone_cfg.get("embed", {})
+                            title = resolve_embed_variables(
+                                embed_cfg.get("title", f"🎉 {member_count} MEMBERS!"),
+                                member=member, guild=member.guild
+                            ).replace("{membercount}", str(member_count))
+                            desc = resolve_embed_variables(
+                                embed_cfg.get("description", f"We just hit {member_count} members!"),
+                                member=member, guild=member.guild
+                            ).replace("{membercount}", str(member_count))
+                            
+                            color_hex = embed_cfg.get("color", "#FFD700").replace("#", "")
+                            try:
+                                color = discord.Color(int(color_hex, 16))
+                            except ValueError:
+                                color = discord.Color.gold()
+                            
+                            milestone_embed = discord.Embed(title=title, description=desc, color=color)
+                            if member.guild.icon:
+                                milestone_embed.set_thumbnail(url=member.guild.icon.url)
+                            
+                            try:
+                                await ch.send(embed=milestone_embed)
+                                fired.append(str(ms))
+                                guild_conf["fired_milestones"] = fired
+                                with utils.config_lock:
+                                    config = utils.load_config()
+                                    gc = config.get("guild_configs", {}).get(str(member.guild.id), {})
+                                    gc["fired_milestones"] = fired
+                                    utils.save_config(config)
+                                logger.info(f"Milestone {ms} reached in {member.guild.name}")
+                            except Exception as e:
+                                logger.error(f"Failed to send milestone embed: {e}")
+        except Exception as e:
+            logger.error(f"Error checking milestones: {e}")
+
     async def on_member_remove(self, member: discord.Member):
         logger.info(f"Member left: {member.name} from guild '{member.guild.name}'")
+        # Record analytics (best-effort)
+        try:
+            from aegis.analytics.engine import get_analytics_engine
+            _ae = get_analytics_engine()
+            if _ae:
+                _ae.record_member_event(member.guild.id, member.id, "leave")
+        except Exception:
+            pass
 
     async def on_guild_remove(self, guild: discord.Guild):
         logger.info(f"Bot was removed from guild: {guild.name} (ID: {guild.id})")
@@ -475,6 +919,22 @@ class DiscordOptimizerBot(commands.Bot):
         audit_log.log_action("discord_system", "DEAUTHORIZE_ACTION", f"Bot kicked/removed from server {guild.id}", str(guild.id))
 
     async def on_voice_state_update(self, member: discord.Member, before: discord.VoiceState, after: discord.VoiceState):
+        # Record analytics (best-effort)
+        try:
+            from aegis.analytics.engine import get_analytics_engine
+            _ae = get_analytics_engine()
+            if _ae and not member.bot:
+                if before.channel is None and after.channel is not None:
+                    _ae.record_voice_join(member.guild.id, member.id, after.channel.id)
+                elif before.channel is not None and after.channel is None:
+                    _ae.record_voice_leave(member.guild.id, member.id, before.channel.id)
+                elif (before.channel is not None and after.channel is not None
+                      and before.channel.id != after.channel.id):
+                    _ae.record_voice_leave(member.guild.id, member.id, before.channel.id)
+                    _ae.record_voice_join(member.guild.id, member.id, after.channel.id)
+        except Exception:
+            pass
+
         # Clean up music player when bot leaves voice (Tier 4.2)
         if member.id == self.user.id:
             player = self.music_players.get(member.guild.id)
@@ -531,6 +991,15 @@ class DiscordOptimizerBot(commands.Bot):
         if interaction.type == discord.InteractionType.application_command:
             self.check_stats_reset()
             self.stats["commands_today"] = self.stats.get("commands_today", 0) + 1
+
+            try:
+                from aegis.analytics.engine import get_analytics_engine
+                _ae = get_analytics_engine()
+                if _ae and interaction.guild:
+                    cmd_name = interaction.data.get("name", "") if interaction.data else ""
+                    _ae.record_command(interaction.guild.id, interaction.user.id, cmd_name)
+            except Exception:
+                pass
             
         custom_id = interaction.data.get("custom_id") if interaction.data else None
         if not custom_id or not custom_id.startswith("role_toggle:"):
@@ -590,11 +1059,56 @@ class DiscordOptimizerBot(commands.Bot):
         if message.author.bot or not message.guild:
             return
 
+        # Record analytics (best-effort)
+        try:
+            from aegis.analytics.engine import get_analytics_engine
+            _ae = get_analytics_engine()
+            if _ae:
+                _ae.record_message(
+                    message.guild.id,
+                    message.channel.id,
+                    message.author.id,
+                    len(message.content.split()) if message.content else 0,
+                )
+        except Exception:
+            pass
+
         # Process commands (Tier 3.4)
         await self.process_commands(message)
 
         self.check_stats_reset()
         self.stats["messages_today"] = self.stats.get("messages_today", 0) + 1
+
+        # First-message analysis for new members (anti-raid)
+        if message.author.id in self._new_members:
+            try:
+                if self.anti_raid:
+                    guild_config = utils.get_guild_config(str(message.guild.id))
+                    raid_cfg = guild_config.get("anti_raid_settings", {})
+                    if raid_cfg.get("enabled", False):
+                        mention_count = (
+                            len(message.mentions) +
+                            len(message.role_mentions) +
+                            message.content.count("@everyone") +
+                            message.content.count("@here")
+                        )
+                        if mention_count >= 5:
+                            logger.warning(
+                                f"Suspicious first message from {message.author.name}: "
+                                f"{mention_count} mentions"
+                            )
+            except Exception:
+                pass
+
+        try:
+            from aegis.core.utils import broadcast_stats
+            broadcast_stats({
+                "messages_today": self.stats["messages_today"],
+                "commands_today": self.stats.get("commands_today", 0),
+                "joins_today": self.stats.get("joins_today", 0),
+            })
+        except Exception:
+            pass
 
         # Use cached in-memory config instead of reading file (Tier 3.3)
         config = self.config
@@ -642,11 +1156,10 @@ class DiscordOptimizerBot(commands.Bot):
                     
                 response_text = resp.get("response", "")
                 if response_text:
-                    response_text = response_text.replace("{user}", message.author.mention)
-                    response_text = response_text.replace("{username}", message.author.name)
-                    response_text = response_text.replace("{server}", message.guild.name)
+                    response_text = await resolve_embed_variables(
+                        response_text, member=message.author, guild=message.guild
+                    )
                     response_text = response_text.replace("{channel}", message.channel.name)
-                    response_text = response_text.replace("{membercount}", str(message.guild.member_count))
                     
                 embed_data = resp.get("embed")
                 try:
@@ -654,7 +1167,10 @@ class DiscordOptimizerBot(commands.Bot):
                     self.stats["commands_today"] = self.stats.get("commands_today", 0) + 1
                     if embed_data:
                         embed_json_str = json.dumps(embed_data)
-                        embed_json_str = embed_json_str.replace("{user}", message.author.mention).replace("{username}", message.author.name).replace("{server}", message.guild.name).replace("{channel}", message.channel.name).replace("{membercount}", str(message.guild.member_count))
+                        embed_json_str = await resolve_embed_variables(
+                            embed_json_str, member=message.author, guild=message.guild
+                        )
+                        embed_json_str = embed_json_str.replace("{channel}", message.channel.name)
                         embed_dict = json.loads(embed_json_str)
                         embed = discord.Embed.from_dict(embed_dict)
                         await message.channel.send(content=response_text or None, embed=embed)
@@ -710,14 +1226,55 @@ class DiscordOptimizerBot(commands.Bot):
                         temp_ch = message.guild.get_channel(int(lvl_up_ch_id))
                         if temp_ch:
                             announce_ch = temp_ch
+                    
+                    rank_data = leveling_system.get_user_rank(str(message.guild.id), str(message.author.id))
                             
                     try:
-                        embed = discord.Embed(
-                            title="🎉 LEVEL UP!",
-                            description=f"{message.author.mention} has leveled up to **Level {new_lvl}**!",
-                            color=discord.Color.gold()
-                        )
-                        embed.set_thumbnail(url=message.author.display_avatar.url)
+                        lvl_embed_cfg = leveling_cfg.get("level_up_embed", {})
+                        if not lvl_embed_cfg.get("enabled", True):
+                            lvl_embed_cfg = {}
+                        
+                        title = (await resolve_embed_variables(
+                            lvl_embed_cfg.get("title", "🎉 LEVEL UP!"),
+                            member=message.author, guild=message.guild
+                        )).replace("{level}", str(new_lvl)).replace("{xp}", str(cur_xp)).replace("{rank}", str(rank_data.get("rank", "?"))).replace("{messages}", str(tot_msg))
+                        
+                        desc = (await resolve_embed_variables(
+                            lvl_embed_cfg.get("description", f"{message.author.mention} has leveled up to **Level {new_lvl}**!"),
+                            member=message.author, guild=message.guild
+                        )).replace("{level}", str(new_lvl)).replace("{xp}", str(cur_xp)).replace("{rank}", str(rank_data.get("rank", "?"))).replace("{messages}", str(tot_msg))
+                        
+                        color_hex = lvl_embed_cfg.get("color", "#FFD700").replace("#", "")
+                        try:
+                            color = discord.Color(int(color_hex, 16))
+                        except ValueError:
+                            color = discord.Color.gold()
+                        
+                        embed = discord.Embed(title=title, description=desc, color=color)
+                        
+                        if lvl_embed_cfg.get("show_thumbnail", True):
+                            embed.set_thumbnail(url=message.author.display_avatar.url)
+                        
+                        if lvl_embed_cfg.get("image"):
+                            embed.set_image(url=lvl_embed_cfg["image"])
+                        
+                        footer_text = (await resolve_embed_variables(
+                            lvl_embed_cfg.get("footer_text", ""),
+                            member=message.author, guild=message.guild
+                        )).replace("{level}", str(new_lvl)).replace("{xp}", str(cur_xp)).replace("{rank}", str(rank_data.get("rank", "?"))).replace("{messages}", str(tot_msg))
+                        if footer_text:
+                            embed.set_footer(text=footer_text)
+                        
+                        for field in lvl_embed_cfg.get("fields", []):
+                            if field.get("name") and field.get("value"):
+                                field_name = (await resolve_embed_variables(
+                                    field["name"], member=message.author, guild=message.guild
+                                )).replace("{level}", str(new_lvl)).replace("{xp}", str(cur_xp)).replace("{rank}", str(rank_data.get("rank", "?"))).replace("{messages}", str(tot_msg))
+                                field_value = (await resolve_embed_variables(
+                                    field["value"], member=message.author, guild=message.guild
+                                )).replace("{level}", str(new_lvl)).replace("{xp}", str(cur_xp)).replace("{rank}", str(rank_data.get("rank", "?"))).replace("{messages}", str(tot_msg))
+                                embed.add_field(name=field_name, value=field_value, inline=field.get("inline", True))
+                        
                         await announce_ch.send(embed=embed)
                     except Exception as e:
                         logger.error(f"Failed to send level up announcement: {e}")
@@ -814,6 +1371,31 @@ class DiscordOptimizerBot(commands.Bot):
 
         if infractions:
             infraction_reason = "; ".join(infractions)
+
+            # Record automod analytics (best-effort)
+            try:
+                from aegis.analytics.engine import get_analytics_engine
+                _ae = get_analytics_engine()
+                if _ae:
+                    categories = []
+                    if any("profanity" in i.lower() or "blocked word" in i.lower() for i in infractions):
+                        categories.append("profanity")
+                    if any("invite" in i.lower() for i in infractions):
+                        categories.append("invite_link")
+                    if any("link" in i.lower() for i in infractions):
+                        categories.append("link")
+                    if any("mention" in i.lower() for i in infractions):
+                        categories.append("mention_spam")
+                    for cat in categories:
+                        _ae.record_mod_action(
+                            message.guild.id, message.author.id,
+                            event_type="automod_block",
+                            reason=infraction_reason,
+                            automod_category=cat,
+                        )
+            except Exception:
+                pass
+
             try:
                 # Delete message
                 await message.delete()

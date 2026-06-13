@@ -1,3 +1,4 @@
+import datetime
 import logging
 import os
 import discord
@@ -319,6 +320,25 @@ async def logout_auth(request: Request):
         audit_log.log_action("system", "BOT_CONTROL", "Admin logged out")
     return {"status": "success"}
 
+
+class ModeratorSessionRequest(BaseModel):
+    guild_id: str
+
+
+@router.post("/api/auth/moderator-session")
+async def create_moderator_session(request: Request, body: ModeratorSessionRequest):
+    """Create a moderator-level session for a specific guild. Admin-only."""
+    auth_header = request.headers.get("Authorization")
+    token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else ""
+    if not token or not auth.validate_session(token):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    session_role = auth.get_session_role(token)
+    if session_role != "admin":
+        raise HTTPException(status_code=403, detail="Only admins can create moderator sessions")
+    mod_token = auth.create_session(body.guild_id, "moderator")
+    audit_log.log_action("system", "BOT_CONTROL", f"Admin created moderator session for guild: {body.guild_id}")
+    return {"status": "success", "token": mod_token, "role": "moderator", "guild_id": body.guild_id}
+
 @router.get("/api/stats")
 async def get_stats():
     return bot_manager.get_bot_stats()
@@ -326,7 +346,7 @@ async def get_stats():
 @router.get("/api/status")
 async def get_status(request: Request):
     import shutil
-    bot = bot_manager.get_bot()
+    bot = get_active_bot()
     config = utils.load_config()
     has_token = bool(utils.get_bot_token(config))
     ffmpeg_installed = bool(shutil.which("ffmpeg"))
@@ -515,7 +535,9 @@ async def save_config(config_data: ConfigModel, request: Request, guild_id: Opti
             guild_conf["leveling_settings"] = new_data["leveling_settings"]
             
         utils.save_guild_config(target_guild_id, guild_conf)
-        
+
+
+
         # Update AppCore ConfigStore reference
         core = getattr(request.app.state, "core", None)
         if not core:
@@ -608,8 +630,19 @@ async def audit_guild(guild_id: str):
     if not guild:
         raise HTTPException(status_code=404, detail="Guild not found. Ensure the bot is added to the server.")
         
+    online_count = None
+    member_count = None
     try:
-        report = bot_manager.audit_guild_data(guild)
+        # Fetch approximate counts using REST API to bypass disabled presence intent
+        fetched = await bot.fetch_guild(guild.id, with_counts=True)
+        if fetched:
+            online_count = fetched.approximate_presence_count
+            member_count = fetched.approximate_member_count
+    except Exception as e:
+        logger.warning(f"REST fetch_guild with counts failed: {e}", exc_info=True)
+        
+    try:
+        report = bot_manager.audit_guild_data(guild, online_count=online_count, member_count=member_count)
         return report
     except Exception as e:
         logger.error(f"Error auditing guild {guild_id}: {e}")
@@ -1560,15 +1593,50 @@ async def reset_leveling_endpoint(guild_id: str):
 # Audit Log Endpoint
 
 @router.get("/api/audit-log")
-async def get_audit_log_endpoint(request: Request, category: Optional[str] = None, limit: int = 100, offset: int = 0):
+async def get_audit_log_endpoint(request: Request, category: Optional[str] = None, limit: int = 100, offset: int = 0, guild_id: Optional[str] = None):
     auth_header = request.headers.get("Authorization")
     token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else ""
     session_guild_id = auth.get_session_guild_id(token)
     session_role = auth.get_session_role(token)
     
     if session_role == "tenant" and session_guild_id:
-        return audit_log.get_logs(category, limit, offset, guild_id=session_guild_id)
-    return audit_log.get_logs(category, limit, offset)
+        res = audit_log.get_logs(category, limit, offset, guild_id=session_guild_id)
+    else:
+        res = audit_log.get_logs(category, limit, offset, guild_id=guild_id)
+
+    # Resolve actor usernames where applicable (e.g. discord:ID or discord_admin:ID)
+    bot = get_active_bot()
+    if bot:
+        for entry in res.get("logs", []):
+            actor = entry.get("actor")
+            if actor and (actor.startswith("discord:") or actor.startswith("discord_admin:")):
+                parts = actor.split(":")
+                if len(parts) == 2:
+                    prefix, user_id_str = parts
+                    try:
+                        user_id = int(user_id_str)
+                        resolved_name = None
+                        target_guild = entry.get("target")
+                        if target_guild and target_guild != "N/A" and target_guild != "global":
+                            try:
+                                guild = bot.get_guild(int(target_guild))
+                                if guild:
+                                    member = guild.get_member(user_id)
+                                    if member:
+                                        resolved_name = member.display_name or member.name
+                            except Exception:
+                                pass
+                        
+                        if not resolved_name:
+                            user = bot.get_user(user_id)
+                            if user:
+                                resolved_name = user.name
+                        
+                        if resolved_name:
+                            entry["actor"] = resolved_name
+                    except ValueError:
+                        pass
+    return res
 
 # Auto-Responder Endpoints
 
@@ -1707,9 +1775,13 @@ async def delete_auto_responder(id: str, request: Request):
     return {"status": "success"}
 
 class EmbedSendRequest(BaseModel):
-    channel_id: str
+    channel_id: Optional[str] = None
     content: Optional[str] = None
-    embed: dict
+    embed: Optional[dict] = None
+    embeds: Optional[list[dict]] = None
+    dm_user_id: Optional[str] = None
+    edit_message_id: Optional[str] = None
+    add_reactions: Optional[bool] = False
 
 @router.post("/api/guilds/{guild_id}/embeds/send")
 async def send_embed_message(guild_id: str, request: EmbedSendRequest):
@@ -1717,18 +1789,229 @@ async def send_embed_message(guild_id: str, request: EmbedSendRequest):
     guild = bot.get_guild(parse_id(guild_id, "guild_id"))
     if not guild:
         raise HTTPException(status_code=404, detail="Guild not found.")
-    channel = guild.get_channel(parse_id(request.channel_id, "channel_id"))
-    if not channel:
-        raise HTTPException(status_code=404, detail="Channel not found.")
+    
+    embed_dicts = []
+    if request.embeds:
+        embed_dicts = request.embeds[:10]
+    elif request.embed:
+        embed_dicts = [request.embed]
         
+    # Process base64 data URLs inside embeds
+    processed_dicts, files = bot_manager.process_embed_data_urls(embed_dicts)
+    
+    discord_embeds = [discord.Embed.from_dict(e) for e in processed_dicts]
+    
+    if not discord_embeds:
+        raise HTTPException(status_code=400, detail="No embed data provided.")
+    
     try:
-        embed = discord.Embed.from_dict(request.embed)
-        await channel.send(content=request.content or None, embed=embed)
-        audit_log.log_action("admin", "CONFIG_CHANGE", f"Sent custom embed message in #{channel.name}", guild_id)
+        if request.dm_user_id:
+            member = None
+            if request.dm_user_id.strip().isdigit():
+                user_id = int(request.dm_user_id.strip())
+                member = guild.get_member(user_id)
+                if not member:
+                    try:
+                        member = await guild.fetch_member(user_id)
+                    except Exception:
+                        pass
+            else:
+                member = guild.get_member_named(request.dm_user_id)
+                if not member:
+                    member = discord.utils.find(
+                        lambda m: m.name.lower() == request.dm_user_id.lower() or m.display_name.lower() == request.dm_user_id.lower(),
+                        guild.members
+                    )
+            
+            if not member:
+                raise HTTPException(status_code=404, detail=f"User '{request.dm_user_id}' not found in this guild.")
+            if files:
+                msg = await member.send(content=request.content or None, embeds=discord_embeds, files=files)
+            else:
+                msg = await member.send(content=request.content or None, embeds=discord_embeds)
+            audit_log.log_action("admin", "CONFIG_CHANGE", f"Sent embed via DM to {member.name}", guild_id)
+            if request.add_reactions:
+                await bot_manager.add_reactions_from_embeds(msg, discord_embeds)
+        elif request.edit_message_id:
+            if not request.channel_id:
+                raise HTTPException(status_code=400, detail="channel_id required for edit mode.")
+            channel = guild.get_channel(parse_id(request.channel_id, "channel_id"))
+            if not channel:
+                raise HTTPException(status_code=404, detail="Channel not found.")
+            message = await channel.fetch_message(int(request.edit_message_id))
+            if files:
+                await message.edit(content=request.content or None, embeds=discord_embeds, files=files)
+            else:
+                await message.edit(content=request.content or None, embeds=discord_embeds)
+            audit_log.log_action("admin", "CONFIG_CHANGE", f"Edited embed message in #{channel.name}", guild_id)
+            if request.add_reactions:
+                await bot_manager.add_reactions_from_embeds(message, discord_embeds)
+        else:
+            if not request.channel_id:
+                raise HTTPException(status_code=400, detail="channel_id or dm_user_id required.")
+            channel = guild.get_channel(parse_id(request.channel_id, "channel_id"))
+            if not channel:
+                raise HTTPException(status_code=404, detail="Channel not found.")
+            if files:
+                msg = await channel.send(content=request.content or None, embeds=discord_embeds, files=files)
+            else:
+                msg = await channel.send(content=request.content or None, embeds=discord_embeds)
+            audit_log.log_action("admin", "CONFIG_CHANGE", f"Sent {len(discord_embeds)} embed(s) in #{channel.name}", guild_id)
+            if request.add_reactions:
+                await bot_manager.add_reactions_from_embeds(msg, discord_embeds)
+        
         return {"status": "success"}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to send custom embed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+class EmbedScheduleRequest(BaseModel):
+    channel_id: str
+    content: Optional[str] = None
+    embeds: list[dict]
+    scheduled_at: str
+    add_reactions: Optional[bool] = False
+
+@router.post("/api/guilds/{guild_id}/embeds/schedule")
+async def schedule_embed_message(guild_id: str, request: EmbedScheduleRequest):
+    bot = get_active_bot()
+    guild = bot.get_guild(parse_id(guild_id, "guild_id"))
+    if not guild:
+        raise HTTPException(status_code=404, detail="Guild not found.")
+    channel = guild.get_channel(parse_id(request.channel_id, "channel_id"))
+    if not channel:
+        raise HTTPException(status_code=404, detail="Channel not found.")
+    
+    from datetime import datetime
+    try:
+        scheduled_dt = datetime.fromisoformat(request.scheduled_at.replace("Z", "+00:00"))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid scheduled_at timestamp.")
+    
+    if scheduled_dt <= datetime.now(scheduled_dt.tzinfo):
+        raise HTTPException(status_code=400, detail="Schedule time must be in the future.")
+    
+    schedule_data = {
+        "guild_id": guild_id,
+        "channel_id": request.channel_id,
+        "content": request.content,
+        "embeds": request.embeds[:10],
+        "scheduled_at": request.scheduled_at,
+        "add_reactions": request.add_reactions,
+        "created_at": datetime.now().isoformat()
+    }
+    
+    config = utils.load_config()
+    schedules = config.setdefault("scheduled_embeds", [])
+    schedule_id = str(len(schedules) + 1)
+    schedule_data["id"] = schedule_id
+    schedules.append(schedule_data)
+    utils.save_config(config)
+    
+    audit_log.log_action("admin", "CONFIG_CHANGE", f"Scheduled embed for #{channel.name} at {request.scheduled_at}", guild_id)
+    return {"status": "success", "schedule_id": schedule_id}
+
+@router.get("/api/guilds/{guild_id}/embeds/schedules")
+async def get_scheduled_embeds(guild_id: str, request: Request):
+    auth_header = request.headers.get("Authorization")
+    token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else ""
+    session_guild_id = auth.get_session_guild_id(token)
+    session_role = auth.get_session_role(token)
+    
+    if session_role == "tenant" and session_guild_id:
+        if str(guild_id) != session_guild_id:
+            raise HTTPException(status_code=403, detail="Forbidden: Mismatched guild ID.")
+    
+    config = utils.load_config()
+    schedules = config.get("scheduled_embeds", [])
+    return [s for s in schedules if s.get("guild_id") == guild_id]
+
+@router.delete("/api/guilds/{guild_id}/embeds/schedules/{schedule_id}")
+async def delete_scheduled_embed(guild_id: str, schedule_id: str, request: Request):
+    auth_header = request.headers.get("Authorization")
+    token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else ""
+    session_guild_id = auth.get_session_guild_id(token)
+    session_role = auth.get_session_role(token)
+    
+    if session_role == "tenant" and session_guild_id:
+        if str(guild_id) != session_guild_id:
+            raise HTTPException(status_code=403, detail="Forbidden: Mismatched guild ID.")
+    
+    config = utils.load_config()
+    schedules = config.get("scheduled_embeds", [])
+    config["scheduled_embeds"] = [s for s in schedules if not (s.get("id") == schedule_id and s.get("guild_id") == guild_id)]
+    utils.save_config(config)
+    
+    audit_log.log_action("admin", "CONFIG_CHANGE", f"Deleted scheduled embed {schedule_id}", guild_id)
+    return {"status": "success"}
+
+class EmbedDraftRequest(BaseModel):
+    name: str
+    embeds: list[dict]
+
+@router.post("/api/guilds/{guild_id}/embeds/drafts")
+async def save_embed_draft(guild_id: str, request: EmbedDraftRequest, req: Request):
+    auth_header = req.headers.get("Authorization")
+    token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else ""
+    session_guild_id = auth.get_session_guild_id(token)
+    session_role = auth.get_session_role(token)
+    
+    if session_role == "tenant" and session_guild_id:
+        if str(guild_id) != session_guild_id:
+            raise HTTPException(status_code=403, detail="Forbidden: Mismatched guild ID.")
+    
+    config = utils.load_config()
+    guild_configs = config.setdefault("guild_configs", {})
+    guild_conf = guild_configs.setdefault(str(guild_id), {})
+    drafts = guild_conf.setdefault("embed_drafts", {})
+    drafts[request.name] = {
+        "embeds": request.embeds[:10],
+        "updated_at": datetime.datetime.now().isoformat()
+    }
+    utils.save_config(config)
+    
+    audit_log.log_action("dashboard", "CONFIG_CHANGE", f"Saved embed draft '{request.name}'", guild_id)
+    return {"status": "success"}
+
+@router.get("/api/guilds/{guild_id}/embeds/drafts")
+async def get_embed_drafts(guild_id: str, request: Request):
+    auth_header = request.headers.get("Authorization")
+    token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else ""
+    session_guild_id = auth.get_session_guild_id(token)
+    session_role = auth.get_session_role(token)
+    
+    if session_role == "tenant" and session_guild_id:
+        if str(guild_id) != session_guild_id:
+            raise HTTPException(status_code=403, detail="Forbidden: Mismatched guild ID.")
+    
+    guild_conf = utils.get_guild_config(guild_id)
+    return guild_conf.get("embed_drafts", {})
+
+@router.delete("/api/guilds/{guild_id}/embeds/drafts/{draft_name}")
+async def delete_embed_draft(guild_id: str, draft_name: str, request: Request):
+    auth_header = request.headers.get("Authorization")
+    token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else ""
+    session_guild_id = auth.get_session_guild_id(token)
+    session_role = auth.get_session_role(token)
+    
+    if session_role == "tenant" and session_guild_id:
+        if str(guild_id) != session_guild_id:
+            raise HTTPException(status_code=403, detail="Forbidden: Mismatched guild ID.")
+    
+    config = utils.load_config()
+    guild_configs = config.setdefault("guild_configs", {})
+    guild_conf = guild_configs.get(str(guild_id), {})
+    drafts = guild_conf.get("embed_drafts", {})
+    if draft_name not in drafts:
+        raise HTTPException(status_code=404, detail="Draft not found.")
+    
+    del drafts[draft_name]
+    utils.save_config(config)
+    
+    audit_log.log_action("dashboard", "CONFIG_CHANGE", f"Deleted embed draft '{draft_name}'", guild_id)
+    return {"status": "success"}
 
 @router.get("/api/guilds/{guild_id}/embeds/presets")
 async def get_custom_presets(guild_id: str, request: Request):
@@ -2125,3 +2408,73 @@ def init_default_templates():
             json.dump(community_tpl, f, indent=2)
 
 # Deprecated startup event removed (lifespan manager is used instead)
+
+
+@router.get("/api/config/export")
+async def export_config(request: Request, guild_id: Optional[str] = None):
+    auth_header = request.headers.get("Authorization")
+    token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else ""
+    session_guild_id = auth.get_session_guild_id(token)
+    session_role = auth.get_session_role(token)
+    if not session_guild_id or session_role not in ("admin", "tenant"):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    config = utils.load_config().copy()
+    config.pop("admin_password_hash", None)
+    config.pop("bot_token", None)
+    if guild_id and session_role == "admin":
+        guild_config = config.get("guild_configs", {}).get(str(guild_id), {})
+        return {"guild_id": guild_id, "config": guild_config}
+    return {"config": config}
+
+
+class ConfigImportRequest(BaseModel):
+    guild_id: Optional[str] = None
+    config: dict
+
+
+@router.post("/api/config/import")
+async def import_config(request: Request, body: ConfigImportRequest):
+    auth_header = request.headers.get("Authorization")
+    token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else ""
+    session_guild_id = auth.get_session_guild_id(token)
+    session_role = auth.get_session_role(token)
+    if not session_guild_id or session_role not in ("admin",):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    with utils.config_lock:
+        config = utils.load_config()
+        if body.guild_id:
+            guild_configs = config.setdefault("guild_configs", {})
+            guild_configs[str(body.guild_id)] = body.config
+        else:
+            for key, value in body.config.items():
+                if key in ("admin_password_hash", "bot_token"):
+                    continue
+                config[key] = value
+        utils.save_config(config)
+    return {"status": "success"}
+
+
+@router.get("/api/guilds/{guild_id}/anti-raid")
+async def get_anti_raid_config(guild_id: str):
+    guild_config = utils.get_guild_config(guild_id)
+    anti_raid = guild_config.get("anti_raid_settings", {
+        "enabled": False,
+        "response_mode": "alert",
+        "join_rate_threshold": 5,
+        "join_rate_window_seconds": 30,
+        "min_account_age_days": 7,
+        "suspicious_score_threshold": 70,
+        "dm_owner_on_raid": True,
+        "lockdown_duration_seconds": 300,
+    })
+    return anti_raid
+
+
+@router.post("/api/guilds/{guild_id}/anti-raid")
+async def save_anti_raid_config(guild_id: str, request: Request):
+    body = await request.json()
+    with utils.config_lock:
+        guild_conf = utils.get_guild_config(guild_id)
+        guild_conf["anti_raid_settings"] = body
+        utils.save_guild_config(guild_id, guild_conf)
+    return {"status": "success"}

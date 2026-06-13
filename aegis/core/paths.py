@@ -23,6 +23,7 @@ class Paths:
         
         # Subpaths resolution
         self.db_file = self.root / "aegis.db"
+        self.analytics_db = self.root / "analytics.db"
         self.config_file = self.root / "config" / "config.json"
         self.backups_db = self.root / "backups" / "db"
         self.backups_config = self.root / "backups" / "config"

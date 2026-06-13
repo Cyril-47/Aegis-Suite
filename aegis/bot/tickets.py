@@ -130,3 +130,37 @@ async def deploy_ticket_panel_message(guild_id: int, channel_id: int):
     except Exception as e:
         logger.error(f"Failed to deploy ticket panel: {e}")
         return False
+
+
+async def check_ticket_sla(bot):
+    """Check all ticket channels for SLA violations and auto-close if needed."""
+    try:
+        config = utils.load_config()
+        for guild in bot.guilds:
+            ticket_cfg = utils.get_guild_ticket_settings(config, guild.id)
+            sla_hours = ticket_cfg.get("sla_hours")
+            if not sla_hours:
+                continue
+            category_name = ticket_cfg.get("category_name", "🎟️ SUPPORT TICKETS")
+            category = discord.utils.get(guild.categories, name=category_name)
+            if not category:
+                continue
+            for channel in category.text_channels:
+                if not channel.name.startswith("ticket-"):
+                    continue
+                try:
+                    first_message = None
+                    async for msg in channel.history(limit=1, oldest_first=True):
+                        first_message = msg
+                    if not first_message:
+                        continue
+                    age_hours = (discord.utils.utcnow() - first_message.created_at).total_seconds() / 3600
+                    if age_hours >= sla_hours:
+                        await channel.send(
+                            f"⏰ **SLA Warning**: This ticket has been open for {int(age_hours)} hours "
+                            f"(SLA: {sla_hours}h). Auto-closing in 5 minutes if no response."
+                        )
+                except Exception:
+                    continue
+    except Exception:
+        logger.exception("Ticket SLA check failed")

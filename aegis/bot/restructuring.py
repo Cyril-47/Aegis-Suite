@@ -5,7 +5,7 @@ import aegis.core.utils as utils
 
 logger = logging.getLogger("aegis.bot.restructuring")
 
-def audit_guild_data(guild: discord.Guild):
+def audit_guild_data(guild: discord.Guild, online_count: int = None, member_count: int = None):
     """Scans guild settings, roles, channels and computes a health/optimization score."""
     config = utils.load_config()
     
@@ -239,7 +239,10 @@ def audit_guild_data(guild: discord.Guild):
     category_count = len(guild.categories)
     role_count = len(guild.roles)
     
-    online_count = sum(1 for m in guild.members if m.status != discord.Status.offline)
+    if online_count is None:
+        online_count = sum(1 for m in guild.members if m.status != discord.Status.offline)
+    if member_count is None:
+        member_count = guild.member_count
     
     return {
         "score": score,
@@ -247,7 +250,7 @@ def audit_guild_data(guild: discord.Guild):
         "guild_info": {
             "name": guild.name,
             "id": str(guild.id),
-            "member_count": guild.member_count,
+            "member_count": member_count,
             "online_count": online_count if online_count > 0 else 1,
             "owner": str(guild.owner),
             "owner_id": str(guild.owner_id) if guild.owner_id else "Unknown",

@@ -99,6 +99,38 @@ async def run_startup_checks(core, start_at: int = 0, end_at: Optional[int] = No
                 raise RuntimeError("Database integrity check failed")
             core.health.record_check("database", "OK")
             core.health.database = {"reachable": True, "integrity_ok": True, "at_head": False}
+
+            # Initialize analytics database (separate from main DB)
+            try:
+                from sqlalchemy import create_engine, event
+                from sqlalchemy.orm import sessionmaker
+                from aegis.analytics.engine import init_analytics_engine
+                from aegis.analytics.aggregator import init_aggregator
+
+                analytics_url = f"sqlite:///{core.paths.analytics_db.resolve()}"
+                core.analytics_db = create_engine(
+                    analytics_url,
+                    connect_args={"check_same_thread": False},
+                )
+
+                @event.listens_for(core.analytics_db, "connect")
+                def set_analytics_pragma(dbapi_connection, connection_record):
+                    cursor = dbapi_connection.cursor()
+                    try:
+                        cursor.execute("PRAGMA journal_mode=WAL")
+                        cursor.execute("PRAGMA foreign_keys=ON")
+                    finally:
+                        cursor.close()
+
+                from aegis.db.analytics_models import AnalyticsBase
+                AnalyticsBase.metadata.create_all(core.analytics_db)
+
+                session_factory = sessionmaker(bind=core.analytics_db, autoflush=False, autocommit=False)
+                core.analytics_engine = init_analytics_engine(session_factory)
+                core.analytics_aggregator = init_aggregator(session_factory)
+                logger.info("Analytics database initialized successfully")
+            except Exception as e:
+                logger.warning(f"Analytics database initialization failed (non-fatal): {e}")
         except Exception as exc:
             logger.error(f"Database Check failed: {exc}")
             core.health.record_fatal(exc)
@@ -130,6 +162,16 @@ async def run_startup_checks(core, start_at: int = 0, end_at: Optional[int] = No
                 leveling_system.set_engine(core.db)
             except Exception:
                 logger.exception("Failed to run legacy importer or bind leveling system")
+
+            # Run JSON-to-SQLite migrations (one-time)
+            try:
+                from aegis.db.migrate_json_to_sqlite import run_all_migrations
+                Session = sessionmaker(bind=core.db)
+                migration_results = run_all_migrations(Session)
+                if any(v > 0 for v in migration_results.values()):
+                    logger.info(f"JSON migration completed: {migration_results}")
+            except Exception:
+                logger.exception("JSON migration failed (non-fatal)")
                 
             core.health.record_check("migrations", "OK")
             core.health.database["at_head"] = True

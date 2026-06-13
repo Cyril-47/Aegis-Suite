@@ -10,7 +10,7 @@
   <!-- Google Fonts: Outfit & Inter (local for offline support) -->
   <link rel="stylesheet" href="/static/css/google-fonts.css">
   <!-- Style Sheet -->
-  <link rel="stylesheet" href="/static/style.css?v=1.0.1">
+  <link rel="stylesheet" href="/static/style.css?v=1.0.7">
   <link rel="stylesheet" href="/static/responsive.css">
   <!-- FontAwesome Icons (local for offline support) -->
   <link rel="stylesheet" href="/static/css/all.min.css">
@@ -167,11 +167,11 @@
   </div>
 
   <!-- IMPORT TEMPLATE JSON MODAL -->
-  <div id="template-import-overlay" class="wizard-container hidden" style="z-index: 10000;">
-    <div class="wizard-box glass" style="max-width: 600px; width: 90%; padding: 25px; border-radius: 16px; background: rgba(18, 18, 24, 0.95); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); border: 1px solid rgba(255, 255, 255, 0.1);">
-      <div class="flex-between border-bottom pb-2 mb-3" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 15px;">
+  <div id="template-import-overlay" class="wizard-container hidden" style="z-index: 10000; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);">
+    <div class="wizard-box glass" style="max-width: 600px; width: 90%; padding: 25px; border-radius: 16px;">
+      <div class="flex-between border-bottom pb-2 mb-3" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 10px; margin-bottom: 15px;">
         <h2 style="font-size: 1.3rem; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 8px; margin: 0;"><i class="fa-solid fa-file-import"></i> Paste Template JSON</h2>
-        <button type="button" onclick="closeImportTemplateModal();" style="background: none; border: none; color: rgba(255,255,255,0.6); font-size: 1.8rem; cursor: pointer; line-height: 1; padding: 0;">&times;</button>
+        <button type="button" onclick="closeImportTemplateModal();" style="background: none; border: none; color: var(--text-sub); font-size: 1.8rem; cursor: pointer; line-height: 1; padding: 0;">&times;</button>
       </div>
       <div class="input-group">
         <label for="template-import-name" style="font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; display: block;">Template Name <span class="required">*</span></label>
@@ -189,16 +189,16 @@
   </div>
 
   <!-- RESTORE BACKUP MODAL -->
-  <div id="restore-backup-overlay" class="wizard-container hidden" style="z-index: 10000;">
-    <div class="wizard-box glass" style="max-width: 500px; width: 90%; padding: 25px; border-radius: 16px; background: rgba(18, 18, 24, 0.95); box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37); border: 1px solid rgba(255, 255, 255, 0.1);">
-      <div class="flex-between border-bottom pb-2 mb-3" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 15px;">
+  <div id="restore-backup-overlay" class="wizard-container hidden" style="z-index: 10000; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);">
+    <div class="wizard-box glass" style="max-width: 500px; width: 90%; padding: 25px; border-radius: 16px;">
+      <div class="flex-between border-bottom pb-2 mb-3" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 10px; margin-bottom: 15px;">
         <h2 style="font-size: 1.3rem; font-weight: 700; color: var(--success); display: flex; align-items: center; gap: 8px; margin: 0;"><i class="fa-solid fa-clock-rotate-left"></i> Restore Server Backup</h2>
-        <button type="button" onclick="document.getElementById('restore-backup-overlay').classList.add('hidden');" style="background: none; border: none; color: rgba(255,255,255,0.6); font-size: 1.8rem; cursor: pointer; line-height: 1; padding: 0;">&times;</button>
+        <button type="button" onclick="document.getElementById('restore-backup-overlay').classList.add('hidden');" style="background: none; border: none; color: var(--text-sub); font-size: 1.8rem; cursor: pointer; line-height: 1; padding: 0;">&times;</button>
       </div>
-      <p style="font-size: 0.9rem; color: rgba(255,255,255,0.7); margin-bottom: 20px;">Select a previously saved backup to restore your server's layout.</p>
+      <p style="font-size: 0.9rem; color: var(--text-sub); margin-bottom: 20px;">Select a previously saved backup to restore your server's layout.</p>
       <div class="input-group mb-4">
         <label for="restore-backup-select" style="font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; display: block;">Select Backup <span class="required">*</span></label>
-        <select id="restore-backup-select" class="glass-input w-100" style="padding: 10px; border-radius: 8px; color: #fff; background: rgba(0,0,0,0.3);">
+        <select id="restore-backup-select" class="glass-input w-100" style="padding: 10px; border-radius: 8px;">
           <option value="">-- Choose Backup --</option>
         </select>
       </div>
@@ -210,7 +210,7 @@
   </div>
 
   <!-- TEMPLATE PREVIEW & CUSTOMIZATION MODAL -->
-  <div id="template-preview-overlay" class="wizard-container hidden" style="z-index: 10000;">
+  <div id="template-preview-overlay" class="wizard-container hidden" style="z-index: 10000; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);">
     <div class="wizard-box glass" style="max-width: 800px; width: 90%;">
       <div class="wizard-header">
         <div class="logo-area">
@@ -233,8 +233,8 @@
         </div>
 
         <!-- Customizer Tree Structure -->
-        <h3 class="mb-2" style="font-size: 1.1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 8px;">Template Structure Customizer</h3>
-        <div id="template-tree-customizer" class="tree-customizer-container mb-4" style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+        <h3 class="mb-2" style="font-size: 1.1rem; border-bottom: 1px solid var(--card-border); padding-bottom: 8px;">Template Structure Customizer</h3>
+        <div id="template-tree-customizer" class="tree-customizer-container mb-4" style="background: var(--inner-bg); padding: 15px; border-radius: 8px; border: 1px solid var(--card-border);">
           <!-- Populated dynamically: Tree checklist of Roles, Categories, Channels -->
         </div>
 
@@ -244,7 +244,7 @@
           <strong>CRITICAL WARNING:</strong> You selected 'Deconstruct / Delete All'. This will delete all current channels and categories in your server. This action is irreversible. All chat histories will be permanently lost!
           <div class="mt-3">
             <label for="delete-confirm-input" style="display: block; margin-bottom: 6px; font-weight: bold;">Type "DELETE" to confirm:</label>
-            <input type="text" id="delete-confirm-input" class="glass-input w-100" style="padding: 8px 12px; border-color: rgba(239, 68, 68, 0.4); color: #fff; background: rgba(0,0,0,0.3);" placeholder="Type DELETE here">
+            <input type="text" id="delete-confirm-input" class="glass-input w-100" style="padding: 8px 12px; border-color: var(--danger);" placeholder="Type DELETE here">
           </div>
         </div>
 
@@ -289,6 +289,9 @@
         </button>
         <button class="nav-item" data-tab="tab-auditor">
           <i class="fa-solid fa-shield-halved"></i> Server Auditor
+        </button>
+        <button class="nav-item" data-tab="tab-smart">
+          <i class="fa-solid fa-chart-line"></i> Smart Features
         </button>
         <button class="nav-item" data-tab="tab-commands">
           <i class="fa-solid fa-code"></i> Custom Commands
@@ -337,8 +340,11 @@
         </button>
       </nav>
 
-      <div class="px-3 mb-3">
-        <button id="btn-logout" class="btn btn-secondary w-100" style="padding: 10px; border-radius: 12px; font-size: 0.9rem;">
+      <div class="sidebar-footer-actions">
+        <button id="btn-theme-toggle" class="sidebar-action-btn" title="Toggle Theme">
+          <i class="fa-solid fa-circle-half-stroke"></i> Theme
+        </button>
+        <button id="btn-logout" class="sidebar-action-btn logout" title="Log Out">
           <i class="fa-solid fa-right-from-bracket"></i> Log Out
         </button>
       </div>
@@ -479,6 +485,29 @@
                     <span id="bot-overview-status-text">DISCONNECTED</span>
                   </div>
                 </div>
+
+                <!-- Health Metrics Card -->
+                <div class="health-metrics glass-inner" style="padding: 16px; border-radius: 12px;">
+                  <h3 style="font-size: 0.9rem; margin-bottom: 12px; color: var(--text-main);"><i class="fa-solid fa-heart-pulse"></i> System Health</h3>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <div style="text-align: center;">
+                      <div style="font-size: 0.72rem; color: var(--text-sub);">Latency</div>
+                      <div id="health-latency" style="font-size: 1.1rem; font-weight: 600; color: var(--success);">--</div>
+                    </div>
+                    <div style="text-align: center;">
+                      <div style="font-size: 0.72rem; color: var(--text-sub);">Memory</div>
+                      <div id="health-memory" style="font-size: 1.1rem; font-weight: 600; color: var(--primary);">--</div>
+                    </div>
+                    <div style="text-align: center;">
+                      <div style="font-size: 0.72rem; color: var(--text-sub);">DB Size</div>
+                      <div id="health-db" style="font-size: 1.1rem; font-weight: 600; color: var(--warning);">--</div>
+                    </div>
+                    <div style="text-align: center;">
+                      <div style="font-size: 0.72rem; color: var(--text-sub);">Uptime</div>
+                      <div id="health-uptime" style="font-size: 1.1rem; font-weight: 600; color: var(--text-main);">--</div>
+                    </div>
+                  </div>
+                </div>
                 <div class="bot-info-details">
                   <div class="info-row">
                     <span class="label">Username:</span>
@@ -573,6 +602,37 @@
                 </div>
               </div>
             </div>
+
+            <!-- Config Export/Import Card -->
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-file-export"></i> Configuration Export / Import</h2>
+                <p>Export your server settings to share between servers, or import a configuration backup.</p>
+              </div>
+              <div class="card-body backup-grid">
+                <div class="backup-action-box glass-inner text-center">
+                  <i class="fa-solid fa-file-export backup-icon-large text-indigo"></i>
+                  <h3>Export Config</h3>
+                  <p class="mt-2 mb-4 text-sub">Download your current server configuration as a JSON file.</p>
+                  <button id="btn-export-config" class="btn btn-primary btn-glow">
+                    <i class="fa-solid fa-download"></i> Export Config
+                  </button>
+                </div>
+                <div class="backup-action-box glass-inner text-center">
+                  <i class="fa-solid fa-file-import backup-icon-large text-emerald"></i>
+                  <h3>Import Config</h3>
+                  <p class="mt-2 mb-4 text-sub">Upload a previously exported configuration file to apply its settings.</p>
+                  <label for="upload-config-file" class="btn btn-secondary cursor-pointer">
+                    <i class="fa-solid fa-upload"></i> Import Config
+                  </label>
+                  <input type="file" id="upload-config-file" accept=".json" class="hidden">
+                  <div id="config-import-status" class="mt-3 text-center hidden">
+                    <i class="fa-solid fa-circle-notch fa-spin spinner"></i>
+                    <span class="ml-2">Importing configuration...</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -616,6 +676,146 @@
                 <div id="audit-results-list" class="checklist-list hidden">
                   <!-- Dynamic check cards go here -->
                 </div>
+              </div>
+            </div>
+
+            <!-- Recommendations Card -->
+            <div class="card glass span-4" id="recommendations-card">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-lightbulb"></i> Recommendations</h2>
+                <p>Actionable suggestions to improve your server's health score.</p>
+              </div>
+              <div class="card-body">
+                <div id="recommendations-loading" class="text-center py-3">
+                  <i class="fa-solid fa-circle-notch fa-spin"></i> Loading recommendations...
+                </div>
+                <div id="recommendations-list" class="checklist-list hidden"></div>
+                <div id="recommendations-empty" class="text-center py-3 hidden" style="color: #94a3b8;">
+                  <i class="fa-solid fa-check-circle" style="color: #34d399;"></i> No recommendations — your server is well configured!
+                </div>
+              </div>
+            </div>
+
+            <!-- Health Timeline Card -->
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-chart-line"></i> Health Timeline</h2>
+                <select id="timeline-days" style="width: auto; padding: 6px 12px; font-size: 0.82rem;">
+                  <option value="7">Last 7 days</option>
+                  <option value="14">Last 14 days</option>
+                  <option value="30" selected>Last 30 days</option>
+                </select>
+              </div>
+              <div class="card-body">
+                <div style="position: relative; height: 250px;">
+                  <canvas id="chart-health-timeline"></canvas>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB: SMART FEATURES (Analytics) -->
+        <section id="tab-smart" class="tab-pane hidden">
+          <div class="grid-layout">
+            <!-- Overview Card -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-chart-line"></i> Analytics Overview</h2>
+                <p>Server activity insights powered by persistent event tracking.</p>
+              </div>
+              <div class="card-body">
+                <div id="analytics-loading" class="text-center py-4">
+                  <i class="fa-solid fa-circle-notch fa-spin large-spinner"></i>
+                  <p class="mt-2">Loading analytics data...</p>
+                </div>
+                <div id="analytics-empty" class="text-center py-4 hidden">
+                  <i class="fa-solid fa-chart-pie big-icon opacity-50"></i>
+                  <p class="mt-2">No analytics data yet. Data will appear as the bot processes messages and events.</p>
+                </div>
+                <div id="analytics-overview" class="hidden">
+                  <div class="grid-layout" style="grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                    <div class="stat-card glass-inner" style="padding: 16px; border-radius: 12px; text-align: center;">
+                      <div style="font-size: 0.78rem; color: var(--text-sub); margin-bottom: 4px;">Messages Today</div>
+                      <div id="stat-messages-today" style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">0</div>
+                    </div>
+                    <div class="stat-card glass-inner" style="padding: 16px; border-radius: 12px; text-align: center;">
+                      <div style="font-size: 0.78rem; color: var(--text-sub); margin-bottom: 4px;">Active Users (7d)</div>
+                      <div id="stat-active-users" style="font-size: 1.5rem; font-weight: 700; color: var(--success);">0</div>
+                    </div>
+                    <div class="stat-card glass-inner" style="padding: 16px; border-radius: 12px; text-align: center;">
+                      <div style="font-size: 0.78rem; color: var(--text-sub); margin-bottom: 4px;">Voice Minutes (7d)</div>
+                      <div id="stat-voice-minutes" style="font-size: 1.5rem; font-weight: 700; color: var(--warning);">0</div>
+                    </div>
+                    <div class="stat-card glass-inner" style="padding: 16px; border-radius: 12px; text-align: center;">
+                      <div style="font-size: 0.78rem; color: var(--text-sub); margin-bottom: 4px;">Mod Actions (7d)</div>
+                      <div id="stat-mod-actions" style="font-size: 1.5rem; font-weight: 700; color: var(--danger);">0</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Message Volume Chart -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-comments"></i> Message Volume</h2>
+                <select id="analytics-msg-days" class="analytics-select">
+                  <option value="7">Last 7 days</option>
+                  <option value="14">Last 14 days</option>
+                  <option value="30" selected>Last 30 days</option>
+                </select>
+              </div>
+              <div class="card-body">
+                <div style="position: relative; height: 280px;">
+                  <canvas id="chart-messages"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <!-- Channel Activity -->
+            <div class="card glass span-1">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-hashtag"></i> Top Channels</h2>
+              </div>
+              <div class="card-body">
+                <div id="channel-activity-list" class="checklist-list">
+                  <div class="text-center py-4" style="color: var(--text-sub);">Loading...</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Top Users -->
+            <div class="card glass span-1">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-users"></i> Top Contributors</h2>
+              </div>
+              <div class="card-body">
+                <div id="top-users-list" class="checklist-list">
+                  <div class="text-center py-4" style="color: var(--text-sub);">Loading...</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Moderation Breakdown -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-gavel"></i> Moderation Activity</h2>
+              </div>
+              <div class="card-body">
+                <div style="position: relative; height: 250px;">
+                  <canvas id="chart-mod"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <!-- Member Growth -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-users-rays"></i> Member Growth</h2>
+              </div>
+              <div class="card-body">
+                <div id="member-growth-info" class="text-center py-4" style="color: var(--text-sub);">Loading...</div>
               </div>
             </div>
           </div>
@@ -802,6 +1002,28 @@
                     </div>
                   </div>
 
+                  <div class="border-top pt-3 mt-3">
+                    <h3>Advanced Embed Settings</h3>
+                    <div class="grid-2-col mt-2">
+                      <div class="input-group">
+                        <label for="welcome-author-name">Author Name:</label>
+                        <input type="text" id="welcome-author-name" placeholder="e.g. Aegis Suite">
+                      </div>
+                      <div class="input-group">
+                        <label for="welcome-author-icon">Author Icon URL:</label>
+                        <input type="url" id="welcome-author-icon" placeholder="https://...">
+                      </div>
+                    </div>
+                    <div class="input-group mt-2">
+                      <label for="welcome-image">Large Image URL:</label>
+                      <input type="url" id="welcome-image" placeholder="https://...">
+                    </div>
+                    <div class="input-group mt-2">
+                      <label for="welcome-footer-text">Footer Text:</label>
+                      <input type="text" id="welcome-footer-text" placeholder="Member #{membercount}">
+                    </div>
+                  </div>
+
                   <div class="input-group">
                     <label for="welcome-autoroles">Auto-Assign Roles on Join:</label>
                     <input type="text" id="welcome-autoroles" placeholder="Verified Member, Gaming User">
@@ -844,13 +1066,61 @@
                 </div>
               </div>
             </div>
+
+            <!-- Member Milestone Triggers -->
+            <div class="card glass span-2">
+                          <div class="card-header border-bottom">
+                            <h2>Member Milestone Triggers</h2>
+                            <p>Auto-send celebration embeds when your server reaches member count milestones.</p>
+                          </div>
+                          <div class="card-body">
+                            <form id="milestone-form">
+                              <div class="toggle-group mb-4">
+                                <span class="toggle-label font-weight-500">Enable Milestone Triggers:</span>
+                                <label class="switch">
+                                  <input type="checkbox" id="milestone-enabled">
+                                  <span class="slider round"></span>
+                                </label>
+                              </div>
+                              <div class="input-group">
+                                <label for="milestone-channel">Announcement Channel:</label>
+                                <select id="milestone-channel" class="glass-input">
+                                  <option value="">System channel (default)</option>
+                                </select>
+                              </div>
+                              <div class="input-group mt-2">
+                                <label for="milestone-values">Milestone Values (comma-separated):</label>
+                                <input type="text" id="milestone-values" class="glass-input" placeholder="100, 500, 1000, 5000, 10000" value="100, 500, 1000">
+                                <small>Members count thresholds that trigger a celebration embed.</small>
+                              </div>
+                              <div class="input-group mt-2">
+                                <label for="milestone-title">Embed Title:</label>
+                                <input type="text" id="milestone-title" class="glass-input" placeholder="🎉 {membercount} MEMBERS!" value="🎉 {membercount} MEMBERS!">
+                              </div>
+                              <div class="input-group mt-2">
+                                <label for="milestone-desc">Embed Description:</label>
+                                <textarea id="milestone-desc" rows="2" placeholder="We just hit {membercount} members!">We just hit {membercount} members! Thank you all for being part of our community!</textarea>
+                              </div>
+                              <div class="input-group mt-2">
+                                <label for="milestone-color">Embed Color:</label>
+                                <div class="color-picker-wrapper">
+                                  <input type="color" id="milestone-color-picker" value="#FFD700">
+                                  <input type="text" id="milestone-color-hex" value="#FFD700" placeholder="#FFD700" maxlength="7">
+                                </div>
+                              </div>
+                              <button type="submit" class="btn btn-primary btn-glow mt-3">
+                                <i class="fa-solid fa-floppy-disk"></i> Save Milestone Settings
+                              </button>
+                            </form>
+                          </div>
+                        </div>
           </div>
         </section>
 
         <!-- TAB: AUTOMOD -->
         <section id="tab-automod" class="tab-pane hidden">
           <div class="grid-layout">
-            <!-- Mod settings -->
+            <!-- Auto-Moderation Settings -->
             <div class="card glass span-2">
               <div class="card-header border-bottom">
                 <h2>Auto-Moderation Settings</h2>
@@ -930,6 +1200,60 @@
                   <textarea id="automod-words" rows="8" placeholder="badword1, spamlink.com, slurs..."></textarea>
                   <small>Checks for exact word matches (case-insensitive) in user messages. Bypassed by members with Administrator or Manage Messages permissions.</small>
                 </div>
+              </div>
+            </div>
+
+            <div class="card glass span-2 mt-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-shield-halved"></i> Anti-Raid Protection</h2>
+                <p>Detect and respond to mass-join attacks and suspicious accounts.</p>
+              </div>
+              <div class="card-body">
+                <form id="anti-raid-form">
+                  <div class="input-group">
+                    <label>
+                      <input type="checkbox" id="ar-enabled"> Enable Anti-Raid Protection
+                    </label>
+                  </div>
+                  <div class="grid-layout" style="grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+                    <div class="input-group">
+                      <label>Response Mode</label>
+                      <select id="ar-response-mode">
+                        <option value="passive">Passive (Log Only)</option>
+                        <option value="alert" selected>Alert (Mod-Log + DM)</option>
+                        <option value="lockdown">Lockdown (Temp Mute New Joins)</option>
+                        <option value="auto_verify">Auto-Verify (Captcha Required)</option>
+                      </select>
+                    </div>
+                    <div class="input-group">
+                      <label>Join Rate Threshold</label>
+                      <input type="number" id="ar-join-threshold" value="5" min="2" max="50">
+                      <small>Members per window to trigger raid alert</small>
+                    </div>
+                    <div class="input-group">
+                      <label>Window (seconds)</label>
+                      <input type="number" id="ar-window-seconds" value="30" min="10" max="300">
+                    </div>
+                    <div class="input-group">
+                      <label>Min Account Age (days)</label>
+                      <input type="number" id="ar-min-age" value="7" min="1" max="90">
+                      <small>Accounts younger than this are flagged</small>
+                    </div>
+                    <div class="input-group">
+                      <label>Suspicious Score Threshold</label>
+                      <input type="number" id="ar-score-threshold" value="70" min="30" max="100">
+                      <small>Score 0-100, higher = more strict</small>
+                    </div>
+                    <div class="input-group">
+                      <label>
+                        <input type="checkbox" id="ar-dm-owner" checked> DM Server Owner on Raid
+                      </label>
+                    </div>
+                  </div>
+                  <button type="submit" class="btn btn-primary btn-glow mt-4">
+                    <i class="fa-solid fa-save"></i> Save Anti-Raid Settings
+                  </button>
+                </form>
               </div>
             </div>
           </div>
@@ -1256,8 +1580,19 @@
                 <p>Create rich, detailed cards to announce updates or showcase features on your server.</p>
               </div>
               <div class="card-body">
+                <div class="embed-tabs-bar" id="embed-tabs-bar">
+                  <div class="embed-tabs-list" id="embed-tabs-list">
+                    <button type="button" class="embed-tab active" data-index="0">Embed 1</button>
+                  </div>
+                  <button type="button" id="btn-embed-duplicate-tab" class="btn btn-secondary btn-small" title="Duplicate current embed">
+                    <i class="fa-solid fa-copy"></i>
+                  </button>
+                  <button type="button" id="btn-embed-add-tab" class="btn btn-secondary btn-small" title="Add another embed (max 10)">
+                    <i class="fa-solid fa-plus"></i>
+                  </button>
+                </div>
                 <form id="embed-builder-form">
-                  <div class="input-group" style="border: 1px dashed rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; background-color: rgba(255,255,255,0.02); margin-bottom: 20px;">
+                  <div class="input-group" style="border: 1px dashed var(--card-border); padding: 15px; border-radius: 8px; background-color: var(--btn-secondary-bg); margin-bottom: 20px;">
                     <label for="embed-template-preset" style="font-weight: 600; color: var(--primary); display: flex; align-items: center; gap: 6px;"><i class="fa-solid fa-wand-magic-sparkles"></i> Load Embed Template Preset:</label>
                     <div style="display: flex; gap: 10px; margin-top: 6px;">
                       <select id="embed-template-preset" class="glass-input" style="border-color: rgba(99, 102, 241, 0.4); flex: 1;">
@@ -1268,6 +1603,14 @@
                           <option value="announcement">📢 Server Announcement</option>
                           <option value="giveaway">🎉 Giveaway Announcement</option>
                           <option value="support">🎟️ Support Ticket Info</option>
+                          <option value="event">🎮 Server Event</option>
+                          <option value="patchnotes">🔧 Patch Notes</option>
+                          <option value="staff">👋 Staff Introduction</option>
+                          <option value="roles">🎨 Role Selection</option>
+                          <option value="faq">❓ FAQ</option>
+                          <option value="poll">📊 Community Poll</option>
+                          <option value="partner">🤝 Partnership</option>
+                          <option value="socials">🔗 Social Links</option>
                         </optgroup>
                         <optgroup label="Custom Presets" id="custom-presets-group">
                           <!-- Populated dynamically -->
@@ -1288,6 +1631,20 @@
                       <option value="">Select channel...</option>
                     </select>
                   </div>
+                  <div class="input-group mt-2">
+                    <label for="embed-bulk-channels">Bulk Send (optional — select additional channels):</label>
+                    <div id="embed-bulk-channels" class="bulk-channels-list"></div>
+                  </div>
+                  <div class="grid-2-col mt-2">
+                    <div class="input-group">
+                      <label for="embed-dm-user">DM User (optional):</label>
+                      <input type="text" id="embed-dm-user" placeholder="User ID to DM">
+                    </div>
+                    <div class="input-group">
+                      <label for="embed-edit-message">Edit Message (optional):</label>
+                      <input type="text" id="embed-edit-message" placeholder="Message ID to edit">
+                    </div>
+                  </div>
                   
                   <div class="input-group">
                     <label for="embed-plain-text">Plain Text Content (Outside Embed):</label>
@@ -1298,8 +1655,8 @@
                     <h3>Author Field</h3>
                     <div class="grid-2-col mt-2">
                       <div class="input-group">
-                        <label for="embed-author-name">Author Name:</label>
-                        <input type="text" id="embed-author-name" placeholder="e.g. Aegis Staff">
+                        <label for="embed-author-name">Author Name: <span class="char-counter" data-target="embed-author-name" data-limit="256">0/256</span></label>
+                        <input type="text" id="embed-author-name" placeholder="e.g. Aegis Staff" maxlength="256">
                       </div>
                       <div class="input-group">
                         <label for="embed-author-icon">Author Icon URL:</label>
@@ -1311,12 +1668,12 @@
                   <div class="border-top pt-3 mt-3">
                     <h3>Body Settings</h3>
                     <div class="input-group mt-2">
-                      <label for="embed-title">Embed Title:</label>
-                      <input type="text" id="embed-title" placeholder="e.g. Server Announcement">
+                      <label for="embed-title">Embed Title: <span class="char-counter" data-target="embed-title" data-limit="256">0/256</span></label>
+                      <input type="text" id="embed-title" placeholder="e.g. Server Announcement" maxlength="256">
                     </div>
                     <div class="input-group">
                       <div class="flex-between mb-1">
-                        <label for="embed-description-text" style="margin-bottom: 0;">Embed Description:</label>
+                        <label for="embed-description-text" style="margin-bottom: 0;">Embed Description: <span class="char-counter" data-target="embed-description-text" data-limit="4096">0/4096</span></label>
                         <div class="markdown-toolbar" style="display: flex; gap: 4px;">
                           <button type="button" class="btn btn-secondary btn-md-helper" data-md="**" data-suffix="**" title="Bold" style="padding: 4px 8px; font-size: 0.75rem;"><i class="fa-solid fa-bold"></i></button>
                           <button type="button" class="btn btn-secondary btn-md-helper" data-md="*" data-suffix="*" title="Italics" style="padding: 4px 8px; font-size: 0.75rem;"><i class="fa-solid fa-italic"></i></button>
@@ -1335,6 +1692,19 @@
                         <span class="btn-var-helper" data-var="{server}" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">{server}</span>
                         <span class="btn-var-helper" data-var="{channel}" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">{channel}</span>
                         <span class="btn-var-helper" data-var="{membercount}" style="cursor: pointer; font-size: 0.7rem; background: rgba(99, 102, 241, 0.15); padding: 2px 6px; border-radius: 4px; color: #a5b4fc;">{membercount}</span>
+                        <span class="btn-var-helper" data-var="{date}" style="cursor: pointer; font-size: 0.7rem; background: rgba(16, 185, 129, 0.15); padding: 2px 6px; border-radius: 4px; color: #6ee7b7;">{date}</span>
+                        <span class="btn-var-helper" data-var="{time}" style="cursor: pointer; font-size: 0.7rem; background: rgba(16, 185, 129, 0.15); padding: 2px 6px; border-radius: 4px; color: #6ee7b7;">{time}</span>
+                        <span class="btn-var-helper" data-var="{datetime}" style="cursor: pointer; font-size: 0.7rem; background: rgba(16, 185, 129, 0.15); padding: 2px 6px; border-radius: 4px; color: #6ee7b7;">{datetime}</span>
+                        <span class="btn-var-helper" data-var="{boost_count}" style="cursor: pointer; font-size: 0.7rem; background: rgba(236, 72, 153, 0.15); padding: 2px 6px; border-radius: 4px; color: #f9a8d4;">{boost_count}</span>
+                        <span class="btn-var-helper" data-var="{boost_tier}" style="cursor: pointer; font-size: 0.7rem; background: rgba(236, 72, 153, 0.15); padding: 2px 6px; border-radius: 4px; color: #f9a8d4;">{boost_tier}</span>
+                        <span class="btn-var-helper" data-var="{online_count}" style="cursor: pointer; font-size: 0.7rem; background: rgba(16, 185, 129, 0.15); padding: 2px 6px; border-radius: 4px; color: #6ee7b7;">{online_count}</span>
+                        <span class="btn-var-helper" data-var="{server_owner}" style="cursor: pointer; font-size: 0.7rem; background: rgba(245, 158, 11, 0.15); padding: 2px 6px; border-radius: 4px; color: #fcd34d;">{server_owner}</span>
+                        <span class="btn-var-helper" data-var="{invite_link}" style="cursor: pointer; font-size: 0.7rem; background: rgba(16, 185, 129, 0.15); padding: 2px 6px; border-radius: 4px; color: #6ee7b7;">{invite_link}</span>
+                        <span class="btn-var-helper" data-var="{top_role}" style="cursor: pointer; font-size: 0.7rem; background: rgba(245, 158, 11, 0.15); padding: 2px 6px; border-radius: 4px; color: #fcd34d;">{top_role}</span>
+                        <span class="btn-var-helper" data-var="{account_age}" style="cursor: pointer; font-size: 0.7rem; background: rgba(245, 158, 11, 0.15); padding: 2px 6px; border-radius: 4px; color: #fcd34d;">{account_age}</span>
+                        <span class="btn-var-helper" data-var="{member_join_date}" style="cursor: pointer; font-size: 0.7rem; background: rgba(245, 158, 11, 0.15); padding: 2px 6px; border-radius: 4px; color: #fcd34d;">{join_date}</span>
+                        <span class="btn-var-helper" data-var="{server_created}" style="cursor: pointer; font-size: 0.7rem; background: rgba(245, 158, 11, 0.15); padding: 2px 6px; border-radius: 4px; color: #fcd34d;">{server_created}</span>
+                        <span class="btn-var-helper" data-var="{role_count}" style="cursor: pointer; font-size: 0.7rem; background: rgba(16, 185, 129, 0.15); padding: 2px 6px; border-radius: 4px; color: #6ee7b7;">{role_count}</span>
                       </div>
                     </div>
                     <div class="grid-2-col">
@@ -1344,8 +1714,55 @@
                           <input type="color" id="embed-color-picker" value="#6366f1">
                           <input type="text" id="embed-color-hex" value="#6366F1" placeholder="#6366F1" maxlength="7">
                         </div>
-                      </div>
-                      <div class="input-group">
+                        <div class="color-palette-row mt-2">
+                          <span class="color-swatch" data-color="#5865F2" style="background:#5865F2;" title="Discord Blurple"></span>
+                          <span class="color-swatch" data-color="#57F287" style="background:#57F287;" title="Green"></span>
+                          <span class="color-swatch" data-color="#FEE75C" style="background:#FEE75C;" title="Gold"></span>
+                          <span class="color-swatch" data-color="#ED4245" style="background:#ED4245;" title="Red"></span>
+                          <span class="color-swatch" data-color="#FFFFFF" style="background:#FFFFFF; border: 1px solid var(--card-border);" title="White"></span>
+                          <span class="color-swatch" data-color="#F47B67" style="background:#F47B67;" title="Pastel Red"></span>
+                          <span class="color-swatch" data-color="#F9A8D4" style="background:#F9A8D4;" title="Pastel Pink"></span>
+                          <span class="color-swatch" data-color="#A5B4FC" style="background:#A5B4FC;" title="Pastel Blue"></span>
+                          <span class="color-swatch" data-color="#86EFAC" style="background:#86EFAC;" title="Pastel Green"></span>
+                          <span class="color-swatch" data-color="#FDE68A" style="background:#FDE68A;" title="Pastel Yellow"></span>
+                          <span class="color-swatch" data-color="#FF00FF" style="background:#FF00FF;" title="Neon Magenta"></span>
+                          <span class="color-swatch" data-color="#00FFFF" style="background:#00FFFF;" title="Neon Cyan"></span>
+                          <span class="color-swatch" data-color="#39FF14" style="background:#39FF14;" title="Neon Green"></span>
+                          <span class="color-swatch" data-color="#FF6600" style="background:#FF6600;" title="Neon Orange"></span>
+                          <span class="color-swatch" data-color="#FF1493" style="background:#FF1493;" title="Neon Pink"></span>
+                          <span class="color-swatch" data-color="#8B4513" style="background:#8B4513;" title="Earth Brown"></span>
+                          <span class="color-swatch" data-color="#228B22" style="background:#228B22;" title="Earth Forest"></span>
+                          <span class="color-swatch" data-color="#D2691E" style="background:#D2691E;" title="Earth Cocoa"></span>
+                          <span class="color-swatch" data-color="#2F4F4F" style="background:#2F4F4F;" title="Earth Slate"></span>
+                          <span class="color-swatch" data-color="#DAA520" style="background:#DAA520;" title="Earth Goldenrod"></span>
+                          <span class="color-swatch" data-color="#000000" style="background:#000000; border: 1px solid var(--card-border);" title="Black"></span>
+                          <span class="color-swatch" data-color="#808080" style="background:#808080;" title="Gray"></span>
+                          <span class="color-swatch" data-color="#C0C0C0" style="background:#C0C0C0;" title="Silver"></span>
+                          <span class="color-swatch" data-color="#36393F" style="background:#36393F; border: 1px solid var(--card-border);" title="Discord Dark"></span>
+                    </div>
+                  </div>
+
+                  <div class="input-group" id="smart-suggestions-bar" style="border: 1px solid rgba(16, 185, 129, 0.3); padding: 10px 15px; border-radius: 8px; background-color: rgba(16, 185, 129, 0.05); margin-bottom: 20px; display: none;">
+                    <label style="font-weight: 600; color: #10b981; display: flex; align-items: center; gap: 6px; margin-bottom: 8px;"><i class="fa-solid fa-lightbulb"></i> Smart Suggestions</label>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                      <span style="font-size: 0.75rem; color: var(--text-muted);">Server Colors:</span>
+                      <span id="suggested-colors"></span>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 6px;">
+                      <span style="font-size: 0.75rem; color: var(--text-muted);">Quick Fill:</span>
+                      <button type="button" class="btn btn-secondary btn-small smart-fill-btn" data-field="author" style="font-size: 0.7rem; padding: 3px 8px;">
+                        <i class="fa-solid fa-user"></i> Server Name as Author
+                      </button>
+                      <button type="button" class="btn btn-secondary btn-small smart-fill-btn" data-field="footer" style="font-size: 0.7rem; padding: 3px 8px;">
+                        <i class="fa-solid fa-shield"></i> Powered by {server}
+                      </button>
+                      <button type="button" class="btn btn-secondary btn-small smart-fill-btn" data-field="thumbnail" style="font-size: 0.7rem; padding: 3px 8px;">
+                        <i class="fa-solid fa-image"></i> Server Icon as Thumbnail
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="input-group">
                         <label for="embed-thumbnail">Thumbnail Image URL:</label>
                         <input type="url" id="embed-thumbnail" placeholder="https://...">
                         <div class="preset-links-container" style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 5px;">
@@ -1377,7 +1794,7 @@
 
                   <div class="border-top pt-3 mt-3">
                     <div class="flex-between">
-                      <h3>Embed Fields (Key-Value)</h3>
+                      <h3>Embed Fields (Key-Value) <span class="field-counter" id="embed-field-counter">0/25</span></h3>
                       <button type="button" id="btn-embed-add-field" class="btn btn-secondary btn-small">
                         <i class="fa-solid fa-plus"></i> Add Field
                       </button>
@@ -1391,8 +1808,8 @@
                     <h3>Footer Settings</h3>
                     <div class="grid-2-col mt-2">
                       <div class="input-group">
-                        <label for="embed-footer-text">Footer Text:</label>
-                        <input type="text" id="embed-footer-text" placeholder="e.g. Powered by Aegis Suite">
+                        <label for="embed-footer-text">Footer Text: <span class="char-counter" data-target="embed-footer-text" data-limit="2048">0/2048</span></label>
+                        <input type="text" id="embed-footer-text" placeholder="e.g. Powered by Aegis Suite" maxlength="2048">
                       </div>
                       <div class="input-group">
                         <label for="embed-footer-icon">Footer Icon URL:</label>
@@ -1406,20 +1823,45 @@
                         <span class="slider round"></span>
                       </label>
                     </div>
+                    <div class="toggle-group mt-2">
+                      <span class="toggle-label font-size-08">Enable Voting Reactions:</span>
+                      <label class="switch">
+                        <input type="checkbox" id="embed-add-reactions">
+                        <span class="slider round"></span>
+                      </label>
+                    </div>
                   </div>
 
                   <div class="border-top pt-3 mt-4 flex-between">
-                    <div>
+                    <div style="display: flex; gap: 6px; align-items: center;">
                       <button type="button" id="btn-embed-import" class="btn btn-secondary btn-small">
                         <i class="fa-solid fa-file-import"></i> Import JSON
                       </button>
                       <button type="button" id="btn-embed-export" class="btn btn-secondary btn-small">
                         <i class="fa-solid fa-file-export"></i> Export JSON
                       </button>
+                      <button type="button" id="btn-embed-save-draft" class="btn btn-secondary btn-small">
+                        <i class="fa-solid fa-cloud-arrow-up"></i> Save Draft
+                      </button>
+                      <button type="button" id="btn-embed-load-draft" class="btn btn-secondary btn-small">
+                        <i class="fa-solid fa-folder-open"></i> Load Draft
+                      </button>
                     </div>
-                    <button type="submit" class="btn btn-primary btn-glow">
-                      <i class="fa-solid fa-paper-plane"></i> Send Embed Message
-                    </button>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <div class="toggle-group" id="embed-schedule-toggle-group" style="display: flex; align-items: center; gap: 8px;">
+                        <span class="toggle-label font-size-08">Schedule:</span>
+                        <label class="switch">
+                          <input type="checkbox" id="embed-schedule-toggle">
+                          <span class="slider round"></span>
+                        </label>
+                      </div>
+                      <div id="embed-schedule-datetime" class="hidden" style="display: flex; gap: 6px; align-items: center;">
+                        <input type="datetime-local" id="embed-schedule-time" class="glass-input" style="padding: 6px 10px; font-size: 0.85rem;">
+                      </div>
+                      <button type="submit" class="btn btn-primary btn-glow" id="btn-embed-send">
+                        <i class="fa-solid fa-paper-plane"></i> <span id="btn-embed-send-text">Send Embed</span>
+                      </button>
+                    </div>
                   </div>
                 </form>
               </div>
@@ -2149,6 +2591,11 @@
                 <p>Chronological feed of administrative and moderation actions logged via this optimizer dashboard.</p>
               </div>
               <div class="flex-between mt-2 mt-md-0">
+                <select id="audit-log-scope" class="glass-input mr-2">
+                  <option value="GUILD" selected>This Server Only</option>
+                  <option value="GLOBAL">System/Global Only</option>
+                  <option value="ALL">All Logs</option>
+                </select>
                 <select id="audit-log-filter" class="glass-input mr-2">
                   <option value="ALL">All Categories</option>
                   <option value="BOT_CONTROL">Bot Lifecycle</option>
@@ -2175,7 +2622,7 @@
                       <th>Category</th>
                       <th>User/Actor</th>
                       <th>Action Logged</th>
-                      <th>Target Guild ID</th>
+                      <th>Target Server</th>
                     </tr>
                   </thead>
                   <tbody id="audit-logs-list-body">
@@ -2199,9 +2646,16 @@
                 <h2>Live System Logs</h2>
                 <p>Real-time terminal feed from the local server and Discord bot processes.</p>
               </div>
-              <div class="console-actions">
+              <div class="console-actions" style="display: flex; gap: 8px; align-items: center;">
+                <input type="text" id="log-search-input" placeholder="Search logs..." class="console-input" style="width: 180px;">
+                <select id="log-level-filter" class="console-select">
+                  <option value="all">All Levels</option>
+                  <option value="INFO">INFO</option>
+                  <option value="WARNING">WARNING</option>
+                  <option value="ERROR">ERROR</option>
+                </select>
                 <button id="btn-clear-logs" class="btn btn-secondary btn-small">
-                  <i class="fa-solid fa-trash"></i> Clear Console
+                  <i class="fa-solid fa-trash"></i> Clear
                 </button>
               </div>
             </div>
@@ -2221,6 +2675,233 @@
   <div id="toast-container" class="toast-container"></div>
 
   <!-- Script -->
-  <script src="/static/app.js?v=1.0.1"></script>
+  <script src="/static/chart.min.js"></script>
+  <script>
+    // Smart Features Analytics
+    (function() {
+      const API = window.BOT_API_URL || '';
+      let analyticsCharts = {};
+
+      function getToken() {
+        return localStorage.getItem('admin_token');
+      }
+
+      // Retrieve the selected guild ID using active_guild_id
+      function getSelectedGuild() {
+        return localStorage.getItem('active_guild_id');
+      }
+
+      async function fetchAnalytics(endpoint, params = {}) {
+        const guild = getSelectedGuild();
+        if (!guild) return null;
+        const qs = new URLSearchParams(params).toString();
+        const url = `${API}/api/guilds/${guild}/analytics/${endpoint}${qs ? '?' + qs : ''}`;
+        try {
+          const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + getToken() } });
+          if (!res.ok) return null;
+          return await res.json();
+        } catch (e) { return null; }
+      }
+
+      async function loadOverview() {
+        const data = await fetchAnalytics('overview');
+        const loading = document.getElementById('analytics-loading');
+        const empty = document.getElementById('analytics-empty');
+        const overview = document.getElementById('analytics-overview');
+        if (!data || !data.today) {
+          loading && loading.classList.add('hidden');
+          empty && empty.classList.remove('hidden');
+          return;
+        }
+        loading && loading.classList.add('hidden');
+        overview && overview.classList.remove('hidden');
+        document.getElementById('stat-messages-today').textContent = data.today.total_messages || 0;
+        document.getElementById('stat-active-users').textContent = data.active_users_7d || 0;
+        document.getElementById('stat-voice-minutes').textContent = data.voice_minutes_7d || 0;
+        const mod = data.mod_actions_7d || {};
+        const totalMod = Object.values(mod).reduce((a, b) => a + b, 0);
+        document.getElementById('stat-mod-actions').textContent = totalMod;
+      }
+
+      async function loadMessageChart() {
+        const days = document.getElementById('analytics-msg-days').value;
+        const data = await fetchAnalytics('messages', { days });
+        if (!data || !data.length) return;
+        const labels = data.map(d => d.date);
+        const msgs = data.map(d => d.total_messages);
+        const ctx = document.getElementById('chart-messages');
+        if (!ctx) return;
+        if (analyticsCharts.messages) analyticsCharts.messages.destroy();
+        
+        const isLightTheme = document.body.classList.contains('light-theme');
+        const tickColor = isLightTheme ? '#475569' : '#94a3b8';
+        const gridColor = isLightTheme ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)';
+
+        analyticsCharts.messages = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: 'Messages',
+              data: msgs,
+              borderColor: '#818cf8',
+              backgroundColor: 'rgba(129, 140, 248, 0.1)',
+              fill: true,
+              tension: 0.4,
+              pointRadius: 2,
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { ticks: { color: tickColor, maxTicksLimit: 10 }, grid: { color: gridColor } },
+              y: { ticks: { color: tickColor }, grid: { color: gridColor } }
+            }
+          }
+        });
+      }
+
+      async function loadChannelActivity() {
+        const data = await fetchAnalytics('channels', { days: 7 });
+        const el = document.getElementById('channel-activity-list');
+        if (!data || !Object.keys(data).length) {
+          el.innerHTML = '<div class="text-center py-3" style="color:var(--text-sub);">No channel data</div>';
+          return;
+        }
+        const entries = Object.entries(data).slice(0, 10);
+        const max = entries[0] ? entries[0][1] : 1;
+        el.innerHTML = entries.map(([ch, count]) => {
+          const pct = Math.round((count / max) * 100);
+          return `<div style="margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:3px;">
+              <span style="color:var(--text-main);">#${ch}</span>
+              <span style="color:var(--text-sub);">${count}</span>
+            </div>
+            <div style="height:6px;background:var(--card-border);border-radius:3px;overflow:hidden;">
+              <div style="height:100%;width:${pct}%;background:#818cf8;border-radius:3px;"></div>
+            </div>
+          </div>`;
+        }).join('');
+      }
+
+      async function loadTopUsers() {
+        const data = await fetchAnalytics('top-users', { days: 7, limit: 10 });
+        const el = document.getElementById('top-users-list');
+        if (!data || !data.length) {
+          el.innerHTML = '<div class="text-center py-3" style="color:var(--text-sub);">No user data</div>';
+          return;
+        }
+        el.innerHTML = data.map((u, i) => `
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 0;${i < data.length - 1 ? 'border-bottom:1px solid var(--card-border);' : ''}">
+            <span style="font-size:0.78rem;color:var(--text-muted);width:20px;">#${i+1}</span>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:0.85rem;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${u.username || ('User ' + u.user_id)}</div>
+              <div style="font-size:0.72rem;color:var(--text-sub);">${u.message_count} messages</div>
+            </div>
+          </div>
+        `).join('');
+      }
+
+      async function loadModChart() {
+        const data = await fetchAnalytics('moderation', { days: 7 });
+        const ctx = document.getElementById('chart-mod');
+        if (!ctx) return;
+        if (!data || !Object.keys(data).length) {
+          ctx.parentElement.innerHTML = '<div class="text-center py-4" style="color:var(--text-sub);">No moderation data</div>';
+          return;
+        }
+        const labels = Object.keys(data).map(key => {
+          if (key === 'automod_block') return 'AutoMod Block';
+          return key
+            .replace(/_/g, ' ')
+            .replace(/\b\w/g, c => c.toUpperCase());
+        });
+
+        const isLightTheme = document.body.classList.contains('light-theme');
+        const legendColor = isLightTheme ? '#334155' : '#e2e8f0';
+        const doughnutBorder = isLightTheme ? '#ffffff' : '#111827';
+
+        if (analyticsCharts.mod) analyticsCharts.mod.destroy();
+        analyticsCharts.mod = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: labels,
+            datasets: [{
+              data: Object.values(data),
+              backgroundColor: ['#f87171', '#fbbf24', '#34d399', '#818cf8', '#a78bfa'],
+              borderWidth: 2,
+              borderColor: doughnutBorder,
+              borderRadius: 4,
+              hoverOffset: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '70%',
+            plugins: {
+              legend: {
+                position: 'right',
+                labels: {
+                  color: legendColor,
+                  padding: 16,
+                  font: {
+                    family: "'Inter', sans-serif",
+                    size: 11
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
+
+      async function loadMemberGrowth() {
+        const data = await fetchAnalytics('members');
+        const el = document.getElementById('member-growth-info');
+        if (!data) {
+          el.innerHTML = '<div style="color:var(--text-sub);">No member data</div>';
+          return;
+        }
+        
+        const isLightTheme = document.body.classList.contains('light-theme');
+        const posColor = isLightTheme ? '#059669' : '#34d399';
+        const negColor = isLightTheme ? '#dc2626' : '#f87171';
+        const growthColor = data.net >= 0 ? posColor : negColor;
+        const arrow = data.net >= 0 ? '+' : '';
+        
+        el.innerHTML = `
+          <div style="display:flex;justify-content:center;gap:32px;flex-wrap:wrap;">
+            <div style="text-align:center;">
+              <div style="font-size:2rem;font-weight:700;color:${posColor};">${data.joins}</div>
+              <div style="font-size:0.82rem;color:var(--text-sub);">Joins (30d)</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:2rem;font-weight:700;color:${negColor};">${data.leaves}</div>
+              <div style="font-size:0.82rem;color:var(--text-sub);">Leaves (30d)</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-size:2rem;font-weight:700;color:${growthColor};">${arrow}${data.net}</div>
+              <div style="font-size:0.82rem;color:var(--text-sub);">Net Growth</div>
+            </div>
+          </div>
+        `;
+      }
+
+      window.loadSmartFeatures = function() {
+        loadOverview();
+        loadMessageChart();
+        loadChannelActivity();
+        loadTopUsers();
+        loadModChart();
+        loadMemberGrowth();
+      };
+
+      document.getElementById('analytics-msg-days')?.addEventListener('change', loadMessageChart);
+    })();
+  </script>
+  <script src="/static/app.js?v=1.1.0"></script>
 </body>
 </html>

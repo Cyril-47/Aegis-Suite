@@ -388,6 +388,27 @@ class WebConsoleHandler(logging.Handler):
         except Exception:
             pass
 
+def broadcast_stats(data: dict):
+    """Broadcast structured stats data to all active WebSocket clients."""
+    import asyncio
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            return
+    if not loop.is_running():
+        return
+    msg = json.dumps({"type": "stats_update", "data": data})
+    for ws in list(active_websockets):
+        try:
+            role = getattr(ws, "role", "guest")
+            if role in ("admin", "tenant"):
+                asyncio.run_coroutine_threadsafe(ws.send_text(msg), loop)
+        except Exception:
+            pass
+
 def is_regex_safe(pattern: str) -> bool:
     if not pattern:
         return False
@@ -543,9 +564,21 @@ def save_guild_config(guild_id: str, guild_conf: dict):
         return
     gid_str = str(guild_id)
     config = load_config()
+    
+    old_guild_conf = config.get("guild_configs", {}).get(gid_str, {}).copy()
+    
     guild_configs = config.setdefault("guild_configs", {})
     guild_configs[gid_str] = guild_conf
     save_config(config)
+
+    # Automatically generate config snapshot
+    try:
+        from aegis.core.config_history import create_snapshot, compute_diff
+        changed = compute_diff(old_guild_conf, guild_conf)
+        if changed:
+            create_snapshot(gid_str, guild_conf, changed_keys=changed, created_by="dashboard")
+    except Exception:
+        pass
 
 def get_guild_welcome_settings(config, guild_id: str) -> dict:
     guild_configs = config.get("guild_configs", {})
@@ -576,9 +609,7 @@ def get_guild_leveling_settings(config, guild_id: str) -> dict:
     guild_conf = guild_configs.get(str(guild_id), {})
     return guild_conf.get("leveling_settings", config.get("leveling_settings", {}))
 
-# Isolated Giveaway Store (Tier 7.2)
-GIVEAWAYS_PATH = get_writeable_path("giveaways.json")
-
+# Isolated Giveaway Store (Tier 7.2, DB-backed)
 _giveaways_lock = None
 
 def _get_giveaways_lock() -> asyncio.Lock:
@@ -596,6 +627,116 @@ class LazyAsyncLock:
 
 giveaways_lock = LazyAsyncLock()
 
+
+def _giveaway_model_to_dict(gw):
+    """Convert a Giveaway model instance to the legacy dict format."""
+    from datetime import timezone
+    end_time = 0.0
+    if gw.end_time:
+        end_time = gw.end_time.replace(tzinfo=timezone.utc).timestamp()
+    return {
+        "guild_id": gw.guild_id,
+        "channel_id": gw.channel_id,
+        "prize": gw.prize,
+        "winners_count": gw.winner_count,
+        "end_time": end_time,
+        "entrants": json.loads(gw.entrants) if gw.entrants else [],
+        "winners": json.loads(gw.winners) if gw.winners else [],
+        "ended": gw.status == "ended",
+        "host_id": gw.host_user_id,
+        "host_name": gw.host_name or "Aegis Suite",
+    }
+
+
+def _dict_to_giveaway_model(msg_id, gw_dict):
+    """Convert a legacy dict to fields suitable for Giveaway model creation/update."""
+    from datetime import datetime, timezone
+    end_time = gw_dict.get("end_time", 0)
+    if end_time:
+        end_dt = datetime.fromtimestamp(end_time, tz=timezone.utc).replace(tzinfo=None)
+    else:
+        end_dt = None
+    return {
+        "guild_id": str(gw_dict.get("guild_id", "")),
+        "channel_id": str(gw_dict.get("channel_id", "")),
+        "prize": gw_dict.get("prize", ""),
+        "winner_count": gw_dict.get("winners_count", 1),
+        "end_time": end_dt,
+        "host_user_id": str(gw_dict.get("host_id", "")),
+        "host_name": gw_dict.get("host_name", "Aegis Suite"),
+        "status": "ended" if gw_dict.get("ended", False) else "active",
+        "entrants": json.dumps(gw_dict.get("entrants", [])),
+        "winners": json.dumps(gw_dict.get("winners", [])),
+    }
+
+
+def _get_db_session():
+    """Get a database session if available."""
+    try:
+        from aegis.core.app_core import _active_cores
+        if _active_cores:
+            from sqlalchemy.orm import sessionmaker
+            core = _active_cores[-1]
+            if core.db:
+                return sessionmaker(bind=core.db)()
+    except Exception:
+        pass
+    return None
+
+
+def _load_giveaways_from_db():
+    """Load all giveaways from the database, returning legacy dict format."""
+    session = _get_db_session()
+    if session:
+        try:
+            from aegis.db.models import Giveaway
+            rows = session.query(Giveaway).all()
+            result = {}
+            for row in rows:
+                if row.message_id:
+                    result[row.message_id] = _giveaway_model_to_dict(row)
+            return result
+        except Exception:
+            logger.debug("DB giveaway load failed")
+        finally:
+            session.close()
+
+    return _load_giveaways_from_file()
+
+
+def _save_giveaways_to_db(giveaways):
+    """Save giveaways dict to the database (full-replace semantics)."""
+    session = _get_db_session()
+    if session:
+        try:
+            from aegis.db.models import Giveaway
+            existing = {r.message_id: r for r in session.query(Giveaway).all()}
+            seen_ids = set()
+            for msg_id, gw_dict in giveaways.items():
+                seen_ids.add(msg_id)
+                fields = _dict_to_giveaway_model(msg_id, gw_dict)
+                if msg_id in existing:
+                    for k, v in fields.items():
+                        setattr(existing[msg_id], k, v)
+                else:
+                    session.add(Giveaway(message_id=msg_id, **fields))
+            for msg_id, row in existing.items():
+                if msg_id not in seen_ids:
+                    session.delete(row)
+            session.commit()
+            return
+        except Exception:
+            session.rollback()
+            logger.debug("DB giveaway save failed, falling back to file")
+        finally:
+            session.close()
+
+    _save_giveaways_to_file(giveaways)
+
+
+GIVEAWAYS_PATH = get_writeable_path("giveaways.json")
+
+
 def _migrate_giveaways(config):
     gws = config.get("giveaways", {})
     if gws:
@@ -610,36 +751,40 @@ def _migrate_giveaways(config):
             json.dump({}, f, indent=2)
         return {}
 
-def _read_giveaways_file():
-    with open(GIVEAWAYS_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
 
-def _write_giveaways_file(data):
+def _load_giveaways_from_file():
+    if os.path.exists(GIVEAWAYS_PATH):
+        try:
+            with open(GIVEAWAYS_PATH, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            logger.exception("Error loading giveaways from file")
+    config = load_config()
+    try:
+        return _migrate_giveaways(config)
+    except Exception:
+        logger.exception("Error migrating giveaways")
+        return {}
+
+
+def _save_giveaways_to_file(data):
     with open(GIVEAWAYS_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
 
+
 async def load_giveaways() -> dict:
-    async with giveaways_lock:
-        if not await asyncio.to_thread(os.path.exists, GIVEAWAYS_PATH):
-            config = load_config()
-            try:
-                gws = await asyncio.to_thread(_migrate_giveaways, config)
-                return gws
-            except Exception:
-                logger.exception("Error migrating giveaways")
-                return {}
-        try:
-            return await asyncio.to_thread(_read_giveaways_file)
-        except Exception:
-            logger.exception("Error loading giveaways")
-            return {}
+    try:
+        return await asyncio.to_thread(_load_giveaways_from_db)
+    except Exception:
+        logger.exception("Error loading giveaways")
+        return {}
+
 
 async def save_giveaways(giveaways: dict) -> None:
-    async with giveaways_lock:
-        try:
-            await asyncio.to_thread(_write_giveaways_file, giveaways)
-        except Exception:
-            logger.exception("Error saving giveaways")
+    try:
+        await asyncio.to_thread(_save_giveaways_to_db, giveaways)
+    except Exception:
+        logger.exception("Error saving giveaways")
 
 # Per-Guild Rate Limiter (Tier 8.2 & Tier 8.6)
 from collections import defaultdict

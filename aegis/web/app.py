@@ -10,6 +10,8 @@ from aegis.web.routes.health import router as health_router
 from aegis.web.routes.dashboard import router as dashboard_router
 from aegis.web.routes.wizard import router as wizard_router
 from aegis.web.routes.diagnostics import router as diagnostics_router
+from aegis.web.routes.analytics import router as analytics_router
+from aegis.web.routes.intelligence import router as intelligence_router
 
 def build_app(core) -> FastAPI:
     """Builds and returns the FastAPI application with all routers registered."""
@@ -85,7 +87,8 @@ def build_app(core) -> FastAPI:
             
         # Allow health and auth endpoints to bypass auth checks
         if (path == "/api/status" or 
-            path == "/api/health" or 
+            path == "/api/health" or
+            path == "/api/public/status" or
             path.startswith("/api/auth/")):
             return await call_next(request)
 
@@ -103,16 +106,29 @@ def build_app(core) -> FastAPI:
             
         # Enforce guild-level access restriction for tenant sessions
         session_role = auth.get_session_role(token)
-        if session_role == "tenant":
+        if session_role in ("tenant", "moderator"):
             session_guild_id = auth.get_session_guild_id(token)
             
             # Enforce Sliding-Window Rate Limiting
             if not utils.check_guild_rate_limit(session_guild_id):
                 return JSONResponse(status_code=429, content={"detail": "Too many requests. Rate limit is 60 requests per minute."})
                 
-            # Strictly block global admin routes
-            if path in ["/api/bot/start", "/api/bot/stop"] or (path.startswith("/api/templates/") and request.method == "DELETE"):
-                return JSONResponse(status_code=403, content={"detail": "Forbidden: Tenant users cannot access global administrative endpoints"})
+            # Moderator restrictions: block global admin endpoints and sensitive operations
+            if session_role == "moderator":
+                moderator_blocked = [
+                    "/api/bot/start", "/api/bot/stop",
+                    "/api/config/import",
+                    "/api/config/export",
+                ]
+                if path in moderator_blocked or (path.startswith("/api/templates/") and request.method == "DELETE"):
+                    return JSONResponse(status_code=403, content={"detail": "Forbidden: Moderator role cannot access this endpoint"})
+                if path.startswith("/api/recovery/") or path.startswith("/wizard/"):
+                    return JSONResponse(status_code=403, content={"detail": "Forbidden: Moderator role cannot access recovery endpoints"})
+                    
+            # Strictly block global admin routes for tenant
+            if session_role == "tenant":
+                if path in ["/api/bot/start", "/api/bot/stop"] or (path.startswith("/api/templates/") and request.method == "DELETE"):
+                    return JSONResponse(status_code=403, content={"detail": "Forbidden: Tenant users cannot access global administrative endpoints"})
                 
             guild_match = pyre.search(r"/api/guilds/(\d+)", path)
             if guild_match:
@@ -127,5 +143,7 @@ def build_app(core) -> FastAPI:
     app.include_router(dashboard_router)
     app.include_router(wizard_router)
     app.include_router(diagnostics_router)
+    app.include_router(analytics_router)
+    app.include_router(intelligence_router)
 
     return app

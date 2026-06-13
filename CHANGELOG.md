@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.2.5] - 2026-06-13
+
+### Added
+- "Enable Voting Reactions" toggle switch in the Embed Builder footer settings, allowing server managers to selectively enable or disable automatic emoji reactions for custom embeds.
+- Support for inline base64 image data URLs in the Embed Builder, which are decoded and sent as file attachments to Discord.
+- Auto-extraction of direct image URLs from Google Images search query URLs.
+- Support for username target resolution (e.g. `cyril7662`) in DMs targeting.
+
+### Fixed
+- Relocated **Member Milestone Triggers** card from the **Auto-Moderation** tab to the **Welcome Setup** tab for better logical organization.
+- Resolved HTML nesting syntax errors that previously broke layout alignment in subsequent tabs (such as Role Creator) and pushed sections out of the main wrapper.
+- Fixed Uvicorn config crash on `--noconsole` windowless executables by setting Uvicorn `log_config=None` to avoid checking `sys.stdout` (which is `None` in GUI mode).
+
 ## [2.2.4] - 2026-06-12
 
 ### Added
