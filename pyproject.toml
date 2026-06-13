@@ -46,6 +46,10 @@ dev = [
 [project.scripts]
 aegis = "aegis.__main__:main"
 
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["aegis*"]
+
 [tool.ruff]
 line-length = 120
 target-version = "py312"
