@@ -24,6 +24,9 @@ class AppCore:
         
         self.config: Optional[Any] = None
         self.db: Optional[Any] = None
+        self.analytics_db: Optional[Any] = None
+        self.analytics_engine: Optional[Any] = None
+        self.analytics_aggregator: Optional[Any] = None
         
         self._asgi_task: Optional[asyncio.Task] = None
         self._bot_task: Optional[asyncio.Task] = None
@@ -55,6 +58,17 @@ class AppCore:
             elif state == LifecycleState.RUNNING:
                 self._start_asgi_server_if_needed()
                 self._start_bot_task_if_needed()
+                # Start analytics engine and aggregator
+                if self.analytics_engine is not None:
+                    try:
+                        self.analytics_engine.start(loop)
+                    except Exception as e:
+                        logger.warning(f"Analytics engine start failed: {e}")
+                if self.analytics_aggregator is not None:
+                    try:
+                        self.analytics_aggregator.start(loop)
+                    except Exception as e:
+                        logger.warning(f"Analytics aggregator start failed: {e}")
 
     def _start_asgi_server_if_needed(self) -> None:
         if self._asgi_task is None or self._asgi_task.done():
@@ -163,11 +177,23 @@ class AppCore:
         if self.db is not None:
             self.teardown_log.append("db_dispose")
             try:
-                # Run the blocking dispose in a thread or await it
                 if hasattr(self.db, "dispose"):
                     self.db.dispose()
             except Exception as e:
                 logger.error(f"Error disposing database: {e}")
+
+        # 5b. Dispose analytics database engine
+        if self.analytics_db is not None:
+            self.teardown_log.append("analytics_db_dispose")
+            try:
+                if hasattr(self.analytics_db, "dispose"):
+                    self.analytics_db.dispose()
+            except Exception as e:
+                logger.error(f"Error disposing analytics database: {e}")
+
+        # 5c. Stop analytics aggregator
+        if self.analytics_aggregator is not None:
+            self.analytics_aggregator.stop()
 
         # 6. Flush logging
         self.teardown_log.append("logging_shutdown")

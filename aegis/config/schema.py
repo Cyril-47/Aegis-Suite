@@ -27,6 +27,20 @@ class AutomodSettingsModel(BaseModel):
     whitelisted_invites: List[str] = Field(default_factory=list)
 
 
+class AntiRaidSettingsModel(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    enabled: bool = False
+    response_mode: str = "alert"  # passive, alert, lockdown, auto_verify
+    join_rate_threshold: int = 5
+    join_rate_window_seconds: int = 30
+    min_account_age_days: int = 7
+    suspicious_score_threshold: int = 70
+    auto_verify_channel: Optional[str] = None
+    raid_alert_channel: Optional[str] = None
+    dm_owner_on_raid: bool = True
+    lockdown_duration_seconds: int = 300
+
+
 class TicketSettingsModel(BaseModel):
     model_config = ConfigDict(extra="allow")
     enabled: bool
@@ -34,6 +48,7 @@ class TicketSettingsModel(BaseModel):
     staff_role_name: str
     ticket_channel_id: Optional[str] = None
     panel_message_id: Optional[str] = None
+    sla_hours: Optional[int] = None
 
 
 class CommandPermissionRule(BaseModel):
@@ -67,6 +82,7 @@ class ConfigModel(BaseModel):
     ui_mode: str = "beginner"
     welcome_settings: WelcomeSettingsModel
     automod_settings: AutomodSettingsModel
+    anti_raid_settings: Optional[AntiRaidSettingsModel] = None
     ticket_settings: Optional[TicketSettingsModel] = None
     custom_commands: Optional[Dict[str, Any]] = Field(default_factory=dict)
     admin_password_hash: Optional[str] = ""

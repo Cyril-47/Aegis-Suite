@@ -7,6 +7,7 @@ import jwt
 
 SESSION_EXPIRY_SECONDS = 24 * 60 * 60  # 24 hours
 _revoked_tokens = set()
+_validated_tokens = {}  # token_hash -> expiry_timestamp
 _db_engine = None
 
 def set_db_engine(engine):
@@ -82,11 +83,15 @@ def decode_token(token: str) -> dict:
     except jwt.PyJWTError:
         return None
 
+def _token_hash(token: str) -> str:
+    """Returns a short SHA-256 fingerprint of the token for cache keys."""
+    return hashlib.sha256(token.encode()).hexdigest()[:16]
+
 def is_token_revoked(token: str) -> bool:
     """Checks if the token is in the blacklisted revocation set or database."""
     if token in _revoked_tokens:
         return True
-    
+
     session = get_db_session()
     if session is not None:
         try:
@@ -99,7 +104,7 @@ def is_token_revoked(token: str) -> bool:
             print(f"Error checking revoked token in DB: {e}")
         finally:
             session.close()
-            
+
     return False
 
 _revoked_guilds = set()
@@ -138,15 +143,43 @@ def revoke_guild_sessions(guild_id: str):
         print(f"Error saving revoked guilds to config: {e}")
 
 def validate_session(token: str) -> bool:
-    """Checks if a session token is valid, not expired, and not revoked."""
+    """Checks if a session token is valid, not expired, and not revoked.
+
+    Uses a short-lived in-memory cache of validated token hashes to avoid a
+    blocking SQLite round-trip on every API request.  Revoked tokens are always
+    caught via the in-memory ``_revoked_tokens`` set which is updated eagerly
+    on logout, so a cached positive entry can never mask a revocation.  Guild
+    revocation is also re-checked on every call since ``_revoked_guilds`` is a
+    lightweight in-memory set.
+    """
+    th = _token_hash(token)
+
+    # Fast path – token was recently validated and not yet expired.
+    if th in _validated_tokens:
+        if time.time() < _validated_tokens[th]:
+            # Re-check guild revocation (in-memory set, no I/O)
+            payload = decode_token(token)
+            if payload:
+                guild_id = payload.get("guild_id")
+                if guild_id and is_guild_revoked(guild_id):
+                    _validated_tokens.pop(th, None)
+                    return False
+            return True
+        # Expired entry – clean up and fall through.
+        _validated_tokens.pop(th, None)
+
     if is_token_revoked(token):
         return False
+
     payload = decode_token(token)
     if payload is None:
         return False
+
     guild_id = payload.get("guild_id")
     if guild_id and is_guild_revoked(guild_id):
         return False
+
+    _validated_tokens[th] = payload.get("exp", 0)
     return True
 
 def get_session_guild_id(token: str) -> str:
@@ -167,6 +200,7 @@ def destroy_session(token: str) -> bool:
     """Revokes a session token by adding it to the local blacklist and database."""
     if token:
         _revoked_tokens.add(token)
+        _validated_tokens.pop(_token_hash(token), None)
         session = get_db_session()
         if session is not None:
             try:
@@ -186,6 +220,11 @@ def destroy_session(token: str) -> bool:
 def has_active_sessions() -> bool:
     """Prunes expired revoked tokens from memory and database."""
     now = time.time()
+
+    # Prune expired validated-token cache entries
+    for th in [k for k, exp in _validated_tokens.items() if now >= exp]:
+        _validated_tokens.pop(th)
+
     for t in list(_revoked_tokens):
         payload = decode_token(t)
         if not payload or now > payload.get("exp", 0):

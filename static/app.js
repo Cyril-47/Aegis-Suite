@@ -9,6 +9,13 @@ let rolePanelButtons = [];
 let serverRoles = [];
 let customPresetsMap = {};
 
+let cachedGuildNames = {};
+try {
+  cachedGuildNames = JSON.parse(localStorage.getItem('cached_guild_names') || '{}');
+} catch (e) {
+  cachedGuildNames = {};
+}
+
 // Hosting Mode state (server is the source of truth; do NOT cache here as authoritative — Req 5.5)
 let hostingMode = { value: null, pendingTarget: null };
 
@@ -20,6 +27,7 @@ const currentTabDesc = document.getElementById('current-tab-desc');
 const TAB_DESCRIPTIONS = {
   'tab-overview': 'Monitor your Discord bot and manage connected servers.',
   'tab-auditor': 'Review server permissions, channels structure, and security checklist.',
+  'tab-smart': 'View analytics, charts, and server intelligence insights.',
   'tab-optimizer': 'Apply professional structure and role setups to your server.',
   'tab-commands': 'Map custom commands and responses for quick access.',
   'tab-tickets': 'Configure support desks and ticketing panels for members.',
@@ -31,6 +39,7 @@ const TAB_DESCRIPTIONS = {
   'tab-embed-builder': 'Design and send premium Discord embeds with live preview.',
   'tab-music': 'Stream audio and manage active playlist queues directly.',
   'tab-scheduler': 'Automate timed event announcements and recurring broadcasts.',
+  'tab-giveaways': 'Create and manage interactive giveaways with automated winner selection.',
   'tab-leveling': 'Boost chat engagement with XP rewards, ranks, and role incentives.',
   'tab-auto-responder': 'Configure custom keyword triggers and regex replies.',
   'tab-audit-log': 'Review actions and configuration changes performed on the dashboard.',
@@ -78,8 +87,11 @@ function globalLoadingReset() {
 }
 
 // Embed Builder Persistence functions
-function saveEmbedBuilderState() {
-  const state = {
+let embedTabs = [{}];
+let activeEmbedTabIndex = 0;
+
+function collectCurrentEmbedState() {
+  return {
     plainText: document.getElementById('embed-plain-text')?.value || '',
     authorName: document.getElementById('embed-author-name')?.value || '',
     authorIcon: document.getElementById('embed-author-icon')?.value || '',
@@ -91,55 +103,202 @@ function saveEmbedBuilderState() {
     footerText: document.getElementById('embed-footer-text')?.value || '',
     footerIcon: document.getElementById('embed-footer-icon')?.value || '',
     includeTimestamp: document.getElementById('embed-timestamp')?.checked || false,
+    addReactions: document.getElementById('embed-add-reactions')?.checked || false,
     fields: getEmbedFields()
   };
-  localStorage.setItem('embed_builder_state', JSON.stringify(state));
+}
+
+function loadEmbedStateIntoForm(state) {
+  if (!state) return;
+  const setVal = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.value = val || '';
+  };
+  setVal('embed-plain-text', state.plainText);
+  setVal('embed-author-name', state.authorName);
+  setVal('embed-author-icon', state.authorIcon);
+  setVal('embed-title', state.title);
+  setVal('embed-description-text', state.desc);
+  let color = state.color || '#6366F1';
+  if (color && !color.startsWith('#')) color = '#' + color;
+  setVal('embed-color-hex', color);
+  const picker = document.getElementById('embed-color-picker');
+  if (picker) picker.value = color;
+  setVal('embed-thumbnail', state.thumbnail);
+  setVal('embed-image', state.image);
+  setVal('embed-footer-text', state.footerText);
+  setVal('embed-footer-icon', state.footerIcon);
+  const ts = document.getElementById('embed-timestamp');
+  if (ts) ts.checked = !!state.includeTimestamp;
+  const addReact = document.getElementById('embed-add-reactions');
+  if (addReact) addReact.checked = !!state.addReactions;
+  const container = document.getElementById('embed-fields-container');
+  if (container) {
+    container.innerHTML = '';
+    if (state.fields && Array.isArray(state.fields)) {
+      state.fields.forEach(f => {
+        addEmbedFieldWithData(f.name, f.value, f.inline !== false);
+      });
+    }
+  }
+}
+
+function saveEmbedBuilderState() {
+  embedTabs[activeEmbedTabIndex] = collectCurrentEmbedState();
+  localStorage.setItem('embed_builder_tabs', JSON.stringify(embedTabs));
+  localStorage.setItem('embed_builder_active_tab', String(activeEmbedTabIndex));
 }
 
 function restoreEmbedBuilderState() {
-  const stateStr = localStorage.getItem('embed_builder_state');
-  if (!stateStr) return;
+  const tabsStr = localStorage.getItem('embed_builder_tabs');
+  if (tabsStr) {
+    try {
+      embedTabs = JSON.parse(tabsStr);
+      if (!Array.isArray(embedTabs) || embedTabs.length === 0) embedTabs = [{}];
+    } catch(e) { embedTabs = [{}]; }
+  }
+  const savedIndex = parseInt(localStorage.getItem('embed_builder_active_tab'), 10);
+  if (!isNaN(savedIndex) && savedIndex >= 0 && savedIndex < embedTabs.length) {
+    activeEmbedTabIndex = savedIndex;
+  } else {
+    activeEmbedTabIndex = 0;
+  }
+  renderEmbedTabs();
+  loadEmbedStateIntoForm(embedTabs[activeEmbedTabIndex]);
+  updateEmbedPreview();
+}
+
+function renderEmbedTabs() {
+  const list = document.getElementById('embed-tabs-list');
+  if (!list) return;
+  list.innerHTML = '';
+  embedTabs.forEach((tab, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'embed-tab' + (i === activeEmbedTabIndex ? ' active' : '');
+    btn.textContent = `Embed ${i + 1}`;
+    btn.dataset.index = i;
+    btn.addEventListener('click', () => switchEmbedTab(i));
+    if (embedTabs.length > 1) {
+      const closeBtn = document.createElement('span');
+      closeBtn.className = 'embed-tab-close';
+      closeBtn.innerHTML = '&times;';
+      closeBtn.title = 'Remove embed';
+      closeBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        removeEmbedTab(i);
+      });
+      btn.appendChild(closeBtn);
+    }
+    list.appendChild(btn);
+  });
+}
+
+function switchEmbedTab(index) {
+  if (index === activeEmbedTabIndex) return;
+  embedTabs[activeEmbedTabIndex] = collectCurrentEmbedState();
+  activeEmbedTabIndex = index;
+  loadEmbedStateIntoForm(embedTabs[index]);
+  renderEmbedTabs();
+  updateEmbedPreview();
+}
+
+function addEmbedTab() {
+  if (embedTabs.length >= 10) {
+    showToast('Maximum 10 embeds per message.', 'warning');
+    return;
+  }
+  embedTabs[activeEmbedTabIndex] = collectCurrentEmbedState();
+  embedTabs.push({});
+  activeEmbedTabIndex = embedTabs.length - 1;
+  loadEmbedStateIntoForm(embedTabs[activeEmbedTabIndex]);
+  renderEmbedTabs();
+  updateEmbedPreview();
+}
+
+function removeEmbedTab(index) {
+  if (embedTabs.length <= 1) return;
+  embedTabs.splice(index, 1);
+  if (activeEmbedTabIndex >= embedTabs.length) {
+    activeEmbedTabIndex = embedTabs.length - 1;
+  }
+  loadEmbedStateIntoForm(embedTabs[activeEmbedTabIndex]);
+  renderEmbedTabs();
+  updateEmbedPreview();
+}
+
+function duplicateEmbedTab() {
+  if (embedTabs.length >= 10) {
+    showToast('Maximum 10 embeds per message.', 'warning');
+    return;
+  }
+  const current = collectCurrentEmbedState();
+  embedTabs.splice(activeEmbedTabIndex + 1, 0, JSON.parse(JSON.stringify(current)));
+  activeEmbedTabIndex = activeEmbedTabIndex + 1;
+  loadEmbedStateIntoForm(embedTabs[activeEmbedTabIndex]);
+  renderEmbedTabs();
+  updateEmbedPreview();
+  showToast('Embed duplicated!', 'success');
+}
+
+async function populateSmartSuggestions(guildId) {
+  const bar = document.getElementById('smart-suggestions-bar');
+  const colorsContainer = document.getElementById('suggested-colors');
+  if (!bar || !colorsContainer || !guildId) return;
+  
   try {
-    const state = JSON.parse(stateStr);
+    const res = await fetch(`/api/guilds/${guildId}/channels`);
+    if (!res.ok) return;
     
-    const setVal = (id, val) => {
-      const el = document.getElementById(id);
-      if (el) el.value = val || '';
-    };
+    bar.style.display = 'block';
+    colorsContainer.innerHTML = '';
     
-    setVal('embed-plain-text', state.plainText);
-    setVal('embed-author-name', state.authorName);
-    setVal('embed-author-icon', state.authorIcon);
-    setVal('embed-title', state.title);
-    setVal('embed-description-text', state.desc);
+    const serverColors = [
+      { color: '#5865F2', name: 'Discord Blurple' },
+      { color: '#57F287', name: 'Green' },
+      { color: '#FEE75C', name: 'Gold' },
+      { color: '#ED4245', name: 'Red' },
+    ];
     
-    let color = state.color || '#6366F1';
-    if (color && !color.startsWith('#')) color = '#' + color;
-    setVal('embed-color-hex', color);
-    const picker = document.getElementById('embed-color-picker');
-    if (picker) picker.value = color;
-    
-    setVal('embed-thumbnail', state.thumbnail);
-    setVal('embed-image', state.image);
-    setVal('embed-footer-text', state.footerText);
-    setVal('embed-footer-icon', state.footerIcon);
-    
-    const ts = document.getElementById('embed-timestamp');
-    if (ts) ts.checked = !!state.includeTimestamp;
-    
-    const container = document.getElementById('embed-fields-container');
-    if (container) {
-      container.innerHTML = '';
-      if (state.fields && Array.isArray(state.fields)) {
-        state.fields.forEach(f => {
-          addEmbedFieldWithData(f.name, f.value, f.inline !== false);
-        });
+    if (currentConfig?.guild_configs?.[guildId]) {
+      const gc = currentConfig.guild_configs[guildId];
+      if (gc.welcome_settings?.embed_color) {
+        serverColors.unshift({ color: gc.welcome_settings.embed_color, name: 'Welcome Color' });
       }
     }
     
-    updateEmbedPreview();
-  } catch(e) {
-    console.error('Error restoring embed builder state:', e);
+    serverColors.forEach(sc => {
+      const swatch = document.createElement('span');
+      swatch.className = 'color-swatch';
+      swatch.style.cssText = `background:${sc.color}; width:20px; height:20px; border-radius:50%; cursor:pointer; display:inline-block; border: 2px solid transparent;`;
+      swatch.title = `Apply ${sc.name}`;
+      swatch.addEventListener('click', () => {
+        const hexInput = document.getElementById('embed-color-hex');
+        const picker = document.getElementById('embed-color-picker');
+        if (hexInput) hexInput.value = sc.color;
+        if (picker) picker.value = sc.color;
+        updateEmbedPreview();
+      });
+      colorsContainer.appendChild(swatch);
+    });
+    
+    document.querySelectorAll('.smart-fill-btn').forEach(btn => {
+      btn.onclick = () => {
+        const field = btn.getAttribute('data-field');
+        if (field === 'author') {
+          document.getElementById('embed-author-name').value = currentConfig?.guild_configs?.[guildId]?.welcome_settings?.message_title ? activeGuildName : (activeGuildName || 'Server');
+          updateEmbedPreview();
+        } else if (field === 'footer') {
+          document.getElementById('embed-footer-text').value = `Powered by ${activeGuildName || 'Server'}`;
+          updateEmbedPreview();
+        } else if (field === 'thumbnail') {
+          showToast('Server icon will be used as thumbnail when sent.', 'info');
+        }
+        showToast('Smart fill applied!', 'success');
+      };
+    });
+  } catch (err) {
+    console.error('Error loading smart suggestions:', err);
   }
 }
 
@@ -286,6 +445,30 @@ async function fetchStats() {
   } catch (err) {
     console.error("Error fetching stats:", err);
   }
+
+  try {
+    const hRes = await fetch('/api/health/detailed', {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    if (hRes.ok) {
+      const h = await hRes.json();
+      const latEl = document.getElementById('health-latency');
+      const memEl = document.getElementById('health-memory');
+      const dbEl = document.getElementById('health-db');
+      const upEl = document.getElementById('health-uptime');
+      if (latEl) {
+        latEl.textContent = h.bot_latency_ms + 'ms';
+        latEl.style.color = h.bot_latency_ms < 200 ? '#34d399' : h.bot_latency_ms < 500 ? '#fbbf24' : '#f87171';
+      }
+      if (memEl) memEl.textContent = h.memory_mb + 'MB';
+      if (dbEl) dbEl.textContent = h.db_size_mb + 'MB';
+      if (upEl) {
+        const hrs = Math.floor(h.uptime_seconds / 3600);
+        const mins = Math.floor((h.uptime_seconds % 3600) / 60);
+        upEl.textContent = hrs > 0 ? `${hrs}h ${mins}m` : `${mins}m`;
+      }
+    }
+  } catch (err) {}
 }
 
 function logoutLocalState() {
@@ -397,6 +580,7 @@ function refreshActiveTabContent() {
   } else if (tab === 'tab-embed-builder') {
     populateEmbedTargetChannels(activeGuildId);
     fetchCustomPresets(activeGuildId);
+    populateSmartSuggestions(activeGuildId);
     updateEmbedPreview();
   } else if (tab === 'tab-giveaways') {
     populateGiveawayChannels(activeGuildId);
@@ -415,6 +599,13 @@ function refreshActiveTabContent() {
     fetchAutoResponders();
   } else if (tab === 'tab-audit-log') {
     fetchAuditLogs();
+  } else if (tab === 'tab-smart') {
+    if (typeof window.loadSmartFeatures === 'function') {
+      window.loadSmartFeatures();
+    }
+  } else if (tab === 'tab-auditor') {
+    loadRecommendations();
+    loadHealthTimeline();
   }
 }
 
@@ -545,6 +736,7 @@ async function fetchConfig(guildId = null) {
     // Populate form data
     populateWelcomeForm(currentConfig.welcome_settings);
     populateAutomodForm(currentConfig.automod_settings);
+    populateMilestoneForm(currentConfig.milestone_settings || {});
     populateTicketsForm(currentConfig.ticket_settings);
     
     // Load custom commands
@@ -701,11 +893,13 @@ async function refreshGuildsList() {
   
   if (guilds && guilds.length > 0) {
     guilds.forEach(g => {
+      cachedGuildNames[g.id] = g.name;
       const opt = document.createElement('option');
       opt.value = g.id;
       opt.textContent = `${g.name} (${g.member_count} members)`;
       select.appendChild(opt);
     });
+    localStorage.setItem('cached_guild_names', JSON.stringify(cachedGuildNames));
     
     // Check if activeGuildId exists
     if (activeGuildId) {
@@ -893,6 +1087,85 @@ async function runServerAudit() {
 }
 
 // ==========================================================================
+// Recommendations & Health Timeline
+// ==========================================================================
+async function loadRecommendations() {
+  if (!activeGuildId) return;
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/intelligence/recommendations`, {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const loading = document.getElementById('recommendations-loading');
+    const list = document.getElementById('recommendations-list');
+    const empty = document.getElementById('recommendations-empty');
+    if (!list) return;
+    loading.classList.add('hidden');
+    if (!data.recommendations || data.recommendations.length === 0) {
+      empty.classList.remove('hidden');
+      return;
+    }
+    list.classList.remove('hidden');
+    const categoryColors = {
+      security: '#ef4444', moderation: '#f59e0b', engagement: '#818cf8',
+      support: '#34d399', cleanup: '#94a3b8'
+    };
+    const borderColor = 'var(--card-border)';
+    const titleColor = 'var(--text-main)';
+    const descColor = 'var(--text-sub)';
+    list.innerHTML = data.recommendations.map(r => `
+      <div style="display: flex; align-items: flex-start; gap: 12px; padding: 12px; border-bottom: 1px solid ${borderColor};">
+        <div style="width: 8px; height: 8px; border-radius: 50%; background: ${categoryColors[r.category] || '#94a3b8'}; margin-top: 6px; flex-shrink: 0;"></div>
+        <div style="flex: 1;">
+          <div style="font-weight: 600; color: ${titleColor}; font-size: 0.9rem;">${r.title}</div>
+          <div style="color: ${descColor}; font-size: 0.82rem; margin-top: 2px;">${r.description}</div>
+        </div>
+        <div style="font-size: 0.75rem; color: ${categoryColors[r.category] || '#94a3b8'}; font-weight: 600; white-space: nowrap;">${r.impact}</div>
+      </div>
+    `).join('');
+  } catch (err) {}
+}
+
+let healthTimelineChart = null;
+async function loadHealthTimeline() {
+  if (!activeGuildId) return;
+  const days = document.getElementById('timeline-days')?.value || 30;
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/intelligence/health-timeline?days=${days}`, {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const ctx = document.getElementById('chart-health-timeline');
+    if (!ctx || !data.length) return;
+    if (healthTimelineChart) healthTimelineChart.destroy();
+      const isChartLight = document.body.classList.contains('light-theme');
+      const gridColor = isChartLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)';
+      const tickColor = isChartLight ? '#64748b' : '#94a3b8';
+      healthTimelineChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: data.map(d => d.date),
+          datasets: [
+            { label: 'Messages', data: data.map(d => d.total_messages), borderColor: '#818cf8', tension: 0.4, pointRadius: 2 },
+            { label: 'Active Users', data: data.map(d => d.unique_active_users), borderColor: '#34d399', tension: 0.4, pointRadius: 2 },
+            { label: 'Mod Actions', data: data.map(d => d.mod_actions), borderColor: '#f87171', tension: 0.4, pointRadius: 2 },
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: tickColor } } },
+          scales: {
+            x: { ticks: { color: tickColor, maxTicksLimit: 10 }, grid: { color: gridColor } },
+            y: { ticks: { color: tickColor }, grid: { color: gridColor } }
+        }
+      }
+    });
+  } catch (err) {}
+}
+
+// ==========================================================================
 // Optimizer Presets Setup
 // ==========================================================================
 let selectedPreset = 'gaming';
@@ -984,6 +1257,12 @@ function populateWelcomeForm(settings) {
   document.getElementById('welcome-color-picker').value = settings.embed_color;
   document.getElementById('welcome-autoroles').value = settings.auto_assign_roles.join(', ');
   
+  const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+  setVal('welcome-author-name', settings.author_name);
+  setVal('welcome-author-icon', settings.author_icon);
+  setVal('welcome-image', settings.image);
+  setVal('welcome-footer-text', settings.footer_text);
+  
   syncWelcomePreview();
 }
 
@@ -1029,7 +1308,11 @@ async function saveWelcomeSettings(e) {
     message_title: title,
     message_description: description,
     embed_color: color,
-    auto_assign_roles
+    auto_assign_roles,
+    author_name: document.getElementById('welcome-author-name')?.value || '',
+    author_icon: document.getElementById('welcome-author-icon')?.value || '',
+    image: document.getElementById('welcome-image')?.value || '',
+    footer_text: document.getElementById('welcome-footer-text')?.value || 'Member #{membercount}'
   };
   
   try {
@@ -1047,6 +1330,61 @@ async function saveWelcomeSettings(e) {
     }
   } catch (e) {
     showToast('Network error while saving welcome settings.', 'error');
+  }
+}
+
+// ==========================================================================
+// Milestone Module
+// ==========================================================================
+function populateMilestoneForm(settings) {
+  if (!settings) return;
+  document.getElementById('milestone-enabled').checked = settings.enabled || false;
+  document.getElementById('milestone-values').value = (settings.milestones || []).join(', ');
+  const embed = settings.embed || {};
+  document.getElementById('milestone-title').value = embed.title || '🎉 {membercount} MEMBERS!';
+  document.getElementById('milestone-desc').value = embed.description || 'We just hit {membercount} members!';
+  const color = embed.color || '#FFD700';
+  document.getElementById('milestone-color-hex').value = color;
+  document.getElementById('milestone-color-picker').value = color;
+  
+  const chSelect = document.getElementById('milestone-channel');
+  if (chSelect && settings.channel_id) {
+    chSelect.value = settings.channel_id;
+  }
+}
+
+async function saveMilestoneSettings(e) {
+  e.preventDefault();
+  if (!currentConfig) return;
+  
+  const milestonesRaw = document.getElementById('milestone-values').value;
+  const milestones = milestonesRaw.split(',').map(v => parseInt(v.trim(), 10)).filter(v => !isNaN(v) && v > 0);
+  
+  currentConfig.milestone_settings = {
+    enabled: document.getElementById('milestone-enabled').checked,
+    channel_id: document.getElementById('milestone-channel').value || null,
+    milestones: milestones,
+    embed: {
+      title: document.getElementById('milestone-title').value,
+      description: document.getElementById('milestone-desc').value,
+      color: document.getElementById('milestone-color-hex').value
+    }
+  };
+  
+  try {
+    const url = activeGuildId ? `/api/config?guild_id=${activeGuildId}` : '/api/config';
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(currentConfig)
+    });
+    if (res.ok) {
+      showToast('Milestone settings saved.', 'success');
+    } else {
+      showToast('Failed to save milestone settings.', 'error');
+    }
+  } catch (e) {
+    showToast('Network error saving milestone settings.', 'error');
   }
 }
 
@@ -1819,6 +2157,19 @@ function connectWebSocket() {
   socket = new WebSocket(wsUrl);
   
   socket.onmessage = (event) => {
+    try {
+      const parsed = JSON.parse(event.data);
+      if (parsed.type === 'stats_update') {
+        const d = parsed.data;
+        const msg = document.getElementById('stat-messages');
+        const cmd = document.getElementById('stat-commands');
+        const jt = document.getElementById('stat-joins-tickets');
+        if (msg && d.messages_today !== undefined) msg.textContent = d.messages_today;
+        if (cmd && d.commands_today !== undefined) cmd.textContent = d.commands_today;
+        if (jt && d.joins_today !== undefined) jt.textContent = `${d.joins_today} / 0`;
+        return;
+      }
+    } catch (e) {}
     appendLogLine(event.data);
   };
   
@@ -1855,6 +2206,18 @@ function appendLogLine(line) {
   }
   
   div.textContent = line;
+
+  // Apply current search/filter to new lines
+  const searchInput = document.getElementById('log-search-input');
+  const levelFilter = document.getElementById('log-level-filter');
+  const query = searchInput ? searchInput.value.toLowerCase() : '';
+  const level = levelFilter ? levelFilter.value : 'all';
+  const matchQuery = !query || line.toLowerCase().includes(query);
+  const matchLevel = level === 'all' || line.includes('[' + level + ']');
+  if (!matchQuery || !matchLevel) {
+    div.style.display = 'none';
+  }
+
   term.appendChild(div);
   
   // Auto scroll to bottom
@@ -1914,6 +2277,21 @@ async function populateGuildChannels(guildId) {
         ticketsSelect.appendChild(opt);
       });
     }
+    
+    // Populate Milestone channel select
+    const milestoneSelect = document.getElementById('milestone-channel');
+    if (milestoneSelect) {
+      const currentMilestoneId = currentConfig?.milestone_settings?.channel_id;
+      milestoneSelect.innerHTML = '<option value="">System channel (default)</option>';
+      channels.forEach(ch => {
+        if (ch.type !== 0) return;
+        const opt = document.createElement('option');
+        opt.value = ch.id;
+        opt.textContent = `#${ch.name}`;
+        if (ch.id === currentMilestoneId) opt.selected = true;
+        milestoneSelect.appendChild(opt);
+      });
+    }
   } catch (err) {
     console.error('Error fetching guild channels:', err);
   }
@@ -1949,6 +2327,12 @@ function setupEventListeners() {
     btnRunAudit.addEventListener('click', runServerAudit);
   }
   
+  // Health Timeline days selector
+  const timelineDays = document.getElementById('timeline-days');
+  if (timelineDays) {
+    timelineDays.addEventListener('change', loadHealthTimeline);
+  }
+  
   // Optimizer Preset Cards Click
   setupPresetSelector();
   
@@ -1963,9 +2347,67 @@ function setupEventListeners() {
   if (welcomeForm) {
     welcomeForm.addEventListener('submit', saveWelcomeSettings);
   }
+  const milestoneForm = document.getElementById('milestone-form');
+  if (milestoneForm) {
+    milestoneForm.addEventListener('submit', saveMilestoneSettings);
+  }
+  const milestoneColorPicker = document.getElementById('milestone-color-picker');
+  const milestoneColorHex = document.getElementById('milestone-color-hex');
+  if (milestoneColorPicker && milestoneColorHex) {
+    milestoneColorPicker.addEventListener('input', (e) => {
+      milestoneColorHex.value = e.target.value.toUpperCase();
+    });
+    milestoneColorHex.addEventListener('input', (e) => {
+      milestoneColorPicker.value = e.target.value;
+    });
+  }
+  
   const automodForm = document.getElementById('automod-form');
   if (automodForm) {
     automodForm.addEventListener('submit', saveAutomodSettings);
+  }
+
+  // Anti-Raid Config
+  const antiRaidForm = document.getElementById('anti-raid-form');
+  if (antiRaidForm) {
+    if (activeGuildId) {
+      fetch(`/api/guilds/${activeGuildId}/anti-raid`, {
+        headers: { 'Authorization': 'Bearer ' + authToken }
+      }).then(r => r.json()).then(cfg => {
+        document.getElementById('ar-enabled').checked = cfg.enabled || false;
+        document.getElementById('ar-response-mode').value = cfg.response_mode || 'alert';
+        document.getElementById('ar-join-threshold').value = cfg.join_rate_threshold || 5;
+        document.getElementById('ar-window-seconds').value = cfg.join_rate_window_seconds || 30;
+        document.getElementById('ar-min-age').value = cfg.min_account_age_days || 7;
+        document.getElementById('ar-score-threshold').value = cfg.suspicious_score_threshold || 70;
+        document.getElementById('ar-dm-owner').checked = cfg.dm_owner_on_raid !== false;
+      }).catch(() => {});
+    }
+
+    antiRaidForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!activeGuildId) return;
+      const cfg = {
+        enabled: document.getElementById('ar-enabled').checked,
+        response_mode: document.getElementById('ar-response-mode').value,
+        join_rate_threshold: parseInt(document.getElementById('ar-join-threshold').value),
+        join_rate_window_seconds: parseInt(document.getElementById('ar-window-seconds').value),
+        min_account_age_days: parseInt(document.getElementById('ar-min-age').value),
+        suspicious_score_threshold: parseInt(document.getElementById('ar-score-threshold').value),
+        dm_owner_on_raid: document.getElementById('ar-dm-owner').checked,
+      };
+      try {
+        const res = await fetch(`/api/guilds/${activeGuildId}/anti-raid`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+          body: JSON.stringify(cfg)
+        });
+        if (res.ok) showToast('Anti-raid settings saved!', 'success');
+        else showToast('Failed to save settings.', 'error');
+      } catch (err) {
+        showToast('Network error.', 'error');
+      }
+    });
   }
   
   // Sync Welcome Embed Previews dynamically
@@ -2002,6 +2444,25 @@ function setupEventListeners() {
       }
     });
   }
+
+  // Log Search & Filter
+  const logSearchInput = document.getElementById('log-search-input');
+  const logLevelFilter = document.getElementById('log-level-filter');
+  function applyLogFilter() {
+    const term = document.getElementById('log-terminal');
+    if (!term) return;
+    const query = (logSearchInput ? logSearchInput.value : '').toLowerCase();
+    const level = logLevelFilter ? logLevelFilter.value : 'all';
+    const lines = term.querySelectorAll('.log-line');
+    lines.forEach(line => {
+      const text = line.textContent || '';
+      const matchQuery = !query || text.toLowerCase().includes(query);
+      const matchLevel = level === 'all' || text.includes('[' + level + ']');
+      line.style.display = (matchQuery && matchLevel) ? '' : 'none';
+    });
+  }
+  if (logSearchInput) logSearchInput.addEventListener('input', applyLogFilter);
+  if (logLevelFilter) logLevelFilter.addEventListener('change', applyLogFilter);
 
   // Custom Commands Form Submit
   const cmdForm = document.getElementById('command-form');
@@ -2228,6 +2689,74 @@ function setupEventListeners() {
     });
   }
 
+  // Config Export Button
+  const btnExportConfig = document.getElementById('btn-export-config');
+  if (btnExportConfig) {
+    btnExportConfig.addEventListener('click', async () => {
+      if (!activeGuildId) {
+        showToast('Please select a Discord server first.', 'warning');
+        return;
+      }
+      try {
+        const res = await fetch(`/api/config/export?guild_id=${activeGuildId}`, {
+          headers: { 'Authorization': 'Bearer ' + authToken }
+        });
+        if (!res.ok) throw new Error('Export failed');
+        const data = await res.json();
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2));
+        const anchor = document.createElement('a');
+        anchor.setAttribute("href", dataStr);
+        anchor.setAttribute("download", `aegis_config_${activeGuildId}.json`);
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        showToast('Configuration exported successfully.', 'success');
+      } catch (err) {
+        showToast('Failed to export configuration.', 'error');
+      }
+    });
+  }
+
+  // Config Import
+  const uploadConfigFile = document.getElementById('upload-config-file');
+  if (uploadConfigFile) {
+    uploadConfigFile.addEventListener('change', async (e) => {
+      if (!activeGuildId) {
+        showToast('Please select a Discord server first.', 'warning');
+        return;
+      }
+      const file = e.target.files[0];
+      if (!file) return;
+      const fileInput = e.target;
+      const statusDiv = document.getElementById('config-import-status');
+      if (statusDiv) statusDiv.classList.remove('hidden');
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        try {
+          const importData = JSON.parse(event.target.result);
+          const payload = importData.config ? { guild_id: activeGuildId, config: importData.config } : { config: importData };
+          const res = await fetch('/api/config/import', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+            body: JSON.stringify(payload)
+          });
+          if (res.ok) {
+            showToast('Configuration imported successfully!', 'success');
+          } else {
+            const err = await res.json();
+            showToast(`Import failed: ${err.detail || 'Unknown error'}`, 'error');
+          }
+        } catch (err) {
+          showToast('Invalid config file or network error.', 'error');
+        } finally {
+          if (statusDiv) statusDiv.classList.add('hidden');
+          fileInput.value = '';
+        }
+      };
+      reader.readAsText(file);
+    });
+  }
+
   // ==========================================================================
   // Authentication Event Listeners
   // ==========================================================================
@@ -2311,6 +2840,37 @@ function setupEventListeners() {
       } catch (err) {
         showToast('Network error during login.', 'error');
       }
+    });
+  }
+
+  // Theme Toggle
+  const btnThemeToggle = document.getElementById('btn-theme-toggle');
+  if (btnThemeToggle) {
+    const savedTheme = localStorage.getItem('aegis_theme') || 'dark';
+    
+    function applyThemeUI(theme) {
+      if (theme === 'light') {
+        document.body.classList.add('light-theme');
+        btnThemeToggle.innerHTML = '<i class="fa-solid fa-sun"></i> Light';
+      } else {
+        document.body.classList.remove('light-theme');
+        btnThemeToggle.innerHTML = '<i class="fa-solid fa-moon"></i> Dark';
+      }
+    }
+
+    applyThemeUI(savedTheme);
+
+    btnThemeToggle.addEventListener('click', () => {
+      const isLight = document.body.classList.contains('light-theme');
+      const nextTheme = isLight ? 'dark' : 'light';
+      localStorage.setItem('aegis_theme', nextTheme);
+      applyThemeUI(nextTheme);
+      
+      // Dynamic Chart Redraw on Theme Change
+      if (typeof window.loadSmartFeatures === 'function') {
+        window.loadSmartFeatures();
+      }
+      loadHealthTimeline();
     });
   }
 
@@ -2824,6 +3384,34 @@ function setupEventListeners() {
   if (embedForm) {
     embedForm.addEventListener('submit', submitEmbedBuilder);
   }
+  const btnEmbedAddTab = document.getElementById('btn-embed-add-tab');
+  if (btnEmbedAddTab) {
+    btnEmbedAddTab.addEventListener('click', addEmbedTab);
+  }
+  const btnEmbedDuplicateTab = document.getElementById('btn-embed-duplicate-tab');
+  if (btnEmbedDuplicateTab) {
+    btnEmbedDuplicateTab.addEventListener('click', duplicateEmbedTab);
+  }
+  const embedScheduleToggle = document.getElementById('embed-schedule-toggle');
+  if (embedScheduleToggle) {
+    embedScheduleToggle.addEventListener('change', () => {
+      const dtGroup = document.getElementById('embed-schedule-datetime');
+      const sendText = document.getElementById('btn-embed-send-text');
+      if (embedScheduleToggle.checked) {
+        dtGroup.classList.remove('hidden');
+        dtGroup.style.display = 'flex';
+        sendText.textContent = 'Schedule Embed';
+        const now = new Date();
+        now.setMinutes(now.getMinutes() + 30);
+        const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+        document.getElementById('embed-schedule-time').value = local;
+      } else {
+        dtGroup.classList.add('hidden');
+        dtGroup.style.display = 'none';
+        sendText.textContent = 'Send Embed';
+      }
+    });
+  }
   const btnEmbedAddField = document.getElementById('btn-embed-add-field');
   if (btnEmbedAddField) {
     btnEmbedAddField.addEventListener('click', addEmbedField);
@@ -2835,6 +3423,14 @@ function setupEventListeners() {
   const btnEmbedExport = document.getElementById('btn-embed-export');
   if (btnEmbedExport) {
     btnEmbedExport.addEventListener('click', exportEmbedJSON);
+  }
+  const btnEmbedSaveDraft = document.getElementById('btn-embed-save-draft');
+  if (btnEmbedSaveDraft) {
+    btnEmbedSaveDraft.addEventListener('click', saveEmbedDraft);
+  }
+  const btnEmbedLoadDraft = document.getElementById('btn-embed-load-draft');
+  if (btnEmbedLoadDraft) {
+    btnEmbedLoadDraft.addEventListener('click', loadEmbedDraft);
   }
   // Event listeners for embed preview live sync
   const embedSyncInputs = [
@@ -2859,6 +3455,15 @@ function setupEventListeners() {
       updateEmbedPreview();
     });
   }
+
+  document.querySelectorAll('.color-swatch').forEach(swatch => {
+    swatch.addEventListener('click', () => {
+      const color = swatch.getAttribute('data-color');
+      if (embedColorHex) embedColorHex.value = color;
+      if (embedColorPicker) embedColorPicker.value = color;
+      updateEmbedPreview();
+    });
+  });
 
   // --- Music Player Listeners ---
   const musicPlayForm = document.getElementById('music-play-form');
@@ -2994,6 +3599,10 @@ function setupEventListeners() {
   if (auditLogFilter) {
     auditLogFilter.addEventListener('change', () => fetchAuditLogs());
   }
+  const auditLogScope = document.getElementById('audit-log-scope');
+  if (auditLogScope) {
+    auditLogScope.addEventListener('change', () => fetchAuditLogs());
+  }
   const btnAuditLogRefresh = document.getElementById('btn-audit-log-refresh');
   if (btnAuditLogRefresh) {
     btnAuditLogRefresh.addEventListener('click', () => fetchAuditLogs());
@@ -3043,6 +3652,64 @@ function togglePasswordVisibility(id) {
 // ==========================================================================
 // Visual Embed Designer Pro Methods
 // ==========================================================================
+function updateCharCounters() {
+  document.querySelectorAll('.char-counter[data-target]').forEach(counter => {
+    const targetId = counter.getAttribute('data-target');
+    const limit = parseInt(counter.getAttribute('data-limit'), 10);
+    const input = document.getElementById(targetId);
+    if (!input) return;
+    const len = input.value.length;
+    counter.textContent = `${len}/${limit}`;
+    counter.classList.remove('counter-warn', 'counter-danger');
+    if (len >= limit) counter.classList.add('counter-danger');
+    else if (len >= limit * 0.85) counter.classList.add('counter-warn');
+  });
+  document.querySelectorAll('.embed-field-item').forEach(item => {
+    const nameInput = item.querySelector('.field-name-input');
+    const valInput = item.querySelector('.field-value-input');
+    const counters = item.querySelectorAll('.char-counter');
+    if (nameInput && counters[0]) {
+      const len = nameInput.value.length;
+      counters[0].textContent = `${len}/256`;
+      counters[0].classList.remove('counter-warn', 'counter-danger');
+      if (len >= 256) counters[0].classList.add('counter-danger');
+      else if (len >= 218) counters[0].classList.add('counter-warn');
+    }
+    if (valInput && counters[1]) {
+      const len = valInput.value.length;
+      counters[1].textContent = `${len}/1024`;
+      counters[1].classList.remove('counter-warn', 'counter-danger');
+      if (len >= 1024) counters[1].classList.add('counter-danger');
+      else if (len >= 870) counters[1].classList.add('counter-warn');
+    }
+  });
+  const fieldCounter = document.getElementById('embed-field-counter');
+  if (fieldCounter) {
+    const count = document.querySelectorAll('.embed-field-item').length;
+    fieldCounter.textContent = `${count}/25`;
+    fieldCounter.classList.remove('counter-warn', 'counter-danger');
+    if (count >= 25) fieldCounter.classList.add('counter-danger');
+    else if (count >= 20) fieldCounter.classList.add('counter-warn');
+  }
+}
+
+function renderMarkdown(text) {
+  if (!text) return '';
+  let html = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+  html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+  html = html.replace(/`([^`]+)`/g, '<code class="discord-inline-code">$1</code>');
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  html = html.replace(/__(.+?)__/g, '<u>$1</u>');
+  html = html.replace(/~~(.+?)~~/g, '<del>$1</del>');
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener" class="discord-link">$1</a>');
+  html = html.replace(/\n/g, '<br>');
+  return html;
+}
+
 function getEmbedFields() {
   const fields = [];
   const fieldItems = document.querySelectorAll('.embed-field-item');
@@ -3071,12 +3738,12 @@ function addEmbedFieldWithData(name, value, inline) {
   fieldItem.innerHTML = `
     <div class="grid-2-col">
       <div class="input-group">
-        <label>Field Name:</label>
-        <input type="text" class="field-name-input" placeholder="e.g. Field Title" value="${escapeHtml(name)}">
+        <label>Field Name: <span class="char-counter" data-limit="256">0/256</span></label>
+        <input type="text" class="field-name-input" placeholder="e.g. Field Title" value="${escapeHtml(name)}" maxlength="256">
       </div>
       <div class="input-group">
-        <label>Field Value:</label>
-        <input type="text" class="field-value-input" placeholder="e.g. Field Content" value="${escapeHtml(value)}">
+        <label>Field Value: <span class="char-counter" data-limit="1024">0/1024</span></label>
+        <input type="text" class="field-value-input" placeholder="e.g. Field Content" value="${escapeHtml(value)}" maxlength="1024">
       </div>
     </div>
     <div class="flex-between mt-2">
@@ -3139,11 +3806,43 @@ function updateEmbedPreview() {
   }
   const color = hexInput?.value || '#6366F1';
   
-  const thumbnail = document.getElementById('embed-thumbnail')?.value || '';
-  const image = document.getElementById('embed-image')?.value || '';
+  const extractDirectImageUrl = (url) => {
+    if (!url) return '';
+    if (url.includes('google.') && url.includes('imgres')) {
+      try {
+        const parsedUrl = new URL(url);
+        const imgUrl = parsedUrl.searchParams.get('imgurl');
+        if (imgUrl) return imgUrl;
+      } catch (e) {
+        const match = url.match(/[?&]imgurl=([^&]+)/);
+        if (match) return decodeURIComponent(match[1]);
+      }
+    }
+    return url;
+  };
+
+  const thumbnailInput = document.getElementById('embed-thumbnail');
+  if (thumbnailInput && thumbnailInput.value) {
+    const cleanVal = extractDirectImageUrl(thumbnailInput.value);
+    if (cleanVal !== thumbnailInput.value) {
+      thumbnailInput.value = cleanVal;
+    }
+  }
+  const imageInput = document.getElementById('embed-image');
+  if (imageInput && imageInput.value) {
+    const cleanVal = extractDirectImageUrl(imageInput.value);
+    if (cleanVal !== imageInput.value) {
+      imageInput.value = cleanVal;
+    }
+  }
+
+  const thumbnail = thumbnailInput?.value || '';
+  const image = imageInput?.value || '';
   const footerText = document.getElementById('embed-footer-text')?.value || '';
   const footerIcon = document.getElementById('embed-footer-icon')?.value || '';
   const includeTimestamp = document.getElementById('embed-timestamp')?.checked;
+  
+  updateCharCounters();
   
   const simPlainText = document.getElementById('sim-plain-text');
   if (simPlainText) {
@@ -3190,7 +3889,7 @@ function updateEmbedPreview() {
   const pDesc = document.getElementById('preview-embed-description');
   if (pDesc) {
     if (desc) {
-      pDesc.textContent = desc;
+      pDesc.innerHTML = renderMarkdown(desc);
       pDesc.classList.remove('hidden');
     } else {
       pDesc.classList.add('hidden');
@@ -3254,8 +3953,8 @@ function updateEmbedPreview() {
           fDiv.classList.add('discord-embed-field-inline');
         }
         fDiv.innerHTML = `
-          <div class="discord-embed-field-name">${escapeHtml(field.name)}</div>
-          <div class="discord-embed-field-value">${escapeHtml(field.value)}</div>
+          <div class="discord-embed-field-name">${renderMarkdown(field.name)}</div>
+          <div class="discord-embed-field-value">${renderMarkdown(field.value)}</div>
         `;
         pFields.appendChild(fDiv);
       });
@@ -3283,8 +3982,21 @@ function compileEmbedJSON() {
     if (!url) return '';
     url = url.trim();
     if (url.startsWith('data:')) {
-      showToast('Discord does not support Base64 data URIs for embeds. Please use a public http/https image link.', 'error');
-      return '';
+      return url;
+    }
+    if (url.includes('google.') && url.includes('imgres')) {
+      try {
+        const parsedUrl = new URL(url);
+        const imgUrl = parsedUrl.searchParams.get('imgurl');
+        if (imgUrl) {
+          url = imgUrl;
+        }
+      } catch (e) {
+        const match = url.match(/[?&]imgurl=([^&]+)/);
+        if (match) {
+          url = decodeURIComponent(match[1]);
+        }
+      }
     }
     if (url.startsWith('/')) {
       return window.location.origin + url;
@@ -3409,6 +4121,7 @@ function exportEmbedJSON() {
 
 async function populateEmbedTargetChannels(guildId) {
   const select = document.getElementById('embed-target-channel');
+  const bulkContainer = document.getElementById('embed-bulk-channels');
   if (!select || !guildId) return;
   try {
     const res = await fetch(`/api/guilds/${guildId}/channels`);
@@ -3422,6 +4135,18 @@ async function populateEmbedTargetChannels(guildId) {
       opt.textContent = `#${ch.name}`;
       select.appendChild(opt);
     });
+    
+    if (bulkContainer) {
+      bulkContainer.innerHTML = '';
+      channels.forEach(ch => {
+        if (ch.type !== 0) return;
+        const label = document.createElement('label');
+        label.className = 'toggle-group font-size-08';
+        label.style.cssText = 'display:inline-flex; align-items:center; gap:6px; margin-right: 12px; margin-bottom: 4px;';
+        label.innerHTML = `<input type="checkbox" class="bulk-channel-cb" value="${ch.id}"> <span>#${ch.name}</span>`;
+        bulkContainer.appendChild(label);
+      });
+    }
   } catch (err) {
     console.error('Error fetching embed target channels:', err);
   }
@@ -3436,41 +4161,224 @@ async function submitEmbedBuilder(e) {
   
   const channelId = document.getElementById('embed-target-channel').value;
   const plainText = document.getElementById('embed-plain-text').value.trim();
+  const dmUserId = document.getElementById('embed-dm-user')?.value.trim();
+  const editMessageId = document.getElementById('embed-edit-message')?.value.trim();
   
-  if (!channelId) {
-    showToast('Please select a destination channel.', 'warning');
+  if (!channelId && !dmUserId) {
+    showToast('Please select a destination channel or enter a user ID for DM.', 'warning');
     return;
   }
   
-  const embed = compileEmbedJSON();
-  const hasContent = embed.title || embed.description || (embed.fields && embed.fields.length > 0) || 
-                     (embed.author && embed.author.name) || (embed.image && embed.image.url) || 
-                     (embed.thumbnail && embed.thumbnail.url) || (embed.footer && embed.footer.text);
-  if (!hasContent) {
+  const isScheduled = document.getElementById('embed-schedule-toggle')?.checked;
+  let scheduledAt = null;
+  if (isScheduled) {
+    const timeStr = document.getElementById('embed-schedule-time')?.value;
+    if (!timeStr) {
+      showToast('Please select a schedule time.', 'warning');
+      return;
+    }
+    scheduledAt = new Date(timeStr).toISOString();
+    if (new Date(scheduledAt) <= new Date()) {
+      showToast('Schedule time must be in the future.', 'warning');
+      return;
+    }
+  }
+  
+  embedTabs[activeEmbedTabIndex] = collectCurrentEmbedState();
+  const embeds = [];
+  for (let i = 0; i < embedTabs.length; i++) {
+    const savedState = embedTabs[i];
+    const prevIndex = activeEmbedTabIndex;
+    activeEmbedTabIndex = i;
+    loadEmbedStateIntoForm(savedState);
+    const compiled = compileEmbedJSON();
+    activeEmbedTabIndex = prevIndex;
+    loadEmbedStateIntoForm(embedTabs[prevIndex]);
+    const hasContent = compiled.title || compiled.description || (compiled.fields && compiled.fields.length > 0) || 
+                       (compiled.author && compiled.author.name) || (compiled.image && compiled.image.url) || 
+                       (compiled.thumbnail && compiled.thumbnail.url) || (compiled.footer && compiled.footer.text);
+    if (hasContent) embeds.push(compiled);
+  }
+  
+  if (embeds.length === 0) {
     showToast('Embed must contain at least a title, description, fields, author, footer, or a valid HTTP/HTTPS image URL.', 'warning');
     return;
   }
   
+  const addReactions = document.getElementById('embed-add-reactions')?.checked || false;
+
   try {
-    showToast('Sending embed to Discord...', 'info');
-    const res = await fetch(`/api/guilds/${activeGuildId}/embeds/send`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        channel_id: channelId,
-        content: plainText || null,
-        embed: embed
-      })
-    });
-    
-    if (res.ok) {
-      showToast('Embed message sent successfully!', 'success');
+    if (isScheduled) {
+      showToast('Scheduling embed...', 'info');
+      const res = await fetch(`/api/guilds/${activeGuildId}/embeds/schedule`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          channel_id: channelId,
+          content: plainText || null,
+          embeds: embeds,
+          scheduled_at: scheduledAt,
+          dm_user_id: dmUserId || null,
+          add_reactions: addReactions
+        })
+      });
+      if (res.ok) {
+        showToast('Embed scheduled successfully!', 'success');
+      } else {
+        const err = await res.json();
+        showToast(err.detail || 'Failed to schedule embed.', 'error');
+      }
     } else {
-      const err = await res.json();
-      showToast(err.detail || 'Failed to send embed.', 'error');
+      const bulkCbs = document.querySelectorAll('.bulk-channel-cb:checked');
+      const bulkChannelIds = Array.from(bulkCbs).map(cb => cb.value);
+      const allChannelIds = channelId ? [channelId, ...bulkChannelIds.filter(id => id !== channelId)] : bulkChannelIds;
+      
+      if (allChannelIds.length === 0 && !dmUserId) {
+        showToast('No channels selected and no DM user specified.', 'warning');
+        return;
+      }
+      
+      let successCount = 0;
+      let failCount = 0;
+      let totalSends = 0;
+      
+      // Send DM if dmUserId is specified
+      if (dmUserId) {
+        totalSends++;
+        try {
+          const res = await fetch(`/api/guilds/${activeGuildId}/embeds/send`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              dm_user_id: dmUserId,
+              content: plainText || null,
+              embeds: embeds,
+              add_reactions: addReactions
+            })
+          });
+          if (res.ok) successCount++;
+          else failCount++;
+        } catch(e) {
+          failCount++;
+        }
+      }
+      
+      // Send to channels
+      for (const chId of allChannelIds) {
+        totalSends++;
+        try {
+          const res = await fetch(`/api/guilds/${activeGuildId}/embeds/send`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              channel_id: chId,
+              content: plainText || null,
+              embeds: embeds,
+              edit_message_id: editMessageId || null,
+              add_reactions: addReactions
+            })
+          });
+          if (res.ok) successCount++;
+          else failCount++;
+        } catch(e) {
+          failCount++;
+        }
+      }
+      
+      if (totalSends === 1) {
+        if (successCount > 0) showToast(`${embeds.length} embed(s) sent successfully!`, 'success');
+        else showToast('Failed to send embed.', 'error');
+      } else {
+        showToast(`Sent ${successCount}/${totalSends} messages successfully. ${failCount > 0 ? failCount + ' failed.' : ''}`, successCount > 0 ? 'success' : 'error');
+      }
     }
   } catch (err) {
-    showToast('Network error sending embed.', 'error');
+    showToast('Network error.', 'error');
+  }
+}
+
+async function saveEmbedDraft() {
+  if (!activeGuildId) {
+    showToast('Please select a Discord server first.', 'warning');
+    return;
+  }
+  const name = prompt('Enter a name for this draft:');
+  if (!name || !name.trim()) return;
+  
+  embedTabs[activeEmbedTabIndex] = collectCurrentEmbedState();
+  const embeds = [];
+  for (let i = 0; i < embedTabs.length; i++) {
+    const savedState = embedTabs[i];
+    const prevIndex = activeEmbedTabIndex;
+    activeEmbedTabIndex = i;
+    loadEmbedStateIntoForm(savedState);
+    const compiled = compileEmbedJSON();
+    activeEmbedTabIndex = prevIndex;
+    loadEmbedStateIntoForm(embedTabs[prevIndex]);
+    if (compiled.title || compiled.description || (compiled.fields && compiled.fields.length > 0)) {
+      embeds.push(compiled);
+    }
+  }
+  
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/embeds/drafts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name.trim(), embeds })
+    });
+    if (res.ok) {
+      showToast('Draft saved!', 'success');
+    } else {
+      const err = await res.json();
+      showToast(err.detail || 'Failed to save draft.', 'error');
+    }
+  } catch (err) {
+    showToast('Network error.', 'error');
+  }
+}
+
+async function loadEmbedDraft() {
+  if (!activeGuildId) {
+    showToast('Please select a Discord server first.', 'warning');
+    return;
+  }
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/embeds/drafts`);
+    if (!res.ok) return;
+    const drafts = await res.json();
+    if (Object.keys(drafts).length === 0) {
+      showToast('No saved drafts found.', 'info');
+      return;
+    }
+    const names = Object.keys(drafts);
+    const choice = prompt('Saved drafts:\n' + names.map((n, i) => `${i + 1}. ${n}`).join('\n') + '\n\nEnter the number or name to load:');
+    if (!choice) return;
+    
+    let selectedName = names[parseInt(choice, 10) - 1] || choice;
+    const draft = drafts[selectedName];
+    if (!draft || !draft.embeds) {
+      showToast('Draft not found.', 'error');
+      return;
+    }
+    
+    while (embedTabs.length > 1) embedTabs.pop();
+    embedTabs[0] = {};
+    activeEmbedTabIndex = 0;
+    
+    for (let i = 0; i < draft.embeds.length; i++) {
+      if (i === 0) {
+        embedTabs[0] = draft.embeds[i];
+      } else {
+        embedTabs.push(draft.embeds[i]);
+      }
+    }
+    
+    loadEmbedStateIntoForm(embedTabs[0]);
+    renderEmbedTabs();
+    updateEmbedPreview();
+    showToast(`Draft "${selectedName}" loaded!`, 'success');
+  } catch (err) {
+    showToast('Network error.', 'error');
   }
 }
 
@@ -4363,11 +5271,17 @@ async function fetchAuditLogs() {
   if (!tbody || !empty) return;
   
   const category = document.getElementById('audit-log-filter').value || 'ALL';
+  const scope = document.getElementById('audit-log-scope')?.value || 'GUILD';
   
   try {
     let url = `/api/audit-log?limit=100`;
     if (category && category !== 'ALL') {
       url += `&category=${category}`;
+    }
+    if (scope === 'GUILD' && activeGuildId) {
+      url += `&guild_id=${activeGuildId}`;
+    } else if (scope === 'GLOBAL') {
+      url += `&guild_id=global`;
     }
     
     const res = await fetch(url);
@@ -4400,7 +5314,20 @@ async function fetchAuditLogs() {
       `;
       
       const tdTarget = document.createElement('td');
-      tdTarget.textContent = log.target || 'N/A';
+      if (log.target && log.target !== 'N/A') {
+        if (log.target === 'global') {
+          tdTarget.innerHTML = `<strong>Global System</strong><br><small class="text-muted" style="font-size:0.7rem;">All Servers</small>`;
+        } else {
+          const guildName = cachedGuildNames[log.target];
+          if (guildName) {
+            tdTarget.innerHTML = `<strong>${escapeHtml(guildName)}</strong><br><small class="text-muted" style="font-size:0.7rem;">${escapeHtml(log.target)}</small>`;
+          } else {
+            tdTarget.textContent = log.target;
+          }
+        }
+      } else {
+        tdTarget.textContent = 'N/A';
+      }
       
       tr.appendChild(tdTime);
       tr.appendChild(tdCat);
@@ -4526,6 +5453,8 @@ function initGiveawaysTab() {
       const authorNameInput = document.getElementById('embed-author-name');
       const authorIconInput = document.getElementById('embed-author-icon');
       const timestampInput = document.getElementById('embed-timestamp');
+      const addReactionsInput = document.getElementById('embed-add-reactions');
+      if (addReactionsInput) addReactionsInput.checked = false;
       
       const fieldsContainer = document.getElementById('embed-fields-container');
       if (fieldsContainer) fieldsContainer.innerHTML = '';
@@ -4548,6 +5477,7 @@ function initGiveawaysTab() {
           if (footerInput) footerInput.value = data.footerText || '';
           if (footerIconInput) footerIconInput.value = data.footerIcon || '';
           if (timestampInput) timestampInput.checked = !!data.includeTimestamp;
+          if (addReactionsInput) addReactionsInput.checked = !!data.addReactions;
           
           if (data.fields && Array.isArray(data.fields)) {
             data.fields.forEach(field => {
@@ -4613,6 +5543,101 @@ function initGiveawaysTab() {
         if (footerInput) footerInput.value = 'Support Helpdesk';
         if (footerIconInput && shouldOverwriteValue(footerIconInput.value)) footerIconInput.value = '/static/bot_logo.png';
       }
+      else if (preset === 'event') {
+        if (titleInput) titleInput.value = '🎮 UPCOMING SERVER EVENT';
+        if (descInput) descInput.value = 'Join us for an exciting event this weekend!\n\nWe will be hosting a community game night with prizes and giveaways. Make sure to RSVP by reacting to this message.';
+        if (colorPicker) colorPicker.value = '#f59e0b';
+        if (colorHex) colorHex.value = '#F59E0B';
+        if (thumbnailInput && shouldOverwriteValue(thumbnailInput.value)) thumbnailInput.value = '';
+        if (imageInput && shouldOverwriteValue(imageInput.value)) imageInput.value = '/static/bot_banner.png';
+        if (footerInput) footerInput.value = 'Event Host | Don\'t miss out!';
+        if (footerIconInput && shouldOverwriteValue(footerIconInput.value)) footerIconInput.value = '/static/bot_logo.png';
+        addEmbedFieldPreset('📅 Date', 'Saturday, 8:00 PM EST', true);
+        addEmbedFieldPreset('🎯 Activity', 'Among Us / Jackbox', true);
+      }
+      else if (preset === 'patchnotes') {
+        if (titleInput) titleInput.value = '🔧 PATCH NOTES v2.1.0';
+        if (descInput) descInput.value = 'We have released a major update with new features and improvements.\n\n**What\'s New:**\n• Improved auto-moderation engine\n• New embed builder with multi-embed support\n• Bug fixes and performance improvements\n\nRead the full changelog in #changelog.';
+        if (colorPicker) colorPicker.value = '#06b6d4';
+        if (colorHex) colorHex.value = '#06B6D4';
+        if (thumbnailInput && shouldOverwriteValue(thumbnailInput.value)) thumbnailInput.value = '/static/bot_logo.png';
+        if (imageInput && shouldOverwriteValue(imageInput.value)) imageInput.value = '';
+        if (footerInput) footerInput.value = 'Aegis Suite Dev Team';
+        if (footerIconInput && shouldOverwriteValue(footerIconInput.value)) footerIconInput.value = '/static/bot_logo.png';
+      }
+      else if (preset === 'staff') {
+        if (titleInput) titleInput.value = '👋 Meet Our Staff Team';
+        if (descInput) descInput.value = 'Our dedicated staff team is here to help!\n\nFeel free to reach out to any of our moderators for assistance.';
+        if (colorPicker) colorPicker.value = '#ec4899';
+        if (colorHex) colorHex.value = '#EC4899';
+        if (thumbnailInput && shouldOverwriteValue(thumbnailInput.value)) thumbnailInput.value = '';
+        if (imageInput && shouldOverwriteValue(imageInput.value)) imageInput.value = '';
+        if (footerInput) footerInput.value = 'Server Management';
+        if (footerIconInput && shouldOverwriteValue(footerIconInput.value)) footerIconInput.value = '/static/bot_logo.png';
+        addEmbedFieldPreset('🛡️ Admin', '@Admin — Server Owner', false);
+        addEmbedFieldPreset('⚡ Moderator', '@Moderator — Community Lead', false);
+      }
+      else if (preset === 'roles') {
+        if (titleInput) titleInput.value = '🎨 Self-Assignable Roles';
+        if (descInput) descInput.value = 'Choose your roles below! Click on the reactions to assign or remove roles.\n\nThese roles will give you access to specific channels and notifications.';
+        if (colorPicker) colorPicker.value = '#14b8a6';
+        if (colorHex) colorHex.value = '#14B8A6';
+        if (thumbnailInput && shouldOverwriteValue(thumbnailInput.value)) thumbnailInput.value = '';
+        if (imageInput && shouldOverwriteValue(imageInput.value)) imageInput.value = '';
+        if (footerInput) footerInput.value = 'React to assign roles';
+        if (footerIconInput && shouldOverwriteValue(footerIconInput.value)) footerIconInput.value = '';
+        addEmbedFieldPreset('🎮 Gaming', 'Access to gaming channels', true);
+        addEmbedFieldPreset('🎵 Music', 'Access to music commands', true);
+        addEmbedFieldPreset('📢 Announcements', 'Get notified for updates', true);
+      }
+      else if (preset === 'faq') {
+        if (titleInput) titleInput.value = '❓ Frequently Asked Questions';
+        if (descInput) descInput.value = '**Q: How do I join the server?**\nA: Click the invite link and follow the verification process.\n\n**Q: Where can I get help?**\nA: Open a ticket in #support or DM a moderator.\n\n**Q: How do I earn rewards?**\nA: Be active in chat and participate in events!';
+        if (colorPicker) colorPicker.value = '#6366f1';
+        if (colorHex) colorHex.value = '#6366F1';
+        if (thumbnailInput && shouldOverwriteValue(thumbnailInput.value)) thumbnailInput.value = '/static/bot_logo.png';
+        if (imageInput && shouldOverwriteValue(imageInput.value)) imageInput.value = '';
+        if (footerInput) footerInput.value = 'Last updated: Today';
+        if (footerIconInput && shouldOverwriteValue(footerIconInput.value)) footerIconInput.value = '';
+      }
+      else if (preset === 'poll') {
+        if (addReactionsInput) addReactionsInput.checked = true;
+        if (titleInput) titleInput.value = '📊 COMMUNITY POLL';
+        if (descInput) descInput.value = 'We want your feedback! Vote by reacting with the corresponding emoji below.';
+        if (colorPicker) colorPicker.value = '#22c55e';
+        if (colorHex) colorHex.value = '#22C55E';
+        if (thumbnailInput && shouldOverwriteValue(thumbnailInput.value)) thumbnailInput.value = '';
+        if (imageInput && shouldOverwriteValue(imageInput.value)) imageInput.value = '';
+        if (footerInput) footerInput.value = 'Poll ends in 24 hours';
+        if (footerIconInput && shouldOverwriteValue(footerIconInput.value)) footerIconInput.value = '';
+        addEmbedFieldPreset('1️⃣ Option A', 'Description of option A', false);
+        addEmbedFieldPreset('2️⃣ Option B', 'Description of option B', false);
+        addEmbedFieldPreset('3️⃣ Option C', 'Description of option C', false);
+      }
+      else if (preset === 'partner') {
+        if (titleInput) titleInput.value = '🤝 SERVER PARTNERSHIP';
+        if (descInput) descInput.value = 'We are excited to announce a partnership with another amazing community!\n\nCheck them out and show some love. By joining, you unlock exclusive perks in both servers.';
+        if (colorPicker) colorPicker.value = '#a855f7';
+        if (colorHex) colorHex.value = '#A855F7';
+        if (thumbnailInput && shouldOverwriteValue(thumbnailInput.value)) thumbnailInput.value = '';
+        if (imageInput && shouldOverwriteValue(imageInput.value)) imageInput.value = '/static/bot_banner.png';
+        if (footerInput) footerInput.value = 'Partnership Manager';
+        if (footerIconInput && shouldOverwriteValue(footerIconInput.value)) footerIconInput.value = '/static/bot_logo.png';
+      }
+      else if (preset === 'socials') {
+        if (titleInput) titleInput.value = '🔗 Our Social Links';
+        if (descInput) descInput.value = 'Stay connected with us across all platforms!';
+        if (colorPicker) colorPicker.value = '#3b82f6';
+        if (colorHex) colorHex.value = '#3B82F6';
+        if (thumbnailInput && shouldOverwriteValue(thumbnailInput.value)) thumbnailInput.value = '/static/bot_logo.png';
+        if (imageInput && shouldOverwriteValue(imageInput.value)) imageInput.value = '';
+        if (footerInput) footerInput.value = 'Follow us for updates!';
+        if (footerIconInput && shouldOverwriteValue(footerIconInput.value)) footerIconInput.value = '';
+        addEmbedFieldPreset('🐦 Twitter', '@YourServer', true);
+        addEmbedFieldPreset('📺 YouTube', 'youtube.com/YourChannel', true);
+        addEmbedFieldPreset('📸 Instagram', '@YourServer', true);
+        addEmbedFieldPreset('💬 TikTok', '@YourServer', true);
+      }
       
       updateEmbedPreview();
       showToast('Template preset loaded successfully.', 'success');
@@ -4647,6 +5672,7 @@ function initGiveawaysTab() {
         footerText: document.getElementById('embed-footer-text')?.value || '',
         footerIcon: document.getElementById('embed-footer-icon')?.value || '',
         includeTimestamp: document.getElementById('embed-timestamp')?.checked || false,
+        addReactions: document.getElementById('embed-add-reactions')?.checked || false,
         fields: getEmbedFields()
       };
       

@@ -103,11 +103,12 @@ def register_commands(bot: commands.Bot) -> None:
                 utils.save_config(config)
             
             import aegis.core.utils as bot_utils
-            giveaways = await bot_utils.load_giveaways()
-            to_delete = [msg_id for msg_id, gw in giveaways.items() if gw.get("guild_id") == guild_id]
-            for msg_id in to_delete:
-                giveaways.pop(msg_id, None)
-            await bot_utils.save_giveaways(giveaways)
+            async with bot_utils.giveaways_lock:
+                giveaways = await bot_utils.load_giveaways()
+                to_delete = [msg_id for msg_id, gw in giveaways.items() if gw.get("guild_id") == guild_id]
+                for msg_id in to_delete:
+                    giveaways.pop(msg_id, None)
+                await bot_utils.save_giveaways(giveaways)
             
             details += " Guild configuration, custom commands, scheduled messages, auto-responders, and giveaways purged."
             
@@ -133,7 +134,19 @@ def register_commands(bot: commands.Bot) -> None:
         await ctx.defer(ephemeral=True)
         try:
             from aegis.bot.bot_manager import audit_guild_data
-            audit_report = audit_guild_data(ctx.guild)
+            
+            online_count = None
+            member_count = None
+            try:
+                # Fetch approximate counts using REST API to bypass disabled presence intent
+                fetched = await ctx.bot.fetch_guild(ctx.guild.id, with_counts=True)
+                if fetched:
+                    online_count = fetched.approximate_presence_count
+                    member_count = fetched.approximate_member_count
+            except Exception as e:
+                logger.warning(f"REST fetch_guild with counts failed in command: {e}", exc_info=True)
+
+            audit_report = audit_guild_data(ctx.guild, online_count=online_count, member_count=member_count)
             score = audit_report["score"]
             
             embed = discord.Embed(
@@ -437,6 +450,13 @@ def register_commands(bot: commands.Bot) -> None:
                     duration_secs,
                     ctx.author.id
                 )
+                import aegis.core.audit_log as audit_log
+                audit_log.log_action(
+                    f"discord:{ctx.author.id}",
+                    "GIVEAWAY_ACTION",
+                    f"Started giveaway for '{prize}' (winners: {winners}, duration: {target})",
+                    str(ctx.guild.id)
+                )
                 await ctx.send(f"✅ Giveaway started in {dest_channel.mention}! Message ID: `{msg_id}`", ephemeral=True)
             except Exception as e:
                 await ctx.send(f"❌ Failed to start giveaway: {e}", ephemeral=True)
@@ -470,6 +490,13 @@ def register_commands(bot: commands.Bot) -> None:
                             message = await ch.fetch_message(msg_id)
                             await bot.end_giveaway_action(message, gw, giveaways)
                             await utils.save_giveaways(giveaways)
+                            import aegis.core.audit_log as audit_log
+                            audit_log.log_action(
+                                f"discord:{ctx.author.id}",
+                                "GIVEAWAY_ACTION",
+                                f"Force ended giveaway '{gw.get('prize')}' early",
+                                str(ctx.guild.id)
+                            )
                             await ctx.send("✅ Giveaway ended early successfully!", ephemeral=True)
                             return
                         except Exception as e:
@@ -504,6 +531,13 @@ def register_commands(bot: commands.Bot) -> None:
                     if ch:
                         res = await reroll_giveaway_bot(ch, msg_id)
                         if res == "success":
+                            import aegis.core.audit_log as audit_log
+                            audit_log.log_action(
+                                f"discord:{ctx.author.id}",
+                                "GIVEAWAY_ACTION",
+                                f"Rerolled winners for giveaway '{gw.get('prize')}'",
+                                str(ctx.guild.id)
+                            )
                             await ctx.send("✅ Rerolled winners successfully!", ephemeral=True)
                         else:
                             await ctx.send(f"❌ Failed to reroll: {res}", ephemeral=True)
