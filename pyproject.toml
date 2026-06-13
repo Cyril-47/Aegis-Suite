@@ -72,5 +72,3 @@ ignore = [
 line-length = 120
 target-version = ['py312']
 
-[tool.setuptools]
-packages = ["aegis"]
