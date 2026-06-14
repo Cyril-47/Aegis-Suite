@@ -65,6 +65,8 @@ def test_send_embed_route_reactions(paths_tmp, monkeypatch):
     from aegis.core.app_core import _active_cores
     _active_cores.clear()
     monkeypatch.setattr(utils, "CONFIG_PATH", paths_tmp.config_file)
+    monkeypatch.setenv("ADMIN_PASSWORD_HASH", "some_hash")
+
     
     # Write fully schema-compliant config
     config_data = {
@@ -200,6 +202,8 @@ def test_dm_user_resolutions(paths_tmp, monkeypatch):
     from aegis.core.app_core import _active_cores
     _active_cores.clear()
     monkeypatch.setattr(utils, "CONFIG_PATH", paths_tmp.config_file)
+    monkeypatch.setenv("ADMIN_PASSWORD_HASH", "some_hash")
+
     
     # Write fully schema-compliant config
     config_data = {
