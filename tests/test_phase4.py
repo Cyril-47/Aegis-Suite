@@ -9,6 +9,21 @@ from aegis.core.state import LifecycleState, ReasonCode
 from aegis.web.server import resolve_port
 from aegis.web.app import build_app
 
+@pytest.fixture(autouse=True)
+def mock_bot_startup(monkeypatch):
+    """Mocks bot startup so we don't start the real Discord bot during lifecycle tests."""
+    from unittest.mock import patch
+    monkeypatch.setenv("DISCORD_BOT_TOKEN", "mock.bot.token")
+    
+    async def mock_start_bot_task(core, token):
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            pass
+            
+    with patch("aegis.bot.runner.start_bot_task", side_effect=mock_start_bot_task):
+        yield
+
 def test_port_resolution_all_cases():
     """Verify resolve_port binds to first free port, skips occupied, and returns None if all occupied."""
     # 1. First free port (8000)
