@@ -88,4 +88,25 @@ async def cleanup_active_cores():
     _active_cores.clear()
 
 
+@pytest.fixture(autouse=True)
+def clean_env():
+    """Ensure that environment variables like DISCORD_BOT_TOKEN and ADMIN_PASSWORD_HASH
+    are cleanly restored after each test, preventing state bleed.
+    """
+    import os
+    orig_token = os.environ.get("DISCORD_BOT_TOKEN")
+    orig_pass = os.environ.get("ADMIN_PASSWORD_HASH")
+    yield
+    if orig_token is not None:
+        os.environ["DISCORD_BOT_TOKEN"] = orig_token
+    elif "DISCORD_BOT_TOKEN" in os.environ:
+        del os.environ["DISCORD_BOT_TOKEN"]
+
+    if orig_pass is not None:
+        os.environ["ADMIN_PASSWORD_HASH"] = orig_pass
+    elif "ADMIN_PASSWORD_HASH" in os.environ:
+        del os.environ["ADMIN_PASSWORD_HASH"]
+
+
+
 # Create mock web_server module is no longer needed since legacy tests are modernized

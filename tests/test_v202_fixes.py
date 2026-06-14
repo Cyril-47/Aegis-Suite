@@ -53,6 +53,8 @@ class MockMessage:
 def test_config_sync_updates_appcore_and_bot(paths_tmp, monkeypatch):
     # Patch utils.CONFIG_PATH to use paths_tmp.config_file for test isolation
     monkeypatch.setattr(utils, "CONFIG_PATH", paths_tmp.config_file)
+    monkeypatch.setenv("ADMIN_PASSWORD_HASH", "some_hash")
+
 
     # Setup initial config.json
     config_data = {
@@ -406,6 +408,8 @@ async def test_on_voice_state_update_scoping_and_timers():
 def test_audit_log_guild_filtering(paths_tmp, monkeypatch):
     # Patch utils.CONFIG_PATH to use paths_tmp.config_file for test isolation
     monkeypatch.setattr(utils, "CONFIG_PATH", paths_tmp.config_file)
+    monkeypatch.setenv("ADMIN_PASSWORD_HASH", "some_hash")
+
 
     # Initialize AppCore and DB engine
     core = AppCore(paths_tmp)
@@ -465,6 +469,9 @@ def test_audit_log_guild_filtering(paths_tmp, monkeypatch):
 
 
 def test_audit_log_actor_resolution(paths_tmp, monkeypatch):
+    # Ensure ADMIN_PASSWORD_HASH is set to bypass the incomplete setup middleware check
+    monkeypatch.setenv("ADMIN_PASSWORD_HASH", "some_hash")
+    
     from aegis.core.app_core import AppCore, _active_cores
     from aegis.web.app import build_app
     from aegis.core.audit_log import log_action
@@ -472,6 +479,7 @@ def test_audit_log_actor_resolution(paths_tmp, monkeypatch):
     from aegis.db.engine import make_engine
     from aegis.db.models import Base
     from fastapi.testclient import TestClient
+
     
     # Reset active cores for clean test isolation
     _active_cores.clear()
