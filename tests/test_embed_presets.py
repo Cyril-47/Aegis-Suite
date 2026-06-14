@@ -13,6 +13,10 @@ def test_custom_embed_presets_api(paths_tmp, monkeypatch):
     # Patch CONFIG_PATH to use paths_tmp for database isolation
     monkeypatch.setattr(utils, "CONFIG_PATH", paths_tmp.config_file)
     
+    # Ensure ADMIN_PASSWORD_HASH is set to bypass the incomplete setup middleware check
+    monkeypatch.setenv("ADMIN_PASSWORD_HASH", "some_hash")
+
+    
     # Setup initial config.json with a custom preset for guild 12345
     config_data = {
         "client_id": "123456",
