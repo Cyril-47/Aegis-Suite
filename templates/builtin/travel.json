@@ -1,0 +1,247 @@
+{
+  "name": "travel",
+  "verification_level": "medium",
+  "explicit_content_filter": "all_members",
+  "roles": [
+    {
+      "name": "Admin",
+      "color": 15671396,
+      "hoist": true,
+      "permissions": 8,
+      "position": 4
+    },
+    {
+      "name": "Moderator",
+      "color": 3900150,
+      "hoist": true,
+      "permissions": 268435486,
+      "position": 3
+    },
+    {
+      "name": "Guide",
+      "color": 2067276,
+      "hoist": true,
+      "permissions": 1048576,
+      "position": 2
+    },
+    {
+      "name": "Traveler",
+      "color": 3447003,
+      "hoist": false,
+      "permissions": 104324673,
+      "position": 1
+    },
+    {
+      "name": "Newbie",
+      "color": 12370112,
+      "hoist": false,
+      "permissions": 104324673,
+      "position": 1
+    }
+  ],
+  "categories": [
+    {
+      "name": "✈️ INFORMATION",
+      "position": 1,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "welcome",
+          "type": "text",
+          "position": 1,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        },
+        {
+          "name": "rules",
+          "type": "text",
+          "position": 2,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        },
+        {
+          "name": "announcements",
+          "type": "text",
+          "position": 3,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🌍 DESTINATIONS",
+      "position": 2,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "asia",
+          "type": "text",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "europe",
+          "type": "text",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "americas",
+          "type": "text",
+          "position": 3,
+          "overwrites": []
+        },
+        {
+          "name": "other-destinations",
+          "type": "text",
+          "position": 4,
+          "overwrites": []
+        }
+      ]
+    },
+    {
+      "name": "💡 TIPS",
+      "position": 3,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "budget-travel",
+          "type": "text",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "packing",
+          "type": "text",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "visa-info",
+          "type": "text",
+          "position": 3,
+          "overwrites": []
+        },
+        {
+          "name": "safety",
+          "type": "text",
+          "position": 4,
+          "overwrites": []
+        }
+      ]
+    },
+    {
+      "name": "📸 PHOTOS",
+      "position": 4,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "travel-photos",
+          "type": "text",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "trip-reports",
+          "type": "text",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "Travel Stories",
+          "type": "voice",
+          "position": 3,
+          "overwrites": []
+        }
+      ]
+    },
+    {
+      "name": "🔊 VOICE CHANNELS",
+      "position": 5,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "Chill Lounge",
+          "type": "voice",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "Trip Planning",
+          "type": "voice",
+          "position": 2,
+          "overwrites": []
+        }
+      ]
+    },
+    {
+      "name": "🛡️ STAFF AREA",
+      "position": 6,
+      "overwrites": [
+        {
+          "target_type": "role",
+          "target_name": "@everyone",
+          "allow": 0,
+          "deny": 1024
+        },
+        {
+          "target_type": "role",
+          "target_name": "Admin",
+          "allow": 1024,
+          "deny": 0
+        },
+        {
+          "target_type": "role",
+          "target_name": "Moderator",
+          "allow": 1024,
+          "deny": 0
+        },
+        {
+          "target_type": "role",
+          "target_name": "Guide",
+          "allow": 1024,
+          "deny": 0
+        }
+      ],
+      "channels": [
+        {
+          "name": "staff-chat",
+          "type": "text",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "mod-logs",
+          "type": "text",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "Staff Meeting",
+          "type": "voice",
+          "position": 3,
+          "overwrites": []
+        }
+      ]
+    }
+  ],
+  "uncategorized_channels": []
+}

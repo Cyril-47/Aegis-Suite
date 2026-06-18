@@ -12,6 +12,16 @@ from aegis.web.routes.wizard import router as wizard_router
 from aegis.web.routes.diagnostics import router as diagnostics_router
 from aegis.web.routes.analytics import router as analytics_router
 from aegis.web.routes.intelligence import router as intelligence_router
+from aegis.web.routes.auditor import router as auditor_router
+from aegis.web.routes.security import router as security_router
+from aegis.web.routes.command_center import router as command_center_router
+from aegis.web.routes.incidents import router as incidents_router
+from aegis.web.routes.intelligence_extra import router as intel_extra_router
+from aegis.web.routes.automation import router as automation_router
+from aegis.web.routes.enhanced import router as enhanced_router
+from aegis.web.routes.analytics_extra import router as analytics_extra_router
+from aegis.web.routes.smart_features import router as smart_features_router
+from fastapi.middleware.cors import CORSMiddleware
 
 def build_app(core) -> FastAPI:
     """Builds and returns the FastAPI application with all routers registered."""
@@ -24,6 +34,15 @@ def build_app(core) -> FastAPI:
 
     # 2. Mount static folder
     app.mount("/static", StaticFiles(directory=static_path), name="static")
+
+    # 2.5. CORS middleware - restrict to localhost origins
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://127.0.0.1", "http://localhost"],
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allow_headers=["*"],
+    )
 
     # 3. Register authentication and authorization middleware (Req 22.1)
     @app.middleware("http")
@@ -145,5 +164,14 @@ def build_app(core) -> FastAPI:
     app.include_router(diagnostics_router)
     app.include_router(analytics_router)
     app.include_router(intelligence_router)
+    app.include_router(auditor_router)
+    app.include_router(security_router)
+    app.include_router(command_center_router)
+    app.include_router(incidents_router)
+    app.include_router(intel_extra_router)
+    app.include_router(automation_router)
+    app.include_router(enhanced_router)
+    app.include_router(analytics_extra_router)
+    app.include_router(smart_features_router)
 
     return app

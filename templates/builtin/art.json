@@ -1,0 +1,248 @@
+{
+  "name": "art",
+  "verification_level": "medium",
+  "explicit_content_filter": "all_members",
+  "roles": [
+    {
+      "name": "Admin",
+      "color": 15671396,
+      "hoist": true,
+      "permissions": 8,
+      "position": 4
+    },
+    {
+      "name": "Moderator",
+      "color": 3900150,
+      "hoist": true,
+      "permissions": 268435486,
+      "position": 3
+    },
+    {
+      "name": "Featured Artist",
+      "color": 16738740,
+      "hoist": true,
+      "permissions": 1048576,
+      "position": 2
+    },
+    {
+      "name": "Artist",
+      "color": 10181046,
+      "hoist": false,
+      "permissions": 104324673,
+      "position": 1
+    },
+    {
+      "name": "Critic",
+      "color": 9807270,
+      "hoist": false,
+      "permissions": 104324673,
+      "position": 1
+    }
+  ],
+  "categories": [
+    {
+      "name": "🎨 INFORMATION",
+      "position": 1,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "welcome",
+          "type": "text",
+          "position": 1,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        },
+        {
+          "name": "rules",
+          "type": "text",
+          "position": 2,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        },
+        {
+          "name": "announcements",
+          "type": "text",
+          "position": 3,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🖼️ GALLERY",
+      "position": 2,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "digital-art",
+          "type": "text",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "traditional-art",
+          "type": "text",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "photography",
+          "type": "text",
+          "position": 3,
+          "overwrites": []
+        },
+        {
+          "name": "featured-work",
+          "type": "text",
+          "position": 4,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "Featured Artist",
+              "allow": 2048,
+              "deny": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "💬 FEEDBACK",
+      "position": 3,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "critique-general",
+          "type": "text",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "wip-feedback",
+          "type": "text",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "commissions",
+          "type": "text",
+          "position": 3,
+          "overwrites": []
+        }
+      ]
+    },
+    {
+      "name": "📚 TUTORIALS",
+      "position": 4,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "tips-and-tricks",
+          "type": "text",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "tool-reviews",
+          "type": "text",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "Learning Voice",
+          "type": "voice",
+          "position": 3,
+          "overwrites": []
+        }
+      ]
+    },
+    {
+      "name": "🔊 VOICE CHANNELS",
+      "position": 5,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "Chill Lounge",
+          "type": "voice",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "Collab Room",
+          "type": "voice",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "Drawing Stream",
+          "type": "voice",
+          "position": 3,
+          "overwrites": []
+        }
+      ]
+    },
+    {
+      "name": "🛡️ STAFF AREA",
+      "position": 6,
+      "overwrites": [
+        {
+          "target_type": "role",
+          "target_name": "@everyone",
+          "allow": 0,
+          "deny": 1024
+        },
+        {
+          "target_type": "role",
+          "target_name": "Admin",
+          "allow": 1024,
+          "deny": 0
+        },
+        {
+          "target_type": "role",
+          "target_name": "Moderator",
+          "allow": 1024,
+          "deny": 0
+        }
+      ],
+      "channels": [
+        {
+          "name": "staff-chat",
+          "type": "text",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "mod-logs",
+          "type": "text",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "Staff Meeting",
+          "type": "voice",
+          "position": 3,
+          "overwrites": []
+        }
+      ]
+    }
+  ],
+  "uncategorized_channels": []
+}

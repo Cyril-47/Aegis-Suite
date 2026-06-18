@@ -1,0 +1,221 @@
+{
+  "name": "education",
+  "verification_level": "medium",
+  "explicit_content_filter": "all_members",
+  "roles": [
+    {
+      "name": "Admin",
+      "color": 15671396,
+      "hoist": true,
+      "permissions": 8,
+      "position": 4
+    },
+    {
+      "name": "Teacher",
+      "color": 1752220,
+      "hoist": true,
+      "permissions": 268435486,
+      "position": 3
+    },
+    {
+      "name": "Student",
+      "color": 3447003,
+      "hoist": false,
+      "permissions": 104324673,
+      "position": 2
+    },
+    {
+      "name": "Guest",
+      "color": 12370112,
+      "hoist": false,
+      "permissions": 10240,
+      "position": 1
+    }
+  ],
+  "categories": [
+    {
+      "name": "📚 INFORMATION",
+      "position": 1,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "welcome",
+          "type": "text",
+          "position": 1,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        },
+        {
+          "name": "rules",
+          "type": "text",
+          "position": 2,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        },
+        {
+          "name": "announcements",
+          "type": "text",
+          "position": 3,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "📖 COURSES",
+      "position": 2,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "math",
+          "type": "text",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "science",
+          "type": "text",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "language",
+          "type": "text",
+          "position": 3,
+          "overwrites": []
+        },
+        {
+          "name": "general-academics",
+          "type": "text",
+          "position": 4,
+          "overwrites": []
+        }
+      ]
+    },
+    {
+      "name": "📝 STUDY GROUPS",
+      "position": 3,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "homework-help",
+          "type": "text",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "study-sessions",
+          "type": "text",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "resources",
+          "type": "text",
+          "position": 3,
+          "overwrites": []
+        },
+        {
+          "name": "Study Room 1",
+          "type": "voice",
+          "position": 4,
+          "overwrites": []
+        },
+        {
+          "name": "Study Room 2",
+          "type": "voice",
+          "position": 5,
+          "overwrites": []
+        }
+      ]
+    },
+    {
+      "name": "🔊 VOICE CHANNELS",
+      "position": 4,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "General Voice",
+          "type": "voice",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "Lecture Hall",
+          "type": "voice",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "Office Hours",
+          "type": "voice",
+          "position": 3,
+          "overwrites": []
+        }
+      ]
+    },
+    {
+      "name": "🛡️ STAFF AREA",
+      "position": 5,
+      "overwrites": [
+        {
+          "target_type": "role",
+          "target_name": "@everyone",
+          "allow": 0,
+          "deny": 1024
+        },
+        {
+          "target_type": "role",
+          "target_name": "Admin",
+          "allow": 1024,
+          "deny": 0
+        },
+        {
+          "target_type": "role",
+          "target_name": "Teacher",
+          "allow": 1024,
+          "deny": 0
+        }
+      ],
+      "channels": [
+        {
+          "name": "staff-chat",
+          "type": "text",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "gradebook",
+          "type": "text",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "Staff Meeting",
+          "type": "voice",
+          "position": 3,
+          "overwrites": []
+        }
+      ]
+    }
+  ],
+  "uncategorized_channels": []
+}

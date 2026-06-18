@@ -83,6 +83,32 @@ body.light-theme {
   padding: 0;
 }
 
+/* Skip Link for Accessibility */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: auto;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  z-index: 999999;
+}
+
+.skip-link:focus {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  width: auto;
+  height: auto;
+  padding: 10px 20px;
+  background: var(--primary);
+  color: white;
+  border-radius: 8px;
+  font-weight: 600;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
 body {
   font-family: 'Inter', sans-serif;
   background-color: var(--bg-primary);
@@ -342,10 +368,15 @@ select option {
 }
 
 .glass-input:focus, input[type="text"]:focus, input[type="password"]:focus, select:focus, textarea:focus {
-  outline: none;
   border-color: var(--primary);
   box-shadow: 0 0 8px rgba(99, 102, 241, 0.25);
   background-color: var(--input-focus-bg);
+}
+
+/* Visible focus for keyboard users */
+.glass-input:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible, [tabindex]:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
 }
 
 .input-group small {
@@ -2489,4 +2520,350 @@ body.light-theme .analytics-select {
   box-shadow: 0 0 8px rgba(99, 102, 241, 0.25);
   background-color: var(--input-focus-bg);
 }
+
+.command-palette-item:hover {
+  background: var(--nav-active-bg) !important;
+}
+
+/* Skeleton Loading */
+.skeleton {
+  background: linear-gradient(90deg, var(--inner-bg) 25%, rgba(255,255,255,0.08) 50%, var(--inner-bg) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+body.light-theme .skeleton {
+  background: linear-gradient(90deg, var(--inner-bg) 25%, rgba(0,0,0,0.04) 50%, var(--inner-bg) 75%);
+  background-size: 200% 100%;
+}
+
+.skeleton-text { height: 14px; margin-bottom: 8px; }
+.skeleton-text-sm { height: 10px; margin-bottom: 6px; width: 60%; }
+.skeleton-heading { height: 20px; width: 40%; margin-bottom: 12px; }
+.skeleton-card { padding: 20px; min-height: 100px; }
+
+/* Command Center Dimension Cards */
+.cc-dim-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 8px;
+  border-radius: 12px;
+  background: var(--inner-bg);
+  border-top: 3px solid var(--card-border);
+  text-align: center;
+  transition: border-color 0.3s;
+}
+.cc-dim-card i {
+  font-size: 1.1rem;
+  color: var(--text-sub);
+}
+.cc-dim-card .cc-dim-score {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+.cc-dim-card .cc-dim-label {
+  font-size: 0.75rem;
+  color: var(--text-sub);
+}
+
+/* Permission Builder */
+.perm-category {
+  margin-bottom: 8px;
+}
+.perm-cat-header {
+  padding: 8px 12px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  border-radius: 8px;
+  background: var(--inner-bg);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+}
+.perm-cat-header i {
+  font-size: 0.7rem;
+  transition: transform 0.2s;
+}
+.perm-cat-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 8px 12px;
+}
+.perm-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.perm-check:hover {
+  background: var(--inner-bg);
+}
+.perm-check input[type="checkbox"] {
+  accent-color: var(--primary);
+}
+.perm-danger {
+  color: var(--danger);
+}
+
+/* Hierarchy Nodes */
+.hierarchy-node {
+  transition: border-color 0.2s, background 0.2s;
+}
+.hierarchy-node:hover {
+  background: var(--card-bg);
+  border-color: var(--primary) !important;
+}
+
+/* Role Expand Row */
+.role-expand-row td {
+  border-top: none !important;
+}
+
+/* Template Cards */
+.template-card:hover {
+  border-color: var(--primary) !important;
+  background: var(--card-bg);
+}
+
+/* Role Table row hover */
+#table-roles tbody tr {
+  transition: background 0.15s;
+}
+#table-roles tbody tr:hover {
+  background: var(--inner-bg);
+}
+
+/* Sub-tab Pills navigation style */
+.sub-tab-container {
+  display: inline-flex;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.02);
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  margin-bottom: 20px;
+}
+
+body.light-theme .sub-tab-container {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.sub-tab-btn {
+  background: none;
+  border: none;
+  color: var(--text-sub);
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--transition-speed);
+}
+
+.sub-tab-btn:hover {
+  color: var(--text-main);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+body.light-theme .sub-tab-btn:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.sub-tab-btn.active {
+  background: var(--nav-active-bg);
+  color: var(--nav-active-color);
+  border: 1px solid var(--nav-active-border);
+}
+
+/* ==========================================================================
+   Command Center Components
+   ========================================================================== */
+
+/* Badge Styles */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge-success {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--success);
+}
+
+.badge-warning {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--warning);
+}
+
+.badge-danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--danger);
+}
+
+.badge-info {
+  background: rgba(99, 102, 241, 0.15);
+  color: var(--primary);
+}
+
+/* Score Gauge Animation */
+@keyframes gauge-fill {
+  from { stroke-dashoffset: 314; }
+}
+
+.score-gauge circle:last-child {
+  animation: gauge-fill 1s ease-out forwards;
+}
+
+/* Card Hover Effects */
+.glass-inner:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+/* Priority Queue Items */
+.priority-item {
+  transition: background 0.2s, transform 0.2s;
+}
+
+.priority-item:hover {
+  background: rgba(255, 255, 255, 0.03);
+  transform: translateX(4px);
+}
+
+/* Quick Win Cards */
+.quick-win-card {
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.quick-win-card:hover {
+  border-color: var(--success);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.2);
+}
+
+/* Dimension Bars */
+.dimension-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--card-border);
+  overflow: hidden;
+}
+
+.dimension-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease-out;
+}
+
+/* Skeleton Loading */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--card-border) 25%, rgba(255,255,255,0.05) 50%, var(--card-border) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+/* Staggered Fade-in Animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.3s ease-out forwards;
+}
+
+.fade-in-up:nth-child(1) { animation-delay: 0ms; }
+.fade-in-up:nth-child(2) { animation-delay: 50ms; }
+.fade-in-up:nth-child(3) { animation-delay: 100ms; }
+.fade-in-up:nth-child(4) { animation-delay: 150ms; }
+.fade-in-up:nth-child(5) { animation-delay: 200ms; }
+.fade-in-up:nth-child(6) { animation-delay: 250ms; }
+.fade-in-up:nth-child(7) { animation-delay: 300ms; }
+.fade-in-up:nth-child(8) { animation-delay: 350ms; }
+
+/* Score Trend Indicator */
+.trend-improving { color: var(--success); }
+.trend-stable { color: var(--text-sub); }
+.trend-declining { color: var(--danger); }
+
+/* Action Button Styles */
+.btn-fix {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-fix:hover {
+  background: var(--primary-glow);
+  box-shadow: 0 0 12px var(--primary-glow);
+}
+
+.btn-preview {
+  background: transparent;
+  color: var(--primary);
+  border: 1px solid var(--primary);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-preview:hover {
+  background: var(--primary);
+  color: white;
+}
+
+/* Responsive adjustments for Command Center */
+@media (max-width: 768px) {
+  .cc-score-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .cc-dimension-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
 
