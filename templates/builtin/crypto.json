@@ -1,0 +1,269 @@
+{
+  "name": "crypto",
+  "verification_level": "high",
+  "explicit_content_filter": "all_members",
+  "roles": [
+    {
+      "name": "Admin",
+      "color": 15671396,
+      "hoist": true,
+      "permissions": 8,
+      "position": 4
+    },
+    {
+      "name": "Moderator",
+      "color": 3900150,
+      "hoist": true,
+      "permissions": 268435486,
+      "position": 3
+    },
+    {
+      "name": "Whale",
+      "color": 16766720,
+      "hoist": true,
+      "permissions": 1052672,
+      "position": 2
+    },
+    {
+      "name": "Trader",
+      "color": 3447003,
+      "hoist": false,
+      "permissions": 104324673,
+      "position": 1
+    },
+    {
+      "name": "Newbie",
+      "color": 12370112,
+      "hoist": false,
+      "permissions": 10240,
+      "position": 0
+    }
+  ],
+  "categories": [
+    {
+      "name": "💎 INFORMATION",
+      "position": 1,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "welcome",
+          "type": "text",
+          "position": 1,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        },
+        {
+          "name": "rules",
+          "type": "text",
+          "position": 2,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        },
+        {
+          "name": "announcements",
+          "type": "text",
+          "position": 3,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        },
+        {
+          "name": "market-overview",
+          "type": "text",
+          "position": 4,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "📈 TRADING DISCUSSION",
+      "position": 2,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "general",
+          "type": "text",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "defi-talk",
+          "type": "text",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "nft-chat",
+          "type": "text",
+          "position": 3,
+          "overwrites": []
+        }
+      ]
+    },
+    {
+      "name": "🔮 ALPHA CALLS",
+      "position": 3,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "calls",
+          "type": "text",
+          "position": 1,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "Newbie",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        },
+        {
+          "name": "whale-alerts",
+          "type": "text",
+          "position": 2,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "Newbie",
+              "allow": 0,
+              "deny": 2048
+            },
+            {
+              "target_type": "role",
+              "target_name": "Trader",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        },
+        {
+          "name": "alpha-chat",
+          "type": "text",
+          "position": 3,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "Newbie",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "📊 TECHNICAL ANALYSIS",
+      "position": 4,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "chart-analysis",
+          "type": "text",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "trading-setups",
+          "type": "text",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "Trading Voice",
+          "type": "voice",
+          "position": 3,
+          "overwrites": []
+        }
+      ]
+    },
+    {
+      "name": "🔊 VOICE CHANNELS",
+      "position": 5,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "Chill Lounge",
+          "type": "voice",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "Market Watch",
+          "type": "voice",
+          "position": 2,
+          "overwrites": []
+        }
+      ]
+    },
+    {
+      "name": "🛡️ STAFF AREA",
+      "position": 6,
+      "overwrites": [
+        {
+          "target_type": "role",
+          "target_name": "@everyone",
+          "allow": 0,
+          "deny": 1024
+        },
+        {
+          "target_type": "role",
+          "target_name": "Admin",
+          "allow": 1024,
+          "deny": 0
+        },
+        {
+          "target_type": "role",
+          "target_name": "Moderator",
+          "allow": 1024,
+          "deny": 0
+        }
+      ],
+      "channels": [
+        {
+          "name": "staff-chat",
+          "type": "text",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "mod-logs",
+          "type": "text",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "Staff Meeting",
+          "type": "voice",
+          "position": 3,
+          "overwrites": []
+        }
+      ]
+    }
+  ],
+  "uncategorized_channels": []
+}

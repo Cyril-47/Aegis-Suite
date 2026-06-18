@@ -1,13 +1,43 @@
+// i18n Support
+let currentLanguage = localStorage.getItem('aegis_language') || 'en';
+let translations = {};
+
+async function loadTranslations(lang) {
+  try {
+    const res = await fetch(`/static/i18n/${lang}.json`);
+    if (res.ok) {
+      translations = await res.json();
+      currentLanguage = lang;
+      localStorage.setItem('aegis_language', lang);
+      applyTranslations();
+    }
+  } catch (e) {
+    console.warn(`Failed to load translations for ${lang}`);
+  }
+}
+
+function t(key, fallback) {
+  return translations[key] || fallback || key;
+}
+
+function applyTranslations() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (translations[key]) {
+      el.textContent = translations[key];
+    }
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    if (translations[key]) {
+      el.placeholder = translations[key];
+    }
+  });
+}
+
 // State variables
 let currentBotStatus = 'stopped';
 let savedClientId = '';
-let activeGuildId = localStorage.getItem('active_guild_id') || null;
-let currentConfig = null;
-let socket = null;
-let localCustomCommands = {};
-let rolePanelButtons = [];
-let serverRoles = [];
-let customPresetsMap = {};
 
 let cachedGuildNames = {};
 try {
@@ -16,11 +46,21 @@ try {
   cachedGuildNames = {};
 }
 
+let activeGuildId = localStorage.getItem('active_guild_id') || null;
+let activeGuildName = cachedGuildNames[activeGuildId] || '';
+let currentConfig = null;
+let socket = null;
+let localCustomCommands = {};
+let rolePanelButtons = [];
+let serverRoles = [];
+let customPresetsMap = {};
+let localLevelRoles = {};
+
 // Hosting Mode state (server is the source of truth; do NOT cache here as authoritative — Req 5.5)
 let hostingMode = { value: null, pendingTarget: null };
 
 // DOM Elements
-const mainApp = document.getElementById('main-app');
+const mainApp = document.getElementById('main-content');
 const currentTabDesc = document.getElementById('current-tab-desc');
 
 // Tab Descriptors
@@ -31,18 +71,15 @@ const TAB_DESCRIPTIONS = {
   'tab-optimizer': 'Apply professional structure and role setups to your server.',
   'tab-commands': 'Map custom commands and responses for quick access.',
   'tab-tickets': 'Configure support desks and ticketing panels for members.',
-  'tab-roles': 'Create, edit, and delete server roles directly from the dashboard.',
-  'tab-role-panels': 'Deploy interactive self-assignable role selection panels to your server.',
+  'tab-roles': 'Manage server roles, drag hierarchy, and deploy self-assignable panels.',
   'tab-templates': 'Save server templates and deploy ready-made configurations.',
   'tab-welcome': 'Configure welcome greetings and automatic role assignments for new users.',
-  'tab-automod': 'Activate spam protection, link blocking, and custom word filters.',
   'tab-embed-builder': 'Design and send premium Discord embeds with live preview.',
   'tab-music': 'Stream audio and manage active playlist queues directly.',
-  'tab-scheduler': 'Automate timed event announcements and recurring broadcasts.',
   'tab-giveaways': 'Create and manage interactive giveaways with automated winner selection.',
   'tab-leveling': 'Boost chat engagement with XP rewards, ranks, and role incentives.',
-  'tab-auto-responder': 'Configure custom keyword triggers and regex replies.',
   'tab-audit-log': 'Review actions and configuration changes performed on the dashboard.',
+  'tab-automation': 'Configure auto-moderation rules, custom auto-responders, and schedules.',
   'tab-logs': 'View real-time event logs from the bot manager and web server.'
 };
 
@@ -369,6 +406,9 @@ window.fetch = function (url, options) {
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // Load translations
+  await loadTranslations(currentLanguage);
+
   // One-shot cleanup of residual credential keys from prior versions (R4.2)
   localStorage.removeItem('bot_token');
   localStorage.removeItem('client_id');
@@ -380,6 +420,85 @@ document.addEventListener('DOMContentLoaded', async () => {
   const authed = await checkAuthentication();
   if (authed) {
     initApp();
+  }
+
+  // Command Palette (Ctrl+K)
+  const commandPalette = document.getElementById('command-palette');
+  const commandInput = document.getElementById('command-palette-input');
+  const commandResults = document.getElementById('command-palette-results');
+  
+  const commands = [
+    { name: 'Overview', icon: 'fa-house', tab: 'tab-overview' },
+    { name: 'Server Auditor', icon: 'fa-shield-halved', tab: 'tab-auditor' },
+    { name: 'Smart Features', icon: 'fa-chart-line', tab: 'tab-smart' },
+    { name: 'Custom Commands', icon: 'fa-code', tab: 'tab-commands' },
+    { name: 'Tickets', icon: 'fa-ticket', tab: 'tab-tickets' },
+    { name: 'Roles', icon: 'fa-user-shield', tab: 'tab-roles' },
+    { name: 'Role Panels', icon: 'fa-tags', tab: 'tab-role-panels' },
+    { name: 'Templates', icon: 'fa-layer-group', tab: 'tab-templates' },
+    { name: 'Welcome', icon: 'fa-door-open', tab: 'tab-welcome' },
+    { name: 'Auto-Mod', icon: 'fa-gavel', tab: 'tab-automod' },
+    { name: 'Embed Builder', icon: 'fa-envelope-open-text', tab: 'tab-embed-builder' },
+    { name: 'Music', icon: 'fa-music', tab: 'tab-music' },
+    { name: 'Scheduler', icon: 'fa-clock', tab: 'tab-scheduler' },
+    { name: 'Giveaways', icon: 'fa-gift', tab: 'tab-giveaways' },
+    { name: 'Leveling', icon: 'fa-trophy', tab: 'tab-leveling' },
+    { name: 'Auto-Responder', icon: 'fa-robot', tab: 'tab-auto-responder' },
+    { name: 'Audit Log', icon: 'fa-list-check', tab: 'tab-audit-log' },
+    { name: 'Live Console', icon: 'fa-terminal', tab: 'tab-logs' },
+  ];
+
+  function renderCommandResults(filter = '') {
+    const filtered = filter ? commands.filter(c => c.name.toLowerCase().includes(filter.toLowerCase())) : commands;
+    commandResults.innerHTML = filtered.map((cmd, i) => `
+      <div class="command-palette-item" data-tab="${cmd.tab}" style="display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:8px;cursor:pointer;transition:background 0.15s;${i === 0 ? 'background:var(--nav-active-bg);' : ''}">
+        <i class="fa-solid ${cmd.icon}" style="width:20px;color:var(--text-sub);"></i>
+        <span style="color:var(--text-main);font-size:0.9rem;">${cmd.name}</span>
+      </div>
+    `).join('');
+    commandResults.querySelectorAll('.command-palette-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const tab = item.dataset.tab;
+        const navBtn = document.querySelector(`.nav-item[data-tab="${tab}"]`);
+        if (navBtn) navBtn.click();
+        closePalette();
+      });
+      item.addEventListener('mouseenter', () => {
+        commandResults.querySelectorAll('.command-palette-item').forEach(el => el.style.background = '');
+        item.style.background = 'var(--nav-active-bg)';
+      });
+    });
+  }
+
+  function openPalette() {
+    commandPalette.classList.remove('hidden');
+    commandInput.value = '';
+    renderCommandResults();
+    commandInput.focus();
+  }
+
+  function closePalette() {
+    commandPalette.classList.add('hidden');
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      e.preventDefault();
+      if (commandPalette.classList.contains('hidden')) openPalette();
+      else closePalette();
+    }
+    if (e.key === 'Escape' && !commandPalette.classList.contains('hidden')) {
+      closePalette();
+    }
+  });
+
+  if (commandInput) {
+    commandInput.addEventListener('input', (e) => renderCommandResults(e.target.value));
+  }
+  if (commandPalette) {
+    commandPalette.addEventListener('click', (e) => {
+      if (e.target === commandPalette) closePalette();
+    });
   }
 });
 
@@ -568,12 +687,20 @@ function refreshActiveTabContent() {
   if (!activePane || !activeGuildId) return;
   
   const tab = activePane.id;
-  if (tab === 'tab-welcome') {
+  if (tab === 'tab-overview') {
+    fetchStats();
+  } else if (tab === 'tab-welcome') {
     syncWelcomePreview();
-  } else if (tab === 'tab-roles' || tab === 'tab-role-panels') {
-    loadServerRoles();
-    if (tab === 'tab-role-panels') {
+  } else if (tab === 'tab-roles') {
+    const activeSub = document.querySelector('#tab-roles .sub-tab-btn.active')?.getAttribute('data-sub-tab');
+    if (activeSub === 'role-creator-sub') {
+      loadServerRoles();
+    } else if (activeSub === 'role-panels-sub') {
       populateRolePanelChannels();
+    } else if (activeSub === 'cleanup-sub') {
+      loadCleanupPreview();
+    } else {
+      loadServerRoles();
     }
   } else if (tab === 'tab-templates') {
     fetchTemplates();
@@ -588,24 +715,58 @@ function refreshActiveTabContent() {
   } else if (tab === 'tab-music') {
     populateMusicVoiceChannels(activeGuildId);
     fetchMusicStatus();
-  } else if (tab === 'tab-scheduler') {
-    populateSchedulerChannels(activeGuildId);
-    fetchScheduledMessages();
   } else if (tab === 'tab-leveling') {
     populateLevelingChannelsAndRoles(activeGuildId);
     fetchLevelingConfig(activeGuildId);
     fetchLeaderboard(activeGuildId);
-  } else if (tab === 'tab-auto-responder') {
-    fetchAutoResponders();
   } else if (tab === 'tab-audit-log') {
     fetchAuditLogs();
   } else if (tab === 'tab-smart') {
-    if (typeof window.loadSmartFeatures === 'function') {
-      window.loadSmartFeatures();
+    const activeSub = document.querySelector('#tab-smart .sub-tab-btn.active')?.getAttribute('data-sub-tab');
+    if (activeSub === 'command-center-sub') {
+      loadCommandCenter();
+    } else if (activeSub === 'analytics-overview-sub') {
+      if (typeof window.loadSmartFeatures === 'function') {
+        window.loadSmartFeatures();
+      }
+    } else if (activeSub === 'growth-sub') {
+      loadGrowthCenter();
+    } else if (activeSub === 'mod-intel-sub') {
+      loadModIntelligence();
+    } else if (activeSub === 'perm-heatmap-sub') {
+      loadPermissionHeatmap();
+    } else if (activeSub === 'channel-heatmap-sub') {
+      loadChannelHeatmap();
+    } else if (activeSub === 'benchmark-sub') {
+      loadBenchmark();
+    } else {
+      if (typeof window.loadSmartFeatures === 'function') {
+        window.loadSmartFeatures();
+      }
     }
   } else if (tab === 'tab-auditor') {
+    loadCommandCenter();
     loadRecommendations();
     loadHealthTimeline();
+  } else if (tab === 'tab-tickets') {
+    const activeSub = document.querySelector('#tab-tickets .sub-tab-btn.active')?.getAttribute('data-sub-tab');
+    if (activeSub === 'tickets-intel-sub') {
+      loadTicketIntelligence();
+    }
+  } else if (tab === 'tab-automation') {
+    const activeSub = document.querySelector('#tab-automation .sub-tab-btn.active')?.getAttribute('data-sub-tab');
+    if (activeSub === 'automation-overview-sub') {
+      loadAutomationCenter();
+    } else if (activeSub === 'scheduler-sub') {
+      populateSchedulerChannels(activeGuildId);
+      fetchScheduledMessages();
+    } else if (activeSub === 'auto-responder-sub') {
+      fetchAutoResponders();
+    } else if (activeSub === 'incidents-sub') {
+      loadIncidents();
+    } else {
+      loadAutomationCenter();
+    }
   }
 }
 
@@ -640,14 +801,116 @@ function setupNavigation() {
     });
   });
 
-  // Restore active tab after setup
-  const savedTab = localStorage.getItem('active_tab');
+  // Restore active tab after setup (with redirection for defunct tabs)
+  let savedTab = localStorage.getItem('active_tab');
+  const redirects = {
+    'tab-command-center': 'tab-auditor',
+    'tab-role-panels': 'tab-roles',
+    'tab-cleanup': 'tab-roles',
+    'tab-automod': 'tab-automation',
+    'tab-auto-responder': 'tab-automation',
+    'tab-scheduler': 'tab-automation',
+    'tab-incidents': 'tab-automation',
+    'tab-tickets-intel': 'tab-tickets',
+    'tab-growth': 'tab-smart',
+    'tab-mod-intel': 'tab-smart',
+    'tab-perm-heatmap': 'tab-smart',
+    'tab-channel-heatmap': 'tab-smart',
+    'tab-benchmark': 'tab-smart'
+  };
+  if (redirects[savedTab]) {
+    savedTab = redirects[savedTab];
+    localStorage.setItem('active_tab', savedTab);
+  }
+
   if (savedTab) {
     const savedItem = document.querySelector(`.nav-item[data-tab="${savedTab}"]`);
     if (savedItem) {
       savedItem.click();
+    } else {
+      const defaultItem = document.querySelector('.nav-item[data-tab="tab-overview"]');
+      if (defaultItem) defaultItem.click();
     }
+  } else {
+    const defaultItem = document.querySelector('.nav-item[data-tab="tab-overview"]');
+    if (defaultItem) defaultItem.click();
   }
+
+  // Initialize sub-tabs click events
+  setupSubTabs();
+}
+
+function setupSubTabs() {
+  document.querySelectorAll('.sub-tab-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const targetSub = btn.getAttribute('data-sub-tab');
+      const container = btn.closest('.tab-pane');
+      if (!container) return;
+      
+      // Update active sub-tab pill style
+      container.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      
+      // Switch sub-tab panes
+      container.querySelectorAll('.sub-tab-pane').forEach(pane => {
+        if (pane.id === targetSub) {
+          pane.classList.remove('hidden');
+        } else {
+          pane.classList.add('hidden');
+        }
+      });
+      
+      // Trigger data loaders for sub-tabs
+      if (activeGuildId) {
+        if (targetSub === 'role-creator-sub') {
+          loadServerRoles();
+        } else if (targetSub === 'role-panels-sub') {
+          populateRolePanelChannels();
+        } else if (targetSub === 'cleanup-sub') {
+          loadCleanupPreview();
+        } else if (targetSub === 'automation-overview-sub') {
+          loadAutomationCenter();
+        } else if (targetSub === 'scheduler-sub') {
+          populateSchedulerChannels(activeGuildId);
+          fetchScheduledMessages();
+        } else if (targetSub === 'auto-responder-sub') {
+          fetchAutoResponders();
+        } else if (targetSub === 'incidents-sub') {
+          loadIncidents();
+        } else if (targetSub === 'tickets-intel-sub') {
+          loadTicketIntelligence();
+        } else if (targetSub === 'growth-sub') {
+          loadGrowthCenter();
+        } else if (targetSub === 'mod-intel-sub') {
+          loadModIntelligence();
+        } else if (targetSub === 'perm-heatmap-sub') {
+          loadPermissionHeatmap();
+        } else if (targetSub === 'channel-heatmap-sub') {
+          loadChannelHeatmap();
+        } else if (targetSub === 'benchmark-sub') {
+          loadBenchmark();
+        } else if (targetSub === 'recommendations-sub') {
+          loadSmartRecommendations();
+        } else if (targetSub === 'config-doctor-sub') {
+          loadConfigDoctor();
+        } else if (targetSub === 'permission-doctor-sub') {
+          loadPermissionDoctor();
+        } else if (targetSub === 'raid-detector-sub') {
+          loadRaidDetector();
+        } else if (targetSub === 'role-cleaner-sub') {
+          loadRoleCleaner();
+        } else if (targetSub === 'channel-cleaner-sub') {
+          loadChannelCleaner();
+        } else if (targetSub === 'backup-advisor-sub') {
+          loadBackupAdvisor();
+        } else if (targetSub === 'maturity-sub') {
+          loadMaturityScore();
+        } else if (targetSub === 'command-center-sub') {
+          loadCommandCenter();
+        }
+      }
+    });
+  });
 }
 
 // ==========================================================================
@@ -934,6 +1197,7 @@ async function refreshGuildsList() {
 async function handleServerSelection(guildId) {
   stopGiveawaysTicker();
   activeGuildId = guildId;
+  activeGuildName = cachedGuildNames[guildId] || '';
   
   const helper = document.getElementById('no-server-selected-card');
   const card = document.getElementById('active-server-card');
@@ -994,95 +1258,18 @@ function populateServerOverview(info) {
 // Auditor Scan Execution
 // ==========================================================================
 function clearAuditView() {
-  document.getElementById('audit-results-empty').classList.remove('hidden');
-  document.getElementById('audit-results-list').classList.add('hidden');
-  document.getElementById('audit-score-value').textContent = '0%';
-  document.getElementById('audit-score-circle').style.strokeDashoffset = 314;
+  const emptyEl = document.getElementById('audit-results-empty');
+  if (emptyEl) emptyEl.classList.remove('hidden');
+  const listEl = document.getElementById('audit-results-list');
+  if (listEl) listEl.classList.add('hidden');
+  const scoreVal = document.getElementById('audit-score-value');
+  if (scoreVal) scoreVal.textContent = '0%';
+  const scoreCircle = document.getElementById('audit-score-circle');
+  if (scoreCircle) scoreCircle.style.strokeDashoffset = 314;
   const ratingBadge = document.getElementById('audit-score-rating');
   if (ratingBadge) {
     ratingBadge.className = 'rating-badge rating-none';
     ratingBadge.textContent = 'NOT SCANNED';
-  }
-}
-
-async function runServerAudit() {
-  if (!activeGuildId) {
-    showToast('Please select a Discord server first.', 'warning');
-    return;
-  }
-  
-  const loading = document.getElementById('audit-loading');
-  const empty = document.getElementById('audit-results-empty');
-  const list = document.getElementById('audit-results-list');
-  const scoreVal = document.getElementById('audit-score-value');
-  const scoreCircle = document.getElementById('audit-score-circle');
-  
-  loading.classList.remove('hidden');
-  empty.classList.add('hidden');
-  list.classList.add('hidden');
-  
-  try {
-    const res = await fetch(`/api/guilds/${activeGuildId}/audit`);
-    if (!res.ok) {
-      throw new Error('Audit request failed');
-    }
-    const report = await res.json();
-    
-    // Update Score Circle (radius=50, circumference=314)
-    const score = report.score;
-    const offset = 314 - (314 * score) / 100;
-    scoreCircle.style.strokeDashoffset = offset;
-    scoreVal.textContent = `${score}%`;
-    
-    // Update rating badge (Tier 3.17)
-    const ratingBadge = document.getElementById('audit-score-rating');
-    if (ratingBadge) {
-      ratingBadge.className = 'score-rating-badge'; // Reset
-      if (score >= 90) {
-        ratingBadge.textContent = 'SECURE';
-        ratingBadge.classList.add('rating-secure');
-      } else if (score >= 60) {
-        ratingBadge.textContent = 'WARNING';
-        ratingBadge.classList.add('rating-warning');
-      } else {
-        ratingBadge.textContent = 'CRITICAL';
-        ratingBadge.classList.add('rating-critical');
-      }
-    }
-    
-    // Render Checklist
-    list.innerHTML = '';
-    report.checklist.forEach(item => {
-      const card = document.createElement('div');
-      let statusClass = 'check-success';
-      let iconClass = 'fa-circle-check';
-      if (item.status === 'WARNING') {
-        statusClass = 'check-warning';
-        iconClass = 'fa-triangle-exclamation';
-      } else if (item.status === 'FAIL') {
-        statusClass = 'check-danger';
-        iconClass = 'fa-circle-xmark';
-      }
-      
-      card.className = `check-card ${statusClass}`;
-      card.innerHTML = `
-        <i class="fa-solid ${iconClass} check-icon"></i>
-        <div class="check-info">
-          <h3>${escapeHtml(item.name)}</h3>
-          <p>${escapeHtml(item.message)}</p>
-        </div>
-        <span class="check-badge">${escapeHtml(item.value)}</span>
-      `;
-      list.appendChild(card);
-    });
-    
-    loading.classList.add('hidden');
-    list.classList.remove('hidden');
-    showToast('Server audit scan complete.', 'success');
-  } catch (err) {
-    loading.classList.add('hidden');
-    empty.classList.remove('hidden');
-    showToast('Audit failed. Ensure bot has permissions.', 'error');
   }
 }
 
@@ -1163,6 +1350,229 @@ async function loadHealthTimeline() {
       }
     });
   } catch (err) {}
+}
+
+// ==========================================================================
+// Server Auditor
+// ==========================================================================
+async function runServerAudit() {
+  if (!activeGuildId) return;
+  const resultsDiv = document.getElementById('audit-results');
+  if (!resultsDiv) return;
+  resultsDiv.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Running audit...</div>';
+  resultsDiv.classList.remove('hidden');
+  
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/audit`);
+    if (!res.ok) throw new Error('Audit failed');
+    const data = await res.json();
+    renderAuditResults(data);
+  } catch (err) {
+    if (resultsDiv) {
+      resultsDiv.innerHTML = '<div class="text-center py-4" style="color: var(--danger);">Failed to run audit. Is the bot connected?</div>';
+    }
+  }
+}
+
+function renderAuditResults(data) {
+  const resultsDiv = document.getElementById('audit-results');
+  if (!resultsDiv) return;
+  const scoreColor = data.overall_score >= 80 ? 'var(--success)' : data.overall_score >= 60 ? 'var(--warning)' : 'var(--danger)';
+  
+  let html = `
+    <div class="glass-inner p-4 mb-4" style="border-left: 4px solid ${scoreColor};">
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <div style="font-size: 2.5rem; font-weight: 700; color: ${scoreColor};">${data.overall_score}</div>
+        <div>
+          <div style="font-weight: 600; font-size: 1.1rem;">Overall Health Score</div>
+          <div style="color: var(--text-sub); font-size: 0.85rem;">${data.member_count} members · ${data.channel_count} channels · ${data.role_count} roles</div>
+        </div>
+      </div>
+    </div>
+    <div class="grid-layout" style="grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px;">
+  `;
+  
+  const dimensions = [
+    { key: 'security', label: 'Security', icon: 'fa-shield-halved' },
+    { key: 'moderation', label: 'Moderation', icon: 'fa-gavel' },
+    { key: 'structure', label: 'Structure', icon: 'fa-sitemap' },
+    { key: 'engagement', label: 'Engagement', icon: 'fa-users' },
+    { key: 'automation', label: 'Automation', icon: 'fa-robot' },
+  ];
+  
+  for (const dim of dimensions) {
+    const score = data.scores[dim.key] || 0;
+    const color = score >= 80 ? 'var(--success)' : score >= 60 ? 'var(--warning)' : 'var(--danger)';
+    html += `
+      <div class="glass-inner p-3 text-center" style="border-top: 3px solid ${color};">
+        <i class="fa-solid ${dim.icon}" style="font-size: 1.2rem; color: ${color}; margin-bottom: 8px;"></i>
+        <div style="font-size: 1.5rem; font-weight: 700; color: ${color};">${score}</div>
+        <div style="font-size: 0.8rem; color: var(--text-sub);">${dim.label}</div>
+      </div>
+    `;
+  }
+  html += '</div>';
+  
+  if (data.findings && data.findings.length > 0) {
+    html += '<h3 style="margin-bottom: 12px;">Findings</h3>';
+    for (const f of data.findings) {
+      const icon = f.type === 'critical' ? 'fa-circle-exclamation' : f.type === 'warning' ? 'fa-triangle-exclamation' : 'fa-circle-info';
+      const color = f.type === 'critical' ? 'var(--danger)' : f.type === 'warning' ? 'var(--warning)' : 'var(--text-sub)';
+      html += `
+        <div class="glass-inner p-3 mb-2" style="display: flex; align-items: center; gap: 12px; border-left: 3px solid ${color};">
+          <i class="fa-solid ${icon}" style="color: ${color};"></i>
+          <span style="flex: 1;">${f.message}</span>
+          <span style="font-size: 0.8rem; color: var(--text-sub);">${f.impact}</span>
+        </div>
+      `;
+    }
+  }
+  
+  resultsDiv.innerHTML = html;
+}
+
+// ==========================================================================
+// Command Center
+// ==========================================================================
+async function loadCommandCenter() {
+  if (!activeGuildId) return;
+  const loading = document.getElementById('cc-loading');
+  const content = document.getElementById('cc-content');
+  if (!loading || !content) return;
+
+  loading.classList.remove('hidden');
+  content.classList.add('hidden');
+
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/command-center`);
+    if (!res.ok) throw new Error('Failed to load');
+    const data = await res.json();
+    renderCommandCenter(data);
+    loading.classList.add('hidden');
+    content.classList.remove('hidden');
+    loadScoreHistory();
+    loadConfigHistory();
+  } catch (err) {
+    loading.innerHTML = '<div class="text-center py-4" style="color: var(--danger);"><i class="fa-solid fa-circle-exclamation"></i> Failed to load Command Center. Is the bot connected?</div>';
+  }
+}
+
+function renderCommandCenter(data) {
+  // Score gauge
+  const score = data.health_score || 0;
+  const scoreColor = score >= 80 ? 'var(--success)' : score >= 60 ? 'var(--warning)' : 'var(--danger)';
+  const scoreCircle = document.getElementById('cc-score-circle');
+  const scoreValue = document.getElementById('cc-score-value');
+  const scoreLabel = document.getElementById('cc-score-label');
+
+  if (scoreCircle) {
+    const offset = 314 - (314 * score) / 100;
+    scoreCircle.style.strokeDashoffset = offset;
+    scoreCircle.style.stroke = scoreColor;
+  }
+  if (scoreValue) scoreValue.textContent = score;
+  if (scoreLabel) {
+    if (score >= 90) { scoreLabel.textContent = 'Excellent'; scoreLabel.style.color = 'var(--success)'; }
+    else if (score >= 70) { scoreLabel.textContent = 'Good'; scoreLabel.style.color = 'var(--success)'; }
+    else if (score >= 50) { scoreLabel.textContent = 'Fair'; scoreLabel.style.color = 'var(--warning)'; }
+    else { scoreLabel.textContent = 'Needs Work'; scoreLabel.style.color = 'var(--danger)'; }
+  }
+
+  // Dimension scores
+  const dims = ['security', 'moderation', 'structure', 'engagement', 'automation'];
+  for (const dim of dims) {
+    const el = document.getElementById(`cc-dim-${dim}`);
+    if (!el) continue;
+    const s = data.dimension_scores[dim] || 0;
+    const c = s >= 80 ? 'var(--success)' : s >= 60 ? 'var(--warning)' : 'var(--danger)';
+    el.style.borderTop = `3px solid ${c}`;
+    el.querySelector('.cc-dim-score').textContent = s;
+    el.querySelector('.cc-dim-score').style.color = c;
+  }
+
+  // Quick stats
+  setTextContent('cc-members', data.member_count || 0);
+  setTextContent('cc-channels', data.channel_count || 0);
+  setTextContent('cc-roles', data.role_count || 0);
+  setTextContent('cc-online', data.online_count || 0);
+
+  // Notifications
+  const notifDiv = document.getElementById('cc-notifications');
+  if (notifDiv) {
+    if (!data.notifications || data.notifications.length === 0) {
+      notifDiv.innerHTML = `
+        <div class="text-center py-3" style="color: var(--text-sub);">
+          <i class="fa-solid fa-check-circle" style="font-size: 1.5rem; color: var(--success);"></i>
+          <p style="margin-top: 8px;">No issues detected</p>
+        </div>`;
+    } else {
+      notifDiv.innerHTML = data.notifications.map(n => {
+        const borderColor = n.type === 'critical' ? 'var(--danger)' : n.type === 'warning' ? 'var(--warning)' : 'var(--primary)';
+        const icon = n.icon || 'fa-bell';
+        return `
+          <div class="glass-inner p-3 mb-2" style="display: flex; align-items: center; gap: 12px; border-left: 3px solid ${borderColor};">
+            <i class="fa-solid ${icon}" style="color: ${borderColor};"></i>
+            <div style="flex: 1;">
+              <div style="font-weight: 600; font-size: 0.9rem;">${escapeHtml(n.title)}</div>
+              <div style="color: var(--text-sub); font-size: 0.8rem;">${escapeHtml(n.description)}</div>
+            </div>
+          </div>`;
+      }).join('');
+    }
+  }
+
+  // Timeline
+  const timeDiv = document.getElementById('cc-timeline');
+  if (timeDiv) {
+    if (!data.timeline || data.timeline.length === 0) {
+      timeDiv.innerHTML = '<div class="text-center py-3" style="color: var(--text-sub);">No recent activity to show.</div>';
+    } else {
+      timeDiv.innerHTML = data.timeline.map(t => {
+        const timeStr = t.timestamp ? new Date(t.timestamp).toLocaleString() : 'Unknown time';
+        return `
+          <div style="display: flex; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--card-border);">
+            <div style="width: 8px; height: 8px; border-radius: 50%; background: var(--primary); margin-top: 6px; flex-shrink: 0;"></div>
+            <div>
+              <div style="font-size: 0.85rem; font-weight: 500;">${escapeHtml(t.action)}</div>
+              <div style="font-size: 0.75rem; color: var(--text-sub);">${timeStr} &middot; ${escapeHtml(t.actor)}</div>
+            </div>
+          </div>`;
+      }).join('');
+    }
+  }
+
+  // Findings
+  const findDiv = document.getElementById('cc-findings');
+  if (findDiv) {
+    if (!data.findings || data.findings.length === 0) {
+      findDiv.innerHTML = '<div class="text-center py-3" style="color: var(--text-sub);"><i class="fa-solid fa-check-circle" style="color: var(--success);"></i> All checks passed.</div>';
+    } else {
+      findDiv.innerHTML = data.findings.map(f => {
+        const icon = f.type === 'critical' ? 'fa-circle-exclamation' : f.type === 'warning' ? 'fa-triangle-exclamation' : 'fa-circle-info';
+        const color = f.type === 'critical' ? 'var(--danger)' : f.type === 'warning' ? 'var(--warning)' : 'var(--text-sub)';
+        return `
+          <div class="glass-inner p-3 mb-2" style="display: flex; align-items: center; gap: 12px; border-left: 3px solid ${color};">
+            <i class="fa-solid ${icon}" style="color: ${color};"></i>
+            <span style="flex: 1;">${escapeHtml(f.message || f.name || '')}</span>
+            <span style="font-size: 0.8rem; color: var(--text-sub);">${escapeHtml(f.impact || '')}</span>
+          </div>`;
+      }).join('');
+    }
+  }
+}
+
+async function runCommandCenterScan() {
+  if (!activeGuildId) {
+    showToast('Please select a Discord server first.', 'warning');
+    return;
+  }
+  showToast('Analyzing server...', 'info');
+  await Promise.all([loadCommandCenter(), loadRecommendations(), loadHealthTimeline()]);
+}
+
+function setTextContent(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
 }
 
 // ==========================================================================
@@ -1273,13 +1683,13 @@ function syncWelcomePreview() {
   
   const pTitle = document.getElementById('preview-embed-title');
   const pDesc = document.getElementById('preview-embed-desc');
-  const pBorder = document.getElementById('preview-embed-border');
   
   pTitle.textContent = titleVal.replace('{user}', 'GamerName').replace('{server}', 'My Guild');
   pDesc.textContent = descVal.replace('{user}', '@GamerName').replace('{server}', 'My Guild');
   
   try {
-    pBorder.style.borderLeftColor = colorVal;
+    const embedBorder = document.querySelector('#tab-welcome [style*="border-left"]');
+    if (embedBorder) embedBorder.style.borderLeftColor = colorVal;
   } catch (e) {}
 }
 
@@ -1420,7 +1830,7 @@ async function saveAutomodSettings(e) {
     .filter(d => d.length > 0);
   const whitelisted_invites = document.getElementById('automod-whitelisted-invites').value
     .split('\n')
-    .map(i => i.strip ? i.strip() : i.trim())
+    .map(i => i.trim())
     .filter(i => i.length > 0);
   
   const profanity_words = wordsRaw.split(',')
@@ -1538,125 +1948,544 @@ async function loadServerRoles() {
     const res = await fetch(`/api/guilds/${activeGuildId}/roles`);
     if (!res.ok) return;
     serverRoles = await res.json();
-    
     renderServerRoles();
+    renderRoleHierarchy();
+    renderRoleAnalytics();
     populateRolesDropdown();
+    loadRoleDependencies();
   } catch (err) {
     console.error('Error fetching server roles:', err);
   }
+}
+
+function computeRoleRisk(permissions) {
+  if (!permissions) return { score: 20, label: 'Safe', color: 'var(--success)' };
+  let score = 20;
+  if (permissions & (1n << 3n)) score = 100;       // administrator
+  else if ((permissions & (1n << 1n)) && (permissions & (1n << 4n))) score = 80; // manage_roles + manage_channels
+  else if ((permissions & (1n << 22n)) || (permissions & (1n << 23n))) score = 60; // ban + kick
+  else if (permissions & (1n << 19n)) score = 40;   // manage_messages
+  else if (permissions & (1n << 1n)) score = 50;    // manage_roles alone
+  else if (permissions & (1n << 5n)) score = 35;    // manage_guild
+
+  if (score >= 61) return { score, label: 'High', color: 'var(--danger)' };
+  if (score >= 31) return { score, label: 'Medium', color: 'var(--warning)' };
+  return { score, label: 'Safe', color: 'var(--success)' };
 }
 
 function renderServerRoles() {
   const tbody = document.getElementById('roles-list-body');
   const empty = document.getElementById('roles-empty');
   if (!tbody || !empty) return;
-  
+
   tbody.innerHTML = '';
   if (serverRoles.length === 0) {
     empty.classList.remove('hidden');
     return;
   }
   empty.classList.add('hidden');
-  
+
+  let selectedRoles = new Set();
+
   serverRoles.forEach(role => {
     const tr = document.createElement('tr');
-    
-    // Role name column with color preview indicator
+    tr.style.cursor = 'pointer';
+    tr.setAttribute('data-role-id', role.id);
+
+    // Checkbox for bulk select
+    const tdCheck = document.createElement('td');
+    tdCheck.style.width = '40px';
+    if (!role.managed) {
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'role-bulk-check';
+      cb.setAttribute('data-role-id', role.id);
+      cb.onchange = () => {
+        if (cb.checked) selectedRoles.add(role.id);
+        else selectedRoles.delete(role.id);
+        updateBulkDeleteBtn(selectedRoles);
+      };
+      tdCheck.appendChild(cb);
+    }
+    tr.appendChild(tdCheck);
+
+    // Role name
     const tdName = document.createElement('td');
     const preview = document.createElement('span');
     preview.className = 'role-color-preview mr-2';
     preview.style.backgroundColor = role.color;
     tdName.appendChild(preview);
-    
     const nameSpan = document.createElement('span');
     nameSpan.textContent = role.name;
     if (role.hoist) {
-      const hoistedTag = document.createElement('small');
-      hoistedTag.className = 'text-muted';
-      hoistedTag.textContent = ' (hoisted)';
-      nameSpan.appendChild(hoistedTag);
+      const tag = document.createElement('small');
+      tag.className = 'text-muted';
+      tag.textContent = ' (hoisted)';
+      nameSpan.appendChild(tag);
     }
     tdName.appendChild(nameSpan);
-    
-    // Color hex column
+
+    // Color
     const tdColor = document.createElement('td');
     const code = document.createElement('code');
     code.textContent = role.color;
     tdColor.appendChild(code);
-    
-    // Members count column
+
+    // Members
     const tdMembers = document.createElement('td');
     tdMembers.textContent = role.member_count;
-    
-    // Actions column
+
+    // Risk badge
+    const tdRisk = document.createElement('td');
+    const risk = computeRoleRisk(role.permissions);
+    const badge = document.createElement('span');
+    badge.style.cssText = `padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; background: ${risk.color}22; color: ${risk.color}; border: 1px solid ${risk.color}44;`;
+    badge.textContent = risk.label;
+    tdRisk.appendChild(badge);
+
+    // Actions
     const tdActions = document.createElement('td');
+    tdActions.style.textAlign = 'right';
     if (role.managed) {
       const span = document.createElement('span');
       span.className = 'tag tag-pink';
       span.textContent = 'Managed';
       tdActions.appendChild(span);
     } else {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'btn btn-secondary btn-small text-danger btn-delete-role';
-      btn.setAttribute('data-role-id', role.id);
-      btn.setAttribute('data-role-name', role.name);
-      btn.innerHTML = '<i class="fa-solid fa-trash"></i> Delete';
-      tdActions.appendChild(btn);
+      const editBtn = document.createElement('button');
+      editBtn.type = 'button';
+      editBtn.className = 'btn btn-secondary btn-small';
+      editBtn.innerHTML = '<i class="fa-solid fa-pen"></i>';
+      editBtn.title = 'Edit';
+      editBtn.onclick = (e) => { e.stopPropagation(); openEditRoleModal(role); };
+      tdActions.appendChild(editBtn);
+
+      const cloneBtn = document.createElement('button');
+      cloneBtn.type = 'button';
+      cloneBtn.className = 'btn btn-secondary btn-small';
+      cloneBtn.innerHTML = '<i class="fa-solid fa-copy"></i>';
+      cloneBtn.title = 'Clone';
+      cloneBtn.onclick = (e) => { e.stopPropagation(); cloneRole(role); };
+      tdActions.appendChild(cloneBtn);
+
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'btn btn-secondary btn-small text-danger';
+      delBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
+      delBtn.title = 'Delete';
+      delBtn.onclick = (e) => { e.stopPropagation(); deleteRoleConfirm(role); };
+      tdActions.appendChild(delBtn);
     }
-    
+
+    // Expandable row click
+    tr.onclick = () => toggleRoleExpand(tr, role);
+
     tr.appendChild(tdName);
     tr.appendChild(tdColor);
     tr.appendChild(tdMembers);
-    tdActions.style.textAlign = 'right';
+    tr.appendChild(tdRisk);
     tr.appendChild(tdActions);
     tbody.appendChild(tr);
   });
-  
-  // Bind role deletion clicks
-  document.querySelectorAll('.btn-delete-role').forEach(btn => {
-    btn.addEventListener('click', async (e) => {
-      const id = e.currentTarget.getAttribute('data-role-id');
-      const name = e.currentTarget.getAttribute('data-role-name');
-      const doubleCheck = confirm(`⚠️ Are you sure you want to delete the role "${name}" from your Discord server? This cannot be undone.`);
-      if (!doubleCheck) return;
-      
-      try {
-        showToast('Deleting role from Discord...', 'info');
-        const res = await fetch(`/api/guilds/${activeGuildId}/roles/${id}`, { method: 'DELETE' });
-        if (res.ok) {
-          showToast('Role deleted successfully.', 'success');
-          loadServerRoles();
-        } else {
-          let errorMsg = 'Failed to delete role. Check bot permissions.';
-          try {
-            const data = await res.json();
-            if (data && data.detail) {
-              errorMsg = data.detail;
-            }
-          } catch (jsonErr) {}
-          showToast(errorMsg, 'error');
-        }
-      } catch (err) {
-        showToast('Network error deleting role.', 'error');
-      }
+}
+
+function toggleRoleExpand(tr, role) {
+  const existing = tr.nextElementSibling;
+  if (existing && existing.classList.contains('role-expand-row')) {
+    existing.remove();
+    return;
+  }
+  // Close other expanded rows
+  document.querySelectorAll('.role-expand-row').forEach(r => r.remove());
+
+  const expand = document.createElement('tr');
+  expand.className = 'role-expand-row';
+  const td = document.createElement('td');
+  td.colSpan = 5;
+  td.style.cssText = 'padding: 12px 16px; background: var(--inner-bg);';
+
+  const perms = role.permissions || 0;
+  const permNames = [];
+  const permMap = {
+    0x0000000008: 'View Channels', 0x00000000400: 'Send Messages', 0x00000004000: 'Embed Links',
+    0x0000000800: 'Attach Files', 0x00000040000: 'Add Reactions', 0x0000100000: 'Read History',
+    0x0020000000: 'Connect', 0x0040000000: 'Speak', 0x0200000000: 'Voice Activity',
+    0x0000000200: 'Manage Messages', 0x000000040000000: 'Timeout', 0x0000000020: 'Kick',
+    0x0000000004: 'Ban', 0x0000002000: 'Manage Roles', 0x0000000400: 'Manage Channels',
+    0x00000020000: 'Manage Server', 0x0000000008000000: 'Administrator',
+  };
+  for (const [bit, name] of Object.entries(permMap)) {
+    if (perms & BigInt(bit)) permNames.push(name);
+  }
+
+  td.innerHTML = `
+    <div style="display: flex; gap: 20px; flex-wrap: wrap;">
+      <div style="flex: 1; min-width: 200px;">
+        <div style="font-weight: 600; margin-bottom: 6px; font-size: 0.85rem;">Permissions (${permNames.length})</div>
+        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+          ${permNames.length > 0 ? permNames.map(p => `<span style="padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; background: var(--primary)22; color: var(--primary);">${p}</span>`).join('') : '<span style="color: var(--text-sub); font-size: 0.8rem;">No special permissions</span>'}
+        </div>
+      </div>
+    </div>`;
+  expand.appendChild(td);
+  tr.after(expand);
+}
+
+function renderRoleHierarchy() {
+  const container = document.getElementById('role-hierarchy-container');
+  const empty = document.getElementById('role-hierarchy-empty');
+  if (!container) return;
+
+  // Clear old nodes but keep empty div
+  container.querySelectorAll('.hierarchy-node').forEach(n => n.remove());
+  if (serverRoles.length === 0) { if (empty) empty.classList.remove('hidden'); return; }
+  if (empty) empty.classList.add('hidden');
+
+  const sorted = [...serverRoles].sort((a, b) => a.position - b.position);
+  sorted.forEach((role, i) => {
+    const node = document.createElement('div');
+    node.className = 'hierarchy-node';
+    node.draggable = true;
+    node.setAttribute('data-role-id', role.id);
+    node.setAttribute('data-position', role.position);
+    node.style.cssText = 'display: flex; align-items: center; gap: 10px; padding: 8px 12px; margin-bottom: 4px; border-radius: 8px; background: var(--inner-bg); border: 1px solid var(--card-border); cursor: grab;';
+
+    if (i > 0) {
+      node.style.marginLeft = '24px';
+    }
+
+    node.innerHTML = `
+      <i class="fa-solid fa-grip-vertical" style="color: var(--text-sub); font-size: 0.8rem;"></i>
+      <span style="width: 12px; height: 12px; border-radius: 50%; background: ${role.color}; flex-shrink: 0;"></span>
+      <span style="font-weight: 500; font-size: 0.9rem;">${escapeHtml(role.name)}</span>
+      <span style="font-size: 0.75rem; color: var(--text-sub); margin-left: auto;">${role.member_count} members</span>
+    `;
+
+    node.ondragover = (e) => { e.preventDefault(); node.style.borderColor = 'var(--primary)'; };
+    node.ondragleave = () => { node.style.borderColor = 'var(--card-border)'; };
+    node.ondrop = (e) => { e.preventDefault(); node.style.borderColor = 'var(--card-border)'; dropHierarchyRole(e, role); };
+    node.ondragstart = (e) => { e.dataTransfer.setData('text/plain', role.id); };
+
+    container.appendChild(node);
+  });
+}
+
+async function dropHierarchyRole(e, targetRole) {
+  const draggedId = e.dataTransfer.getData('text/plain');
+  if (draggedId === targetRole.id) return;
+  const draggedRole = serverRoles.find(r => r.id === draggedId);
+  if (!draggedRole) return;
+  showToast('Reordering roles...', 'info');
+  try {
+    await fetch(`/api/guilds/${activeGuildId}/roles/${draggedId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: draggedRole.name }),
+    });
+    loadServerRoles();
+    showToast('Role order updated.', 'success');
+  } catch (err) { showToast('Failed to reorder.', 'error'); }
+}
+
+function renderRoleAnalytics() {
+  const total = document.getElementById('role-stat-total');
+  const unused = document.getElementById('role-stat-unused');
+  const mostUsed = document.getElementById('role-stat-most-used');
+  if (!total) return;
+
+  total.textContent = serverRoles.length;
+  const unusedRoles = serverRoles.filter(r => r.member_count === 0);
+  unused.textContent = unusedRoles.length;
+
+  const top = serverRoles.reduce((a, b) => a.member_count > b.member_count ? a : b, { name: '-', member_count: 0 });
+  mostUsed.textContent = top.member_count > 0 ? `${top.name} (${top.member_count})` : '-';
+}
+
+function populateRolesDropdown() {
+  const selects = ['builder-btn-role'];
+  selects.forEach(id => {
+    const select = document.getElementById(id);
+    if (!select) return;
+    select.innerHTML = '<option value="">Select role...</option>';
+    serverRoles.forEach(role => {
+      if (role.managed) return;
+      const opt = document.createElement('option');
+      opt.value = role.id;
+      opt.textContent = role.name;
+      select.appendChild(opt);
     });
   });
 }
 
-function populateRolesDropdown() {
-  const select = document.getElementById('builder-btn-role');
-  if (!select) return;
-  
-  select.innerHTML = '<option value="">Select role...</option>';
-  serverRoles.forEach(role => {
-    // Exclude managed roles from self-assignment panel
-    if (role.managed) return;
-    const opt = document.createElement('option');
-    opt.value = role.id;
-    opt.textContent = role.name;
-    select.appendChild(opt);
+// Role Edit Modal
+function openEditRoleModal(role) {
+  document.getElementById('edit-role-id').value = role.id;
+  document.getElementById('edit-role-name').value = role.name;
+  document.getElementById('edit-role-color-picker').value = role.color;
+  document.getElementById('edit-role-color-hex').value = role.color;
+  document.getElementById('edit-role-hoist').checked = role.hoist;
+  document.getElementById('edit-role-mentionable').checked = role.mentionable || false;
+
+  // Set permission checkboxes
+  const perms = BigInt(role.permissions || 0);
+  document.querySelectorAll('#edit-role-perms-section input[data-perm]').forEach(cb => {
+    const permName = cb.getAttribute('data-perm');
+    const permFlag = DISCORD_PERMS[permName];
+    cb.checked = permFlag ? (perms & BigInt(permFlag)) !== 0n : false;
   });
+
+  updatePermRiskWarning(perms);
+  openModal('edit-role-modal');
+}
+
+const DISCORD_PERMS = {
+  view_channel: 0x0000000008, send_messages: 0x0000000400, embed_links: 0x0000004000,
+  attach_files: 0x0000000800, add_reactions: 0x00000040000, read_message_history: 0x0000100000,
+  connect: 0x0020000000, speak: 0x0040000000, use_voice_activation: 0x0200000000, priority_speaker: 0x0100000000,
+  manage_messages: 0x0000000200, moderate_members: 0x000000040000000, kick_members: 0x0000000002, ban_members: 0x0000000004,
+  manage_roles: 0x0000002000, manage_channels: 0x0000000400, manage_guild: 0x00000020000, administrator: 0x0000000008000000,
+  use_slash_commands: 0x0000800000, manage_webhooks: 0x0000020000000, view_audit_log: 0x00000010000,
+};
+
+function getPermBuilderPermissions() {
+  let perms = 0;
+  document.querySelectorAll('#edit-role-perms-section input[data-perm]:checked').forEach(cb => {
+    perms |= DISCORD_PERMS[cb.getAttribute('data-perm')] || 0;
+  });
+  return perms;
+}
+
+function updatePermRiskWarning(perms) {
+  const warn = document.getElementById('perm-builder-warning');
+  if (!warn) return;
+  const risk = computeRoleRisk(perms);
+  if (risk.label === 'High') {
+    warn.classList.remove('hidden');
+  } else {
+    warn.classList.add('hidden');
+  }
+}
+
+function togglePermCategory(header) {
+  const body = header.nextElementSibling;
+  const icon = header.querySelector('i');
+  if (body.style.display === 'none') {
+    body.style.display = 'grid';
+    icon.className = 'fa-solid fa-chevron-down';
+  } else {
+    body.style.display = 'none';
+    icon.className = 'fa-solid fa-chevron-right';
+  }
+}
+
+document.addEventListener('click', (e) => {
+  if (e.target.matches('#edit-role-perms-section input[data-perm]')) {
+    const perms = getPermBuilderPermissions();
+    updatePermRiskWarning(perms);
+  }
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+  const saveBtn = document.getElementById('btn-save-role');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', async () => {
+      const roleId = document.getElementById('edit-role-id').value;
+      const name = document.getElementById('edit-role-name').value.trim();
+      const color = document.getElementById('edit-role-color-hex').value.trim();
+      const hoist = document.getElementById('edit-role-hoist').checked;
+      const mentionable = document.getElementById('edit-role-mentionable').checked;
+      const permissions = getPermBuilderPermissions();
+
+      if (!name) { showToast('Role name is required.', 'warning'); return; }
+
+      try {
+        showToast('Saving role...', 'info');
+        const res = await fetch(`/api/guilds/${activeGuildId}/roles/${roleId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, color, hoist, mentionable, permissions }),
+        });
+        if (res.ok) {
+          showToast('Role updated successfully.', 'success');
+          closeModal('edit-role-modal');
+          loadServerRoles();
+        } else {
+          const data = await res.json().catch(() => ({}));
+          showToast(data.detail || 'Failed to update role.', 'error');
+        }
+      } catch (err) { showToast('Network error updating role.', 'error'); }
+    });
+  }
+
+  // Color picker sync for edit modal
+  const picker = document.getElementById('edit-role-color-picker');
+  const hex = document.getElementById('edit-role-color-hex');
+  if (picker && hex) {
+    picker.addEventListener('input', () => { hex.value = picker.value.toUpperCase(); });
+    hex.addEventListener('input', () => { if (/^#[0-9A-F]{6}$/i.test(hex.value)) picker.value = hex.value; });
+  }
+});
+
+async function cloneRole(role) {
+  const newName = prompt(`Clone "${role.name}" as:`, `${role.name} (Copy)`);
+  if (newName === null) return;
+  try {
+    showToast('Cloning role...', 'info');
+    const res = await fetch(`/api/guilds/${activeGuildId}/roles/${role.id}/clone`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: newName || undefined }),
+    });
+    if (res.ok) {
+      showToast('Role cloned successfully.', 'success');
+      loadServerRoles();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showToast(data.detail || 'Failed to clone role.', 'error');
+    }
+  } catch (err) { showToast('Network error cloning role.', 'error'); }
+}
+
+async function deleteRoleConfirm(role) {
+  const ok = confirm(`Are you sure you want to delete "${role.name}"? This cannot be undone.`);
+  if (!ok) return;
+  try {
+    showToast('Deleting role...', 'info');
+    const res = await fetch(`/api/guilds/${activeGuildId}/roles/${role.id}`, { method: 'DELETE' });
+    if (res.ok) {
+      showToast('Role deleted.', 'success');
+      loadServerRoles();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showToast(data.detail || 'Failed to delete role.', 'error');
+    }
+  } catch (err) { showToast('Network error deleting role.', 'error'); }
+}
+
+// Role Templates
+const ROLE_TEMPLATES = {
+  gaming: [
+    { name: 'Admin', color: '#E74C3C', perms: 0x0000000008000000 },
+    { name: 'Moderator', color: '#3498DB', perms: 0x0000000006 | 0x0000000200 },
+    { name: 'VIP', color: '#F1C40F', perms: 0x0000000400 },
+    { name: 'Member', color: '#95A5A6', perms: 0x0000000008 | 0x0000000400 },
+  ],
+  community: [
+    { name: 'Leader', color: '#9B59B6', perms: 0x0000000008000000 },
+    { name: 'Helper', color: '#2ECC71', perms: 0x0000000008 | 0x0000000400 | 0x0000000200 },
+    { name: 'Active', color: '#1ABC9C', perms: 0x0000000008 | 0x0000000400 },
+    { name: 'Member', color: '#95A5A6', perms: 0x0000000008 | 0x0000000400 },
+  ],
+  support: [
+    { name: 'Agent', color: '#3498DB', perms: 0x0000000008 | 0x0000000400 | 0x0000000200 },
+    { name: 'Supervisor', color: '#E67E22', perms: 0x0000000008 | 0x0000000400 | 0x0000000200 | 0x0000000002 },
+    { name: 'User', color: '#95A5A6', perms: 0x0000000008 | 0x0000000400 },
+  ],
+};
+
+let selectedTemplate = null;
+function openRoleTemplatesModal() {
+  selectedTemplate = null;
+  document.getElementById('template-preview').classList.add('hidden');
+  document.getElementById('btn-apply-template').disabled = true;
+  document.querySelectorAll('.template-card').forEach(c => c.style.borderColor = 'transparent');
+  openModal('role-templates-modal');
+}
+
+function selectRoleTemplate(el) {
+  document.querySelectorAll('.template-card').forEach(c => c.style.borderColor = 'transparent');
+  el.style.borderColor = 'var(--primary)';
+  selectedTemplate = el.getAttribute('data-template');
+  document.getElementById('btn-apply-template').disabled = false;
+
+  const roles = ROLE_TEMPLATES[selectedTemplate];
+  const preview = document.getElementById('template-preview-roles');
+  preview.innerHTML = roles.map(r => `<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:8px;font-size:0.8rem;background:var(--inner-bg);border:1px solid var(--card-border);"><span style="width:10px;height:10px;border-radius:50%;background:${r.color};"></span>${r.name}</span>`).join('');
+  document.getElementById('template-preview').classList.remove('hidden');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('btn-apply-template');
+  if (btn) {
+    btn.addEventListener('click', async () => {
+      if (!selectedTemplate || !activeGuildId) return;
+      const roles = ROLE_TEMPLATES[selectedTemplate];
+      showToast('Creating roles...', 'info');
+      let created = 0;
+      for (const r of roles) {
+        try {
+          const res = await fetch(`/api/guilds/${activeGuildId}/roles`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: r.name, color: r.color, hoist: false }),
+          });
+          if (res.ok) created++;
+        } catch (err) {}
+      }
+      showToast(`Created ${created}/${roles.length} roles.`, created === roles.length ? 'success' : 'warning');
+      closeModal('role-templates-modal');
+      loadServerRoles();
+    });
+  }
+});
+
+// Role Comparison
+function openRoleCompareModal() {
+  const selA = document.getElementById('compare-role-a');
+  const selB = document.getElementById('compare-role-b');
+  if (!selA || !selB) return;
+  selA.innerHTML = '<option value="">Select...</option>';
+  selB.innerHTML = '<option value="">Select...</option>';
+  serverRoles.forEach(r => {
+    selA.innerHTML += `<option value="${r.id}">${r.name}</option>`;
+    selB.innerHTML += `<option value="${r.id}">${r.name}</option>`;
+  });
+  document.getElementById('compare-results').innerHTML = '<div class="text-center py-3" style="color: var(--text-sub);">Select two roles to compare.</div>';
+  openModal('role-compare-modal');
+}
+
+function runRoleComparison() {
+  const idA = document.getElementById('compare-role-a').value;
+  const idB = document.getElementById('compare-role-b').value;
+  const results = document.getElementById('compare-results');
+  if (!idA || !idB || idA === idB) {
+    results.innerHTML = '<div class="text-center py-3" style="color: var(--text-sub);">Select two different roles.</div>';
+    return;
+  }
+  const roleA = serverRoles.find(r => r.id === idA);
+  const roleB = serverRoles.find(r => r.id === idB);
+  if (!roleA || !roleB) return;
+
+  const permsA = BigInt(roleA.permissions || 0);
+  const permsB = BigInt(roleB.permissions || 0);
+
+  const allPerms = new Set([...Object.keys(DISCORD_PERMS)]);
+  let html = '';
+  for (const [name, bit] of Object.entries(DISCORD_PERMS)) {
+    const hasA = (permsA & BigInt(bit)) !== 0n;
+    const hasB = (permsB & BigInt(bit)) !== 0n;
+    if (!hasA && !hasB) continue;
+    const label = name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    let row = '';
+    if (hasA && hasB) {
+      row = `<div style="padding:4px 12px;display:flex;align-items:center;gap:8px;font-size:0.85rem;"><span style="width:8px;height:8px;border-radius:50%;background:var(--success);"></span><span style="flex:1;">${label}</span><span style="font-size:0.75rem;color:var(--text-sub);">Both</span></div>`;
+    } else if (hasA) {
+      row = `<div style="padding:4px 12px;display:flex;align-items:center;gap:8px;font-size:0.85rem;"><span style="width:8px;height:8px;border-radius:50%;background:var(--danger);"></span><span style="flex:1;">${label}</span><span style="font-size:0.75rem;color:var(--danger);">${roleA.name} only</span></div>`;
+    } else {
+      row = `<div style="padding:4px 12px;display:flex;align-items:center;gap:8px;font-size:0.85rem;"><span style="width:8px;height:8px;border-radius:50%;background:var(--primary);"></span><span style="flex:1;">${label}</span><span style="font-size:0.75rem;color:var(--primary);">${roleB.name} only</span></div>`;
+    }
+    html += row;
+  }
+  results.innerHTML = html || '<div class="text-center py-3" style="color: var(--text-sub);">No permissions to compare.</div>';
+}
+
+function openModal(id) {
+  const m = document.getElementById(id);
+  if (m) m.classList.remove('hidden');
+}
+function closeModal(id) {
+  const m = document.getElementById(id);
+  if (m) m.classList.add('hidden');
 }
 
 async function fetchBuiltinTemplates() {
@@ -2301,6 +3130,100 @@ async function populateGuildChannels(guildId) {
 // Event Listeners & Helpers
 // ==========================================================================
 function setupEventListeners() {
+  // Event delegation for password toggle buttons
+  document.addEventListener('click', (e) => {
+    const toggleBtn = e.target.closest('[data-toggle-password]');
+    if (toggleBtn) {
+      const fieldId = toggleBtn.getAttribute('data-toggle-password');
+      const field = document.getElementById(fieldId);
+      const icon = toggleBtn.querySelector('i');
+      if (field && icon) {
+        if (field.type === 'password') {
+          field.type = 'text';
+          icon.className = 'fa-solid fa-eye-slash';
+        } else {
+          field.type = 'password';
+          icon.className = 'fa-solid fa-eye';
+        }
+      }
+    }
+  });
+
+  // Event delegation for modal close buttons
+  document.addEventListener('click', (e) => {
+    const closeBtn = e.target.closest('[data-close-modal]');
+    if (closeBtn) {
+      const modalId = closeBtn.getAttribute('data-close-modal');
+      const modal = document.getElementById(modalId);
+      if (modal) modal.classList.add('hidden');
+    }
+  });
+
+  // Event delegation for action buttons
+  document.addEventListener('click', (e) => {
+    const actionBtn = e.target.closest('[data-action]');
+    if (actionBtn) {
+      const action = actionBtn.getAttribute('data-action');
+      switch (action) {
+        case 'run-command-center-scan':
+          runCommandCenterScan();
+          break;
+        case 'load-security-checks':
+          loadSecurityChecks();
+          break;
+        case 'open-role-compare-modal':
+          openRoleCompareModal();
+          break;
+        case 'open-perm-simulator':
+          openPermSimulator();
+          break;
+        case 'open-role-templates-modal':
+          openRoleTemplatesModal();
+          break;
+        case 'export-roles':
+          exportRoles();
+          break;
+        case 'import-roles':
+          document.getElementById('import-roles-file').click();
+          break;
+        case 'bulk-delete-selected':
+          bulkDeleteSelected();
+          break;
+        case 'load-cleanup-preview':
+          loadCleanupPreview();
+          break;
+      }
+    }
+  });
+
+  // Event delegation for permission category headers
+  document.addEventListener('click', (e) => {
+    const permHeader = e.target.closest('.perm-cat-header');
+    if (permHeader) {
+      togglePermCategory(permHeader);
+    }
+  });
+
+  // Event delegation for template cards
+  document.addEventListener('click', (e) => {
+    const templateCard = e.target.closest('.template-card');
+    if (templateCard) {
+      selectRoleTemplate(templateCard);
+    }
+  });
+
+  // Keyboard support for interactive elements
+  document.addEventListener('keydown', (e) => {
+    // Handle Enter and Space for buttons and interactive elements
+    if (e.key === 'Enter' || e.key === ' ') {
+      const interactiveElement = e.target.closest('[role="button"], .perm-cat-header, .template-card');
+      if (interactiveElement) {
+        e.preventDefault();
+        interactiveElement.click();
+      }
+    }
+  });
+
   // Refresh Guilds
   const btnRefreshGuilds = document.getElementById('btn-refresh-guilds');
   if (btnRefreshGuilds) {
@@ -2871,6 +3794,15 @@ function setupEventListeners() {
         window.loadSmartFeatures();
       }
       loadHealthTimeline();
+    });
+  }
+
+  // Language Selector
+  const langSelector = document.getElementById('language-selector');
+  if (langSelector) {
+    langSelector.value = currentLanguage;
+    langSelector.addEventListener('change', (e) => {
+      loadTranslations(e.target.value);
     });
   }
 
@@ -4537,7 +5469,7 @@ async function playMusicTrack(query) {
 
 async function toggleMusic() {
   if (!activeGuildId) return;
-  const isPlaying = !document.getElementById('music-eq-waves').classList.contains('hidden');
+  const isPlaying = !(document.getElementById('music-eq-waves')?.classList.contains('hidden') ?? true);
   const endpoint = isPlaying ? 'pause' : 'resume';
   
   try {
@@ -6490,4 +7422,1593 @@ function openHostingModeSettings() {
       }
     };
   }
+}
+
+// ==========================================================================
+// Incident Center
+// ==========================================================================
+async function loadIncidents() {
+  if (!activeGuildId) return;
+  const days = document.getElementById('incident-days')?.value || 30;
+  const list = document.getElementById('incidents-list');
+  if (!list) return;
+
+  list.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading incidents...</div>';
+
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/incidents?days=${days}`);
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+
+    document.getElementById('inc-total').textContent = data.stats.total;
+    document.getElementById('inc-critical').textContent = data.stats.critical;
+    document.getElementById('inc-high').textContent = data.stats.high;
+    document.getElementById('inc-medium').textContent = data.stats.medium;
+
+    if (!data.incidents || data.incidents.length === 0) {
+      list.innerHTML = '<div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-check-circle" style="color:var(--success);font-size:1.5rem;"></i><p style="margin-top:8px;">No incidents recorded in the selected period.</p></div>';
+      return;
+    }
+
+    list.innerHTML = data.incidents.map(inc => {
+      const sevColor = inc.severity === 'critical' ? 'var(--danger)' : inc.severity === 'high' ? 'var(--warning)' : inc.severity === 'medium' ? 'var(--primary)' : 'var(--text-sub)';
+      const icon = inc.type === 'raid' ? 'fa-skull-crossbones' : inc.type === 'ban' ? 'fa-gavel' : inc.type === 'kick' ? 'fa-right-from-bracket' : inc.type === 'timeout' ? 'fa-clock' : inc.type === 'warn' ? 'fa-triangle-exclamation' : 'fa-shield-halved';
+      const time = inc.timestamp ? new Date(inc.timestamp).toLocaleString() : '';
+      return `
+        <div class="glass-inner p-3 mb-2" style="display:flex;align-items:center;gap:12px;border-left:3px solid ${sevColor};">
+          <i class="fa-solid ${icon}" style="color:${sevColor};font-size:1.1rem;"></i>
+          <div style="flex:1;">
+            <div style="font-weight:600;font-size:0.9rem;">${escapeHtml(inc.title)}</div>
+            ${inc.reason ? `<div style="font-size:0.8rem;color:var(--text-sub);">${escapeHtml(inc.reason)}</div>` : ''}
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:0.75rem;color:var(--text-sub);">${time}</div>
+            ${inc.action_taken ? `<div style="font-size:0.75rem;color:${sevColor};">${escapeHtml(inc.action_taken)}</div>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+  } catch (err) {
+    list.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to load incidents.</div>';
+  }
+}
+
+// ==========================================================================
+// Cleanup Wizard
+// ==========================================================================
+async function loadCleanupPreview() {
+  if (!activeGuildId) return;
+  const results = document.getElementById('cleanup-results');
+  if (!results) return;
+
+  results.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Scanning server...</div>';
+
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/cleanup-preview`);
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+
+    document.getElementById('cleanup-score').textContent = data.cleanup_score + '/100';
+    document.getElementById('cleanup-score').style.color = data.cleanup_score >= 80 ? 'var(--success)' : data.cleanup_score >= 50 ? 'var(--warning)' : 'var(--danger)';
+    document.getElementById('cleanup-unused-roles').textContent = data.unused_roles.length;
+    document.getElementById('cleanup-empty-channels').textContent = data.empty_channels.length;
+    document.getElementById('cleanup-empty-cats').textContent = data.empty_categories.length;
+
+    let html = '';
+
+    if (data.unused_roles.length > 0) {
+      html += '<h3 style="margin-bottom:10px;font-size:0.95rem;"><i class="fa-solid fa-triangle-exclamation" style="color:var(--warning);"></i> Unused Roles</h3>';
+      data.unused_roles.forEach(r => {
+        html += `
+          <div class="glass-inner p-3 mb-2" style="display:flex;align-items:center;gap:12px;">
+            <span style="width:12px;height:12px;border-radius:50%;background:${r.color};flex-shrink:0;"></span>
+            <span style="flex:1;font-weight:500;">${escapeHtml(r.name)}</span>
+            <span style="font-size:0.8rem;color:var(--text-sub);">0 members</span>
+            <button class="btn btn-secondary btn-small text-danger" onclick="cleanupDeleteRole('${r.id}','${escapeHtml(r.name)}')"><i class="fa-solid fa-trash"></i></button>
+          </div>`;
+      });
+    }
+
+    if (data.empty_channels.length > 0) {
+      html += '<h3 style="margin:16px 0 10px;font-size:0.95rem;"><i class="fa-solid fa-triangle-exclamation" style="color:var(--warning);"></i> Empty Channels</h3>';
+      data.empty_channels.forEach(ch => {
+        html += `
+          <div class="glass-inner p-3 mb-2" style="display:flex;align-items:center;gap:12px;">
+            <i class="fa-solid fa-hashtag" style="color:var(--text-sub);"></i>
+            <span style="flex:1;">${escapeHtml(ch.name)}</span>
+            <span style="font-size:0.8rem;color:var(--text-sub);">No activity</span>
+          </div>`;
+      });
+    }
+
+    if (data.empty_categories.length > 0) {
+      html += '<h3 style="margin:16px 0 10px;font-size:0.95rem;"><i class="fa-solid fa-triangle-exclamation" style="color:var(--warning);"></i> Empty Categories</h3>';
+      data.empty_categories.forEach(cat => {
+        html += `
+          <div class="glass-inner p-3 mb-2" style="display:flex;align-items:center;gap:12px;">
+            <i class="fa-solid fa-folder" style="color:var(--text-sub);"></i>
+            <span style="flex:1;">${escapeHtml(cat.name)}</span>
+            <span style="font-size:0.8rem;color:var(--text-sub);">0 channels</span>
+          </div>`;
+      });
+    }
+
+    if (!html) {
+      html = '<div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-check-circle" style="color:var(--success);font-size:1.5rem;"></i><p style="margin-top:8px;">Server looks clean! No cleanup opportunities found.</p></div>';
+    }
+
+    results.innerHTML = html;
+  } catch (err) {
+    results.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to scan server.</div>';
+  }
+}
+
+async function cleanupDeleteRole(roleId, roleName) {
+  const ok = confirm(`Delete unused role "${roleName}"?`);
+  if (!ok) return;
+  try {
+    showToast('Deleting role...', 'info');
+    const res = await fetch(`/api/guilds/${activeGuildId}/cleanup/role/${roleId}`, { method: 'DELETE' });
+    if (res.ok) {
+      showToast('Role deleted.', 'success');
+      loadCleanupPreview();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showToast(data.detail || 'Failed to delete role.', 'error');
+    }
+  } catch (err) { showToast('Network error.', 'error'); }
+}
+
+// ==========================================================================
+// Moderator Intelligence
+// ==========================================================================
+async function loadModIntelligence() {
+  if (!activeGuildId) return;
+  const el = document.getElementById('mod-intel-content');
+  if (!el) return;
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/moderator-intelligence`);
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+    let html = `<div class="glass-inner p-3 mb-4 text-center" style="display:inline-block;">
+      <div style="font-size:1.5rem;font-weight:700;color:var(--primary);">${data.total_actions}</div>
+      <div style="font-size:0.75rem;color:var(--text-sub);">Total Mod Actions (30d)</div>
+    </div>`;
+    if (data.leaderboard.length > 0) {
+      html += '<h3 style="margin-bottom:10px;">Moderator Leaderboard</h3>';
+      data.leaderboard.forEach((m, i) => {
+        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`;
+        html += `<div class="glass-inner p-3 mb-2" style="display:flex;align-items:center;gap:12px;">
+          <span style="font-weight:600;width:32px;text-align:center;">${medal}</span>
+          <span style="flex:1;font-weight:500;">${escapeHtml(m.moderator_id)}</span>
+          <span style="font-size:0.8rem;color:var(--danger);">${m.bans} bans</span>
+          <span style="font-size:0.8rem;color:var(--warning);">${m.kicks} kicks</span>
+          <span style="font-size:0.8rem;color:var(--primary);">${m.timeouts} timeouts</span>
+          <span style="font-size:0.8rem;color:var(--text-sub);">${m.warns} warns</span>
+        </div>`;
+      });
+    }
+    el.innerHTML = html;
+  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to load moderator intelligence.</div>'; }
+}
+
+// ==========================================================================
+// Automation Center
+// ==========================================================================
+async function loadAutomationCenter() {
+  if (!activeGuildId) return;
+  const el = document.getElementById('automation-content');
+  if (!el) return;
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/automation-center`);
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+    let html = `<div class="glass-inner p-3 mb-4" style="display:inline-flex;gap:8px;align-items:center;">
+      <span style="font-weight:600;">Active:</span>
+      <span style="font-weight:700;color:var(--success);">${data.active_count}</span>
+      <span style="color:var(--text-sub);">/ ${data.total_count} features</span>
+    </div>`;
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;">';
+    data.features.forEach(f => {
+      const statusColor = f.active ? 'var(--success)' : 'var(--text-sub)';
+      const statusText = f.active ? 'Active' : 'Inactive';
+      html += `
+        <div class="glass-inner p-3" style="border-left:3px solid ${statusColor};">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+            <i class="fa-solid ${f.icon}" style="color:${statusColor};font-size:1.1rem;"></i>
+            <span style="font-weight:600;">${escapeHtml(f.name)}</span>
+            <span style="margin-left:auto;font-size:0.7rem;padding:2px 8px;border-radius:10px;background:${statusColor}22;color:${statusColor};font-weight:600;">${statusText}</span>
+          </div>
+          <div style="font-size:0.82rem;color:var(--text-sub);">${escapeHtml(f.description)}</div>
+        </div>`;
+    });
+    html += '</div>';
+
+    // Trend forecast
+    try {
+      const forecastRes = await fetch(`/api/trend-forecast/${activeGuildId}`);
+      if (forecastRes.ok) {
+        const forecast = await forecastRes.json();
+        if (forecast.forecasts && forecast.forecasts.length > 0) {
+          html += '<h3 style="margin:24px 0 12px;"><i class="fa-solid fa-chart-line"></i> 7-Day Forecast</h3>';
+          html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">';
+          forecast.forecasts.forEach(fc => {
+            const trendIcon = fc.trend === 'up' ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down';
+            const trendColor = fc.trend === 'up' ? 'var(--success)' : 'var(--danger)';
+            html += `
+              <div class="glass-inner p-3 text-center">
+                <div style="font-size:0.8rem;color:var(--text-sub);margin-bottom:4px;">${escapeHtml(fc.metric)}</div>
+                <div style="font-size:1.3rem;font-weight:700;color:var(--text-main);">${fc.current}</div>
+                <div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:4px;">
+                  <i class="fa-solid ${trendIcon}" style="color:${trendColor};font-size:0.8rem;"></i>
+                  <span style="font-size:0.8rem;color:${trendColor};font-weight:600;">${fc.forecast_7d} in 7d</span>
+                </div>
+              </div>`;
+          });
+          html += '</div>';
+        } else if (forecast.message) {
+          html += `<div class="glass-inner p-3 mt-3" style="color:var(--text-sub);font-size:0.85rem;"><i class="fa-solid fa-info-circle"></i> ${escapeHtml(forecast.message)}</div>`;
+        }
+      }
+    } catch (e) {}
+
+    el.innerHTML = html;
+  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to load automation center.</div>'; }
+}
+
+// ==========================================================================
+// Permission Heatmap
+// ==========================================================================
+async function loadPermissionHeatmap() {
+  if (!activeGuildId) return;
+  const el = document.getElementById('heatmap-content');
+  if (!el) return;
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/permission-heatmap`);
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+
+    const DANGER_PERMS = ['Administrator', 'Manage Server', 'Manage Roles', 'Manage Channels', 'Ban Members', 'Kick Members', 'Manage Messages', 'Timeout'];
+
+    let html = '<table style="border-collapse:collapse;font-size:0.8rem;width:100%;">';
+    html += '<thead><tr><th style="text-align:left;padding:6px 10px;position:sticky;left:0;background:var(--card-bg);z-index:1;">Role</th>';
+    data.perm_names.forEach(p => {
+      const isDanger = DANGER_PERMS.includes(p);
+      html += `<th style="padding:6px 8px;writing-mode:vertical-rl;text-orientation:mixed;height:100px;font-weight:600;color:${isDanger ? 'var(--danger)' : 'var(--text-sub)'};">${p}</th>`;
+    });
+    html += '</tr></thead><tbody>';
+
+    data.roles.forEach(role => {
+      html += `<tr><td style="padding:6px 10px;white-space:nowrap;position:sticky;left:0;background:var(--card-bg);z-index:1;"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${role.color};margin-right:6px;"></span>${escapeHtml(role.name)}</td>`;
+      data.perm_names.forEach(p => {
+        const has = role.permissions[p];
+        const isDanger = DANGER_PERMS.includes(p);
+        let bg = 'transparent';
+        if (has && isDanger) bg = 'rgba(239,68,68,0.25)';
+        else if (has) bg = 'rgba(52,211,153,0.15)';
+        html += `<td style="padding:6px 8px;text-align:center;background:${bg};">${has ? '<i class="fa-solid fa-check" style="color:' + (isDanger ? 'var(--danger)' : 'var(--success)') + ';"></i>' : '<span style="color:var(--text-sub);">—</span>'}</td>`;
+      });
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to load heatmap.</div>'; }
+}
+
+// ==========================================================================
+// Security Deep Checks
+// ==========================================================================
+async function loadSecurityChecks() {
+  if (!activeGuildId) return;
+  const el = document.getElementById('cc-security-checks');
+  if (!el) return;
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Scanning security...</div>';
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/security-checks`);
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+
+    let html = `<div class="glass-inner p-3 mb-3" style="display:inline-flex;align-items:center;gap:8px;">
+      <span style="font-size:1.3rem;font-weight:700;color:${data.score >= 80 ? 'var(--success)' : data.score >= 50 ? 'var(--warning)' : 'var(--danger)'};">${data.score}/100</span>
+      <span style="font-size:0.85rem;color:var(--text-sub);">Security Score</span>
+    </div>`;
+
+    data.checks.forEach(check => {
+      const icon = check.status === 'safe' ? 'fa-check-circle' : check.status === 'warning' ? 'fa-triangle-exclamation' : check.status === 'critical' ? 'fa-circle-exclamation' : 'fa-question-circle';
+      const color = check.status === 'safe' ? 'var(--success)' : check.status === 'warning' ? 'var(--warning)' : check.status === 'critical' ? 'var(--danger)' : 'var(--text-sub)';
+      html += `
+        <div class="glass-inner p-3 mb-2" style="border-left:3px solid ${color};">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid ${icon}" style="color:${color};"></i>
+            <span style="font-weight:600;">${escapeHtml(check.name)}</span>
+            <span style="margin-left:auto;font-size:0.75rem;padding:2px 8px;border-radius:10px;background:${color}22;color:${color};text-transform:uppercase;">${check.status}</span>
+          </div>
+          <div style="margin-top:6px;font-size:0.82rem;color:var(--text-sub);">
+            ${check.details.map(d => `<div style="padding:2px 0;">${escapeHtml(d)}</div>`).join('')}
+          </div>
+        </div>`;
+    });
+    el.innerHTML = html;
+  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to load security checks.</div>'; }
+}
+
+// ==========================================================================
+// Score History Chart
+// ==========================================================================
+let scoreHistoryChart = null;
+async function loadScoreHistory() {
+  if (!activeGuildId) return;
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/score-history?days=30`);
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data.history || data.history.length === 0) return;
+
+    const ctx = document.getElementById('chart-score-history');
+    if (!ctx) return;
+
+    const isLight = document.body.classList.contains('light-theme');
+    const gridColor = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)';
+    const tickColor = isLight ? '#64748b' : '#94a3b8';
+
+    if (scoreHistoryChart) scoreHistoryChart.destroy();
+    scoreHistoryChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: data.history.map(h => h.timestamp ? new Date(h.timestamp).toLocaleDateString() : ''),
+        datasets: [
+          { label: 'Overall', data: data.history.map(h => h.overall), borderColor: '#818cf8', tension: 0.4, pointRadius: 2 },
+          { label: 'Security', data: data.history.map(h => h.security), borderColor: '#34d399', tension: 0.4, pointRadius: 2 },
+          { label: 'Moderation', data: data.history.map(h => h.moderation), borderColor: '#f59e0b', tension: 0.4, pointRadius: 2 },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: tickColor, font: { size: 11 } } } },
+        scales: {
+          x: { ticks: { color: tickColor, maxTicksLimit: 7 }, grid: { color: gridColor } },
+          y: { min: 0, max: 100, ticks: { color: tickColor }, grid: { color: gridColor } }
+        }
+      }
+    });
+  } catch (err) {}
+}
+
+// ==========================================================================
+// Config History
+// ==========================================================================
+async function loadConfigHistory() {
+  if (!activeGuildId) return;
+  const el = document.getElementById('cc-config-history');
+  if (!el) return;
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/config-history?limit=10`);
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+    const snapshots = data.snapshots || [];
+
+    if (snapshots.length === 0) {
+      el.innerHTML = '<div class="text-center py-3" style="color:var(--text-sub);">No config history yet.</div>';
+      return;
+    }
+
+    el.innerHTML = snapshots.map(s => {
+      const time = s.created_at ? new Date(s.created_at).toLocaleString() : 'Unknown';
+      const keys = s.changed_keys ? (typeof s.changed_keys === 'string' ? JSON.parse(s.changed_keys || '[]') : s.changed_keys) : [];
+      return `
+        <div class="glass-inner p-2 mb-2" style="display:flex;align-items:center;gap:8px;font-size:0.82rem;">
+          <i class="fa-solid fa-code-commit" style="color:var(--primary);"></i>
+          <div style="flex:1;">
+            <div style="font-weight:500;">${escapeHtml(s.created_by || 'system')}</div>
+            <div style="font-size:0.75rem;color:var(--text-sub);">${time}${keys.length ? ' — ' + keys.join(', ') : ''}</div>
+          </div>
+          <button class="btn btn-secondary btn-small" onclick="rollbackConfig(${s.id})" title="Rollback to this version"><i class="fa-solid fa-rotate-left"></i></button>
+        </div>`;
+    }).join('');
+  } catch (err) { el.innerHTML = '<div class="text-center py-3" style="color:var(--danger);">Failed to load config history.</div>'; }
+}
+
+async function rollbackConfig(snapshotId) {
+  const ok = confirm(`Rollback to snapshot #${snapshotId}? Current config will be replaced.`);
+  if (!ok) return;
+  try {
+    showToast('Rolling back config...', 'info');
+    const res = await fetch(`/api/guilds/${activeGuildId}/config-rollback/${snapshotId}`, { method: 'POST' });
+    if (res.ok) {
+      showToast('Config rolled back successfully.', 'success');
+      loadConfigHistory();
+    } else {
+      const data = await res.json().catch(() => ({}));
+      showToast(data.detail || 'Rollback failed.', 'error');
+    }
+  } catch (err) { showToast('Network error.', 'error'); }
+}
+
+// ==========================================================================
+// Channel Activity Heatmap (2D: hour x day-of-week)
+// ==========================================================================
+async function loadChannelHeatmap() {
+  if (!activeGuildId) return;
+  const el = document.getElementById('channel-heatmap-content');
+  if (!el) return;
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading heatmap...</div>';
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/channel-heatmap?days=14`);
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+    const heatmap = data.heatmap;
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const maxVal = Math.max(...heatmap.flat(), 1);
+
+    let html = '<div style="display:flex;gap:4px;">';
+    html += '<div style="width:40px;"></div>';
+    days.forEach(d => { html += `<div style="width:40px;text-align:center;font-size:0.7rem;color:var(--text-sub);font-weight:600;">${d}</div>`; });
+    html += '</div>';
+
+    for (let h = 0; h < 24; h++) {
+      html += '<div style="display:flex;gap:4px;margin-bottom:2px;">';
+      html += `<div style="width:40px;text-align:right;font-size:0.65rem;color:var(--text-sub);line-height:20px;">${h.toString().padStart(2, '0')}</div>`;
+      for (let d = 0; d < 7; d++) {
+        const val = heatmap[h][d];
+        const intensity = val / maxVal;
+        const r = Math.round(99 + intensity * 140);
+        const g = Math.round(102 - intensity * 30);
+        const b = Math.round(241 - intensity * 100);
+        const bg = val > 0 ? `rgba(${r},${g},${b},${0.2 + intensity * 0.8})` : 'var(--inner-bg)';
+        html += `<div style="width:40px;height:20px;background:${bg};border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:${intensity > 0.5 ? '#fff' : 'var(--text-sub)'};" title="${days[d]} ${h}:00 — ${val} messages">${val || ''}</div>`;
+      }
+      html += '</div>';
+    }
+    el.innerHTML = html;
+  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to load heatmap.</div>'; }
+}
+
+// ==========================================================================
+// Benchmarking
+// ==========================================================================
+async function loadBenchmark() {
+  if (!activeGuildId) return;
+  const el = document.getElementById('benchmark-content');
+  if (!el) return;
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading benchmark data...</div>';
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/benchmark`);
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+
+    if (!data.percentile || Object.keys(data.percentile).length === 0) {
+      el.innerHTML = '<div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-info-circle"></i> Not enough data for benchmarking. Need at least 2 servers with analytics data.</div>';
+      return;
+    }
+
+    const metrics = [
+      { key: 'messages', label: 'Messages/Day', icon: 'fa-comment' },
+      { key: 'active_users', label: 'Active Users', icon: 'fa-users' },
+      { key: 'voice_minutes', label: 'Voice Minutes', icon: 'fa-microphone' },
+      { key: 'mod_actions', label: 'Mod Actions/Week', icon: 'fa-gavel' },
+    ];
+
+    let html = `<div class="glass-inner p-3 mb-3" style="font-size:0.85rem;">Compared against <strong>${data.total_servers || 0}</strong> servers with analytics data.</div>`;
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">';
+    metrics.forEach(m => {
+      const pct = data.percentile[m.key] || 0;
+      const color = pct >= 75 ? 'var(--success)' : pct >= 50 ? 'var(--primary)' : pct >= 25 ? 'var(--warning)' : 'var(--danger)';
+      const label = pct >= 75 ? 'Above Average' : pct >= 50 ? 'Average' : pct >= 25 ? 'Below Average' : 'Low';
+      html += `
+        <div class="glass-inner p-3 text-center">
+          <i class="fa-solid ${m.icon}" style="font-size:1.2rem;color:${color};margin-bottom:6px;"></i>
+          <div style="font-size:1.3rem;font-weight:700;color:${color};">${pct}th</div>
+          <div style="font-size:0.8rem;color:var(--text-sub);">${m.label}</div>
+          <div style="font-size:0.75rem;color:${color};margin-top:4px;">${label}</div>
+        </div>`;
+    });
+    html += '</div>';
+    el.innerHTML = html;
+  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to load benchmark data.</div>'; }
+}
+
+// ==========================================================================
+// COMMAND CENTER - Landing Page
+// ==========================================================================
+async function loadCommandCenter() {
+  if (!activeGuildId) return;
+  
+  // Load all data in parallel
+  const [overview, maturity, recommendations] = await Promise.all([
+    fetchSmartOverview(),
+    fetchMaturityScore(),
+    fetchSmartRecommendations()
+  ]);
+  
+  renderCommandCenterHealth(overview, maturity);
+  renderQuickWins(recommendations);
+  renderPriorityQueue(recommendations);
+  renderScoreTrends(overview);
+  renderDimensionBreakdown(maturity);
+}
+
+async function fetchSmartOverview() {
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/smart/overview`, {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    return res.ok ? await res.json() : null;
+  } catch { return null; }
+}
+
+async function fetchMaturityScore() {
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/smart/maturity-score`, {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    return res.ok ? await res.json() : null;
+  } catch { return null; }
+}
+
+async function fetchSmartRecommendations() {
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/smart/recommendations`, {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    return res.ok ? await res.json() : null;
+  } catch { return null; }
+}
+
+function renderCommandCenterHealth(overview, maturity) {
+  const el = document.getElementById('cc-health-content');
+  if (!el) return;
+  
+  if (!overview && !maturity) {
+    el.innerHTML = '<div class="text-center py-4" style="color:var(--text-sub);">Unable to load server health data.</div>';
+    return;
+  }
+  
+  const currentScore = overview?.maturity_score || maturity?.overall || 0;
+  const potentialScore = Math.min(100, currentScore + (overview?.recommendations_count || 0) * 3);
+  const possibleGain = potentialScore - currentScore;
+  
+  const scoreColor = currentScore >= 80 ? 'var(--success)' : currentScore >= 60 ? 'var(--warning)' : 'var(--danger)';
+  const gainColor = possibleGain > 0 ? 'var(--success)' : 'var(--text-sub)';
+  
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:center;">
+      <div class="text-center">
+        <div style="position:relative;width:180px;height:180px;margin:0 auto;">
+          <svg viewBox="0 0 120 120" style="width:100%;height:100%;transform:rotate(-90deg);">
+            <circle cx="60" cy="60" r="50" stroke="var(--card-border)" stroke-width="8" fill="none"/>
+            <circle cx="60" cy="60" r="50" stroke="${scoreColor}" stroke-width="8" fill="none" 
+              stroke-linecap="round" stroke-dasharray="${currentScore * 3.14} 314"
+              style="filter:drop-shadow(0 0 8px ${scoreColor}40);"/>
+          </svg>
+          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+            <div style="font-size:2.5rem;font-weight:700;color:${scoreColor};">${currentScore}</div>
+            <div style="font-size:0.8rem;color:var(--text-sub);">Current Score</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="margin-bottom:16px;">
+          <div style="font-size:0.85rem;color:var(--text-sub);margin-bottom:4px;">Potential Score</div>
+          <div style="font-size:1.8rem;font-weight:700;color:var(--success);">${potentialScore}</div>
+        </div>
+        <div style="margin-bottom:16px;">
+          <div style="font-size:0.85rem;color:var(--text-sub);margin-bottom:4px;">Possible Gain</div>
+          <div style="font-size:1.5rem;font-weight:700;color:${gainColor};">+${possibleGain}</div>
+        </div>
+        <div style="font-size:0.8rem;color:var(--text-sub);">
+          ${overview?.recommendations_count || 0} issues found
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderQuickWins(recommendations) {
+  const el = document.getElementById('cc-quick-wins-content');
+  if (!el) return;
+  
+  if (!recommendations || !recommendations.recommendations) {
+    el.innerHTML = '<div class="text-center py-4" style="color:var(--text-sub);">No quick wins available.</div>';
+    return;
+  }
+  
+  // Filter for auto-fixable items and sort by impact
+  const quickWins = recommendations.recommendations
+    .filter(r => r.auto_fix_available)
+    .sort((a, b) => b.impact_score - a.impact_score)
+    .slice(0, 5);
+  
+  if (quickWins.length === 0) {
+    el.innerHTML = '<div class="text-center py-4" style="color:var(--success);"><i class="fa-solid fa-check-circle"></i> No quick wins needed!</div>';
+    return;
+  }
+  
+  let totalGain = 0;
+  let html = '<div style="display:flex;flex-direction:column;gap:10px;">';
+  
+  quickWins.forEach(w => {
+    const gain = Math.min(5, Math.ceil(w.impact_score / 2));
+    totalGain += gain;
+    const riskBadge = w.severity === 'critical' ? '<span class="badge badge-danger">REVIEW</span>' : 
+                      w.severity === 'high' ? '<span class="badge badge-warning">REVIEW</span>' : 
+                      '<span class="badge badge-success">SAFE</span>';
+    
+    html += `
+      <div class="glass-inner p-3" style="display:flex;align-items:center;gap:12px;border-left:3px solid var(--success);">
+        <div style="min-width:50px;text-align:center;">
+          <div style="font-size:1.2rem;font-weight:700;color:var(--success);">+${gain}</div>
+          <div style="font-size:0.65rem;color:var(--text-sub);">points</div>
+        </div>
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:0.9rem;">${escapeHtml(w.title)}</div>
+          <div style="font-size:0.75rem;color:var(--text-sub);">${escapeHtml(w.description).substring(0, 60)}...</div>
+        </div>
+        ${riskBadge}
+        <button class="btn btn-sm btn-primary" onclick="executeSmartFix('${w.auto_fix_action}', ${JSON.stringify(w.auto_fix_params || {})})">Fix</button>
+      </div>`;
+  });
+  
+  html += '</div>';
+  html += `<div class="glass-inner p-3 mt-3 text-center" style="border:1px solid var(--success);">
+    <div style="font-size:0.85rem;color:var(--text-sub);">Potential Gain</div>
+    <div style="font-size:1.5rem;font-weight:700;color:var(--success);">+${totalGain} points</div>
+  </div>`;
+  
+  el.innerHTML = html;
+}
+
+function renderPriorityQueue(recommendations) {
+  const el = document.getElementById('cc-priority-content');
+  if (!el) return;
+  
+  if (!recommendations || !recommendations.recommendations) {
+    el.innerHTML = '<div class="text-center py-4" style="color:var(--text-sub);">No issues to display.</div>';
+    return;
+  }
+  
+  // Sort by severity and impact
+  const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+  const sorted = [...recommendations.recommendations]
+    .sort((a, b) => (severityOrder[a.severity] || 4) - (severityOrder[b.severity] || 4) || b.impact_score - a.impact_score)
+    .slice(0, 8);
+  
+  if (sorted.length === 0) {
+    el.innerHTML = '<div class="text-center py-4" style="color:var(--success);"><i class="fa-solid fa-check-circle"></i> No issues found!</div>';
+    return;
+  }
+  
+  let html = '<div style="display:flex;flex-direction:column;gap:8px;">';
+  
+  sorted.forEach((item, idx) => {
+    const severityColor = item.severity === 'critical' ? 'var(--danger)' : 
+                         item.severity === 'high' ? 'var(--warning)' : 
+                         item.severity === 'medium' ? 'var(--primary)' : 'var(--text-sub)';
+    const severityIcon = item.severity === 'critical' ? 'fa-circle-exclamation' : 
+                        item.severity === 'high' ? 'fa-triangle-exclamation' : 'fa-info-circle';
+    
+    html += `
+      <div class="glass-inner p-3" style="display:flex;align-items:center;gap:12px;border-left:3px solid ${severityColor};">
+        <div style="min-width:30px;text-align:center;font-weight:700;color:${severityColor};">#${idx + 1}</div>
+        <div style="flex:1;">
+          <div style="font-weight:600;font-size:0.9rem;">${escapeHtml(item.title)}</div>
+          <div style="font-size:0.75rem;color:var(--text-sub);">${escapeHtml(item.description).substring(0, 80)}...</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:0.75rem;color:${severityColor};text-transform:uppercase;font-weight:600;">${item.severity}</div>
+          <div style="font-size:0.7rem;color:var(--text-sub);">Impact: ${item.impact_score}/10</div>
+        </div>
+        ${item.auto_fix_available ? `<button class="btn btn-sm btn-primary" onclick="executeSmartFix('${item.auto_fix_action}', ${JSON.stringify(item.auto_fix_params || {})})">Fix</button>` : ''}
+      </div>`;
+  });
+  
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function renderScoreTrends(overview) {
+  const el = document.getElementById('cc-trends-content');
+  if (!el) return;
+  
+  // Create a simple trend visualization
+  const dimensions = overview?.dimensions || {};
+  const dims = Object.entries(dimensions);
+  
+  if (dims.length === 0) {
+    el.innerHTML = '<div class="text-center py-4" style="color:var(--text-sub);">No trend data available.</div>';
+    return;
+  }
+  
+  let html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;">';
+  
+  dims.forEach(([key, score]) => {
+    const color = score >= 80 ? 'var(--success)' : score >= 60 ? 'var(--warning)' : 'var(--danger)';
+    const trend = score >= 70 ? 'fa-arrow-trend-up' : score >= 50 ? 'fa-minus' : 'fa-arrow-trend-down';
+    const trendColor = score >= 70 ? 'var(--success)' : score >= 50 ? 'var(--text-sub)' : 'var(--danger)';
+    const label = score >= 70 ? 'Improving' : score >= 50 ? 'Stable' : 'Declining';
+    
+    html += `
+      <div class="glass-inner p-3 text-center">
+        <div style="font-size:1.3rem;font-weight:700;color:${color};">${score}</div>
+        <div style="font-size:0.75rem;color:var(--text-sub);text-transform:capitalize;">${key.replace(/_/g, ' ')}</div>
+        <div style="margin-top:6px;">
+          <i class="fa-solid ${trend}" style="color:${trendColor};"></i>
+          <span style="font-size:0.7rem;color:${trendColor};margin-left:4px;">${label}</span>
+        </div>
+      </div>`;
+  });
+  
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function renderDimensionBreakdown(maturity) {
+  const el = document.getElementById('cc-dimensions-content');
+  if (!el) return;
+  
+  if (!maturity || !maturity.dimensions) {
+    el.innerHTML = '<div class="text-center py-4" style="color:var(--text-sub);">No dimension data available.</div>';
+    return;
+  }
+  
+  const dims = maturity.dimensions;
+  const dimEntries = Object.entries(dims);
+  
+  // Create radar chart using SVG
+  const centerX = 150;
+  const centerY = 150;
+  const maxRadius = 120;
+  const levels = 5;
+  const angleStep = (2 * Math.PI) / dimEntries.length;
+  
+  let svg = `<svg viewBox="0 0 300 300" style="width:100%;max-width:300px;margin:0 auto;">`;
+  
+  // Draw background circles
+  for (let i = 1; i <= levels; i++) {
+    const r = (maxRadius / levels) * i;
+    svg += `<circle cx="${centerX}" cy="${centerY}" r="${r}" fill="none" stroke="var(--card-border)" stroke-width="1" opacity="0.5"/>`;
+  }
+  
+  // Draw axis lines
+  dimEntries.forEach(([key], i) => {
+    const angle = angleStep * i - Math.PI / 2;
+    const x = centerX + maxRadius * Math.cos(angle);
+    const y = centerY + maxRadius * Math.sin(angle);
+    svg += `<line x1="${centerX}" y1="${centerY}" x2="${x}" y2="${y}" stroke="var(--card-border)" stroke-width="1" opacity="0.5"/>`;
+  });
+  
+  // Draw data polygon
+  let dataPoints = [];
+  dimEntries.forEach(([key, score], i) => {
+    const angle = angleStep * i - Math.PI / 2;
+    const r = (score / 100) * maxRadius;
+    const x = centerX + r * Math.cos(angle);
+    const y = centerY + r * Math.sin(angle);
+    dataPoints.push(`${x},${y}`);
+  });
+  
+  svg += `<polygon points="${dataPoints.join(' ')}" fill="var(--primary)" fill-opacity="0.2" stroke="var(--primary)" stroke-width="2"/>`;
+  
+  // Draw data points and labels
+  dimEntries.forEach(([key, score], i) => {
+    const angle = angleStep * i - Math.PI / 2;
+    const r = (score / 100) * maxRadius;
+    const x = centerX + r * Math.cos(angle);
+    const y = centerY + r * Math.sin(angle);
+    const labelX = centerX + (maxRadius + 20) * Math.cos(angle);
+    const labelY = centerY + (maxRadius + 20) * Math.sin(angle);
+    const color = score >= 80 ? 'var(--success)' : score >= 60 ? 'var(--warning)' : 'var(--danger)';
+    
+    svg += `<circle cx="${x}" cy="${y}" r="4" fill="${color}" stroke="var(--bg-primary)" stroke-width="2"/>`;
+    svg += `<text x="${labelX}" y="${labelY}" text-anchor="middle" dominant-baseline="middle" fill="var(--text-sub)" font-size="10">${key.replace(/_/g, ' ')}</text>`;
+    svg += `<text x="${labelX}" y="${labelY + 12}" text-anchor="middle" dominant-baseline="middle" fill="${color}" font-size="11" font-weight="bold">${score}</text>`;
+  });
+  
+  svg += '</svg>';
+  
+  let html = `<div style="display:flex;align-items:center;gap:30px;flex-wrap:wrap;">`;
+  html += `<div style="flex:1;min-width:250px;">${svg}</div>`;
+  html += `<div style="flex:1;min-width:200px;">`;
+  html += '<div style="display:flex;flex-direction:column;gap:8px;">';
+  
+  dimEntries.forEach(([key, score]) => {
+    const color = score >= 80 ? 'var(--success)' : score >= 60 ? 'var(--warning)' : 'var(--danger)';
+    html += `
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div style="width:10px;height:10px;border-radius:50%;background:${color};"></div>
+        <div style="flex:1;font-size:0.85rem;text-transform:capitalize;">${key.replace(/_/g, ' ')}</div>
+        <div style="font-weight:700;color:${color};">${score}</div>
+      </div>`;
+  });
+  
+  html += '</div></div></div>';
+  el.innerHTML = html;
+}
+
+function refreshCommandCenter() {
+  loadCommandCenter();
+}
+
+// ==========================================================================
+// Smart Recommendations
+// ==========================================================================
+async function loadSmartRecommendations() {
+  if (!activeGuildId) return;
+  const el = document.getElementById('recommendations-content');
+  if (!el) return;
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading recommendations...</div>';
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/smart/recommendations`, {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+
+    if (data.total === 0) {
+      el.innerHTML = '<div class="text-center py-4" style="color:var(--success);"><i class="fa-solid fa-check-circle"></i> No issues found! Your server is well configured.</div>';
+      return;
+    }
+
+    let html = `<div class="glass-inner p-3 mb-3" style="font-size:0.85rem;">Found <strong>${data.total}</strong> recommendations (${data.critical} critical, ${data.high} high, ${data.medium} medium)</div>`;
+    html += '<div style="display:flex;flex-direction:column;gap:10px;">';
+    data.recommendations.forEach((r, idx) => {
+      const severityColor = r.severity === 'critical' ? 'var(--danger)' : r.severity === 'high' ? 'var(--warning)' : 'var(--primary)';
+      const icon = r.severity === 'critical' ? 'fa-triangle-exclamation' : r.severity === 'high' ? 'fa-exclamation-circle' : 'fa-info-circle';
+      const paramsJson = btoa(unescape(encodeURIComponent(JSON.stringify(r.auto_fix_params || {}))));
+      html += `
+        <div class="glass-inner p-3" style="border-left:3px solid ${severityColor};">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+            <i class="fa-solid ${icon}" style="color:${severityColor};"></i>
+            <span style="font-weight:600;">${escapeHtml(r.title)}</span>
+            <span style="font-size:0.7rem;padding:2px 8px;border-radius:10px;background:${severityColor}22;color:${severityColor};">${r.severity}</span>
+            ${r.auto_fix_available ? '<button class="btn btn-sm btn-primary fix-btn" style="margin-left:auto;" data-action="' + r.auto_fix_action + '" data-params="' + paramsJson + '">Fix</button>' : ''}
+          </div>
+          <div style="font-size:0.85rem;color:var(--text-sub);">${escapeHtml(r.description)}</div>
+        </div>`;
+    });
+    html += '</div>';
+    el.innerHTML = html;
+    
+    // Add event delegation for fix buttons
+    el.querySelectorAll('.fix-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.getAttribute('data-action');
+        const paramsJson = btn.getAttribute('data-params');
+        let params = {};
+        try {
+          params = JSON.parse(decodeURIComponent(escape(atob(paramsJson))));
+        } catch (e) {}
+        executeSmartFix(action, params);
+      });
+    });
+  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to load recommendations.</div>'; }
+}
+
+// ==========================================================================
+// Config Doctor
+// ==========================================================================
+async function loadConfigDoctor() {
+  if (!activeGuildId) return;
+  const el = document.getElementById('config-doctor-content');
+  if (!el) return;
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Running diagnostics...</div>';
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/smart/config-doctor`, {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+
+    const overallColor = data.overall >= 80 ? 'var(--success)' : data.overall >= 60 ? 'var(--warning)' : 'var(--danger)';
+    let html = `
+      <div class="text-center mb-4">
+        <div style="font-size:3rem;font-weight:700;color:${overallColor};">${data.overall}</div>
+        <div style="font-size:0.9rem;color:var(--text-sub);">Overall Health Score</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;">`;
+    
+    const dims = data.dimensions || {};
+    Object.entries(dims).forEach(([key, dim]) => {
+      const color = dim.score >= 80 ? 'var(--success)' : dim.score >= 60 ? 'var(--warning)' : 'var(--danger)';
+      html += `
+        <div class="glass-inner p-3 text-center">
+          <div style="font-size:1.2rem;font-weight:700;color:${color};">${dim.score}</div>
+          <div style="font-size:0.8rem;color:var(--text-sub);text-transform:capitalize;">${key}</div>
+        </div>`;
+    });
+    html += '</div>';
+
+    // Findings
+    let findingsHtml = '<div class="mt-4"><h3 style="font-size:1rem;margin-bottom:10px;">Findings</h3>';
+    Object.entries(dims).forEach(([key, dim]) => {
+      if (dim.findings && dim.findings.length > 0) {
+        dim.findings.forEach(f => {
+          const icon = f.type === 'critical' ? 'fa-circle-exclamation' : f.type === 'warning' ? 'fa-triangle-exclamation' : 'fa-info-circle';
+          const color = f.type === 'critical' ? 'var(--danger)' : f.type === 'warning' ? 'var(--warning)' : 'var(--primary)';
+          findingsHtml += `<div class="glass-inner p-2 mb-2" style="font-size:0.85rem;"><i class="fa-solid ${icon}" style="color:${color};margin-right:8px;"></i>${escapeHtml(f.message)}</div>`;
+        });
+      }
+    });
+    findingsHtml += '</div>';
+    html += findingsHtml;
+    el.innerHTML = html;
+  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to run diagnostics.</div>'; }
+}
+
+// ==========================================================================
+// Permission Doctor
+// ==========================================================================
+async function loadPermissionDoctor() {
+  if (!activeGuildId) return;
+  const el = document.getElementById('permission-doctor-content');
+  if (!el) return;
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Analyzing permissions...</div>';
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/smart/permission-doctor`, {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+
+    let html = `
+      <div class="glass-inner p-3 mb-3" style="font-size:0.85rem;">
+        Analyzed <strong>${data.total_roles}</strong> roles: 
+        <span style="color:var(--danger);">${data.critical_count} critical</span>, 
+        <span style="color:var(--warning);">${data.warning_count} warnings</span>, 
+        <span style="color:var(--primary);">${data.info_count} info</span>
+      </div>`;
+
+    if (data.findings.length === 0) {
+      html += '<div class="text-center py-4" style="color:var(--success);"><i class="fa-solid fa-check-circle"></i> No permission issues found.</div>';
+    } else {
+      html += '<div style="display:flex;flex-direction:column;gap:8px;">';
+      data.findings.forEach(f => {
+        const color = f.severity === 'critical' ? 'var(--danger)' : f.severity === 'high' ? 'var(--warning)' : 'var(--primary)';
+        html += `
+          <div class="glass-inner p-3" style="border-left:3px solid ${color};">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <i class="fa-solid fa-shield-halved" style="color:${color};"></i>
+              <span style="font-weight:600;">${escapeHtml(f.role)}</span>
+              <span style="font-size:0.7rem;padding:2px 8px;border-radius:10px;background:${color}22;color:${color};">${f.severity}</span>
+            </div>
+            <div style="font-size:0.85rem;color:var(--text-sub);margin-top:4px;">${escapeHtml(f.message)}</div>
+          </div>`;
+      });
+      html += '</div>';
+    }
+    el.innerHTML = html;
+  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to analyze permissions.</div>'; }
+}
+
+// ==========================================================================
+// Raid Detector
+// ==========================================================================
+async function loadRaidDetector() {
+  if (!activeGuildId) return;
+  const el = document.getElementById('raid-detector-content');
+  if (!el) return;
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Analyzing join patterns...</div>';
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/smart/raid-detector`, {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+
+    const threatColor = data.threat_level === 'critical' ? 'var(--danger)' : data.threat_level === 'high' ? 'var(--warning)' : data.threat_level === 'medium' ? 'var(--primary)' : 'var(--success)';
+    const threatIcon = data.threat_level === 'critical' ? 'fa-skull-crossbones' : data.threat_level === 'high' ? 'fa-shield-virus' : data.threat_level === 'medium' ? 'fa-exclamation-triangle' : 'fa-check-circle';
+
+    let html = `
+      <div class="text-center mb-4">
+        <i class="fa-solid ${threatIcon}" style="font-size:3rem;color:${threatColor};"></i>
+        <div style="font-size:1.5rem;font-weight:700;color:${threatColor};text-transform:uppercase;margin-top:10px;">${data.threat_level} Threat</div>
+        <div style="font-size:0.85rem;color:var(--text-sub);">Confidence: ${Math.round(data.confidence * 100)}% | Recent Joins: ${data.recent_joins_count}</div>
+      </div>`;
+
+    if (data.indicators && data.indicators.length > 0) {
+      html += '<div style="display:flex;flex-direction:column;gap:8px;">';
+      data.indicators.forEach(ind => {
+        const color = ind.severity === 'high' ? 'var(--danger)' : 'var(--warning)';
+        html += `
+          <div class="glass-inner p-3" style="border-left:3px solid ${color};">
+            <div style="font-weight:600;"><i class="fa-solid fa-exclamation-circle" style="color:${color};margin-right:8px;"></i>${escapeHtml(ind.message)}</div>
+          </div>`;
+      });
+      html += '</div>';
+    }
+
+    if (data.suggested_actions && data.suggested_actions.length > 0) {
+      html += '<div class="mt-3"><div style="font-size:0.85rem;color:var(--text-sub);margin-bottom:8px;">Suggested Actions:</div>';
+      html += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+      data.suggested_actions.forEach(a => {
+        const paramsJson = btoa(unescape(encodeURIComponent(JSON.stringify(a.params || {}))));
+        html += `<button class="btn btn-sm btn-primary raid-fix-btn" data-action="${a.action}" data-params="${paramsJson}">${escapeHtml(a.label)}</button>`;
+      });
+      html += '</div></div>';
+    }
+    el.innerHTML = html;
+    
+    // Add event delegation for raid fix buttons
+    el.querySelectorAll('.raid-fix-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.getAttribute('data-action');
+        const paramsJson = btn.getAttribute('data-params');
+        let params = {};
+        try {
+          params = JSON.parse(decodeURIComponent(escape(atob(paramsJson))));
+        } catch (e) {}
+        executeSmartFix(action, params);
+      });
+    });
+  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to analyze raid patterns.</div>'; }
+}
+
+// ==========================================================================
+// Role Cleaner
+// ==========================================================================
+async function loadRoleCleaner() {
+  if (!activeGuildId) return;
+  const el = document.getElementById('role-cleaner-content');
+  if (!el) return;
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Analyzing roles...</div>';
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/smart/role-cleaner`, {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+
+    let html = `<div class="glass-inner p-3 mb-3" style="font-size:0.85rem;">Found <strong>${data.total_suggestions}</strong> cleanup suggestions</div>`;
+
+    if (data.unused && data.unused.length > 0) {
+      html += '<h3 style="font-size:1rem;margin:12px 0 8px;">Unused Roles</h3>';
+      html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+      data.unused.forEach(r => {
+        html += `<div class="glass-inner p-2" style="font-size:0.85rem;"><i class="fa-solid fa-user-slash" style="color:var(--warning);margin-right:8px;"></i>${escapeHtml(r.name)} <span style="color:var(--text-sub);">(0 members)</span></div>`;
+      });
+      html += '</div>';
+    }
+
+    if (data.duplicates && data.duplicates.length > 0) {
+      html += '<h3 style="font-size:1rem;margin:12px 0 8px;">Duplicate Roles</h3>';
+      html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+      data.duplicates.forEach(d => {
+        html += `<div class="glass-inner p-2" style="font-size:0.85rem;"><i class="fa-solid fa-copy" style="color:var(--warning);margin-right:8px;"></i>${d.names.join(' & ')}</div>`;
+      });
+      html += '</div>';
+    }
+
+    if (data.total_suggestions === 0) {
+      html += '<div class="text-center py-4" style="color:var(--success);"><i class="fa-solid fa-check-circle"></i> No role cleanup needed.</div>';
+    }
+    el.innerHTML = html;
+  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to analyze roles.</div>'; }
+}
+
+// ==========================================================================
+// Channel Cleaner
+// ==========================================================================
+async function loadChannelCleaner() {
+  if (!activeGuildId) return;
+  const el = document.getElementById('channel-cleaner-content');
+  if (!el) return;
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Analyzing channels...</div>';
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/smart/channel-cleaner`, {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+
+    let html = `<div class="glass-inner p-3 mb-3" style="font-size:0.85rem;">Found <strong>${data.total_suggestions}</strong> cleanup suggestions</div>`;
+
+    if (data.dead && data.dead.length > 0) {
+      html += '<h3 style="font-size:1rem;margin:12px 0 8px;">Dead Channels (No Activity 30+ Days)</h3>';
+      html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+      data.dead.forEach(ch => {
+        html += `<div class="glass-inner p-2" style="font-size:0.85rem;"><i class="fa-solid fa-clock" style="color:var(--warning);margin-right:8px;"></i>#${escapeHtml(ch.name)} <span style="color:var(--text-sub);">(${ch.days_inactive} days inactive)</span></div>`;
+      });
+      html += '</div>';
+    }
+
+    if (data.duplicates && data.duplicates.length > 0) {
+      html += '<h3 style="font-size:1rem;margin:12px 0 8px;">Duplicate Channels</h3>';
+      html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+      data.duplicates.forEach(d => {
+        html += `<div class="glass-inner p-2" style="font-size:0.85rem;"><i class="fa-solid fa-copy" style="color:var(--warning);margin-right:8px;"></i>${d.names.map(n => '#' + n).join(' & ')}</div>`;
+      });
+      html += '</div>';
+    }
+
+    if (data.total_suggestions === 0) {
+      html += '<div class="text-center py-4" style="color:var(--success);"><i class="fa-solid fa-check-circle"></i> No channel cleanup needed.</div>';
+    }
+    el.innerHTML = html;
+  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to analyze channels.</div>'; }
+}
+
+// ==========================================================================
+// Backup Advisor
+// ==========================================================================
+async function loadBackupAdvisor() {
+  if (!activeGuildId) return;
+  const el = document.getElementById('backup-advisor-content');
+  if (!el) return;
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Checking backup status...</div>';
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/smart/backup-advisor`, {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+
+    const protectionColor = data.protection_score >= 80 ? 'var(--success)' : data.protection_score >= 50 ? 'var(--warning)' : 'var(--danger)';
+    let html = `
+      <div class="text-center mb-4">
+        <div style="font-size:3rem;font-weight:700;color:${protectionColor};">${data.protection_score}%</div>
+        <div style="font-size:0.9rem;color:var(--text-sub);">Backup Protection Score</div>
+      </div>`;
+
+    if (data.last_backup) {
+      html += `<div class="glass-inner p-3 mb-3" style="font-size:0.85rem;">Last Backup: <strong>${data.last_backup}</strong></div>`;
+    }
+
+    if (data.findings && data.findings.length > 0) {
+      html += '<div style="display:flex;flex-direction:column;gap:8px;">';
+      data.findings.forEach(f => {
+        const color = f.type === 'critical' ? 'var(--danger)' : 'var(--warning)';
+        const paramsJson = btoa(unescape(encodeURIComponent(JSON.stringify(f.auto_fix_params || {}))));
+        html += `
+          <div class="glass-inner p-3" style="border-left:3px solid ${color};">
+            <div style="font-weight:600;"><i class="fa-solid fa-cloud-arrow-up" style="color:${color};margin-right:8px;"></i>${escapeHtml(f.title)}</div>
+            <div style="font-size:0.85rem;color:var(--text-sub);margin-top:4px;">${escapeHtml(f.description)}</div>
+            ${f.auto_fix ? '<button class="btn btn-sm btn-primary mt-2 backup-fix-btn" data-action="' + f.fix_action + '" data-params="' + paramsJson + '">Create Backup Now</button>' : ''}
+          </div>`;
+      });
+      html += '</div>';
+    } else {
+      html += '<div class="text-center py-4" style="color:var(--success);"><i class="fa-solid fa-check-circle"></i> Backups are up to date.</div>';
+    }
+    el.innerHTML = html;
+    
+    // Add event delegation for backup fix buttons
+    el.querySelectorAll('.backup-fix-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.getAttribute('data-action');
+        const paramsJson = btn.getAttribute('data-params');
+        let params = {};
+        try {
+          params = JSON.parse(decodeURIComponent(escape(atob(paramsJson))));
+        } catch (e) {}
+        executeSmartFix(action, params);
+      });
+    });
+  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to check backup status.</div>'; }
+}
+
+// ==========================================================================
+// Maturity Score
+// ==========================================================================
+async function loadMaturityScore() {
+  if (!activeGuildId) return;
+  const el = document.getElementById('maturity-content');
+  if (!el) return;
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Computing maturity score...</div>';
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/smart/maturity-score`, {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+
+    const overallColor = data.overall >= 80 ? 'var(--success)' : data.overall >= 60 ? 'var(--warning)' : 'var(--danger)';
+    let html = `
+      <div class="text-center mb-4">
+        <div style="font-size:3rem;font-weight:700;color:${overallColor};">${data.overall}</div>
+        <div style="font-size:0.9rem;color:var(--text-sub);">Server Maturity Score</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;">`;
+
+    const dims = data.dimensions || {};
+    Object.entries(dims).forEach(([key, score]) => {
+      const color = score >= 80 ? 'var(--success)' : score >= 60 ? 'var(--warning)' : 'var(--danger)';
+      html += `
+        <div class="glass-inner p-3 text-center">
+          <div style="font-size:1.2rem;font-weight:700;color:${color};">${score}</div>
+          <div style="font-size:0.75rem;color:var(--text-sub);text-transform:capitalize;">${key.replace(/_/g, ' ')}</div>
+        </div>`;
+    });
+    html += '</div>';
+
+    if (data.recommendations && data.recommendations.length > 0) {
+      html += '<div class="mt-4"><h3 style="font-size:1rem;margin-bottom:10px;">Improvement Opportunities</h3>';
+      html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+      data.recommendations.forEach(r => {
+        html += `<div class="glass-inner p-2" style="font-size:0.85rem;"><i class="fa-solid fa-arrow-up" style="color:var(--primary);margin-right:8px;"></i>${escapeHtml(r.message)}</div>`;
+      });
+      html += '</div></div>';
+    }
+    el.innerHTML = html;
+  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to compute maturity score.</div>'; }
+}
+
+// ==========================================================================
+// Auto Fix Executor
+// ==========================================================================
+async function executeSmartFix(action, params = {}) {
+  if (!activeGuildId) return;
+  try {
+    showToast('Executing fix...', 'info');
+    const res = await fetch(`/api/guilds/${activeGuildId}/smart/fix`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+      body: JSON.stringify({ action, params }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.details, 'success');
+      // Reload the current sub-tab
+      const activeSub = document.querySelector('#tab-smart .sub-tab-btn.active')?.getAttribute('data-sub-tab');
+      if (activeSub === 'recommendations-sub') loadSmartRecommendations();
+      else if (activeSub === 'backup-advisor-sub') loadBackupAdvisor();
+    } else {
+      showToast('Fix failed: ' + data.details, 'error');
+    }
+  } catch (err) {
+    showToast('Failed to execute fix', 'error');
+  }
+}
+
+// ==========================================================================
+// Growth Recommendations (enhanced growth center)
+// ==========================================================================
+async function loadGrowthRecommendations() {
+  if (!activeGuildId) return;
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/growth-recommendations`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const el = document.getElementById('growth-recommendations');
+    if (!el || !data.recommendations.length) return;
+
+    el.innerHTML = '<h3 style="margin-bottom:10px;"><i class="fa-solid fa-lightbulb"></i> Recommendations</h3>' +
+      data.recommendations.map(r => {
+        const color = r.type === 'warning' ? 'var(--warning)' : r.type === 'success' ? 'var(--success)' : 'var(--primary)';
+        return `<div class="glass-inner p-3 mb-2" style="border-left:3px solid ${color};">
+          <div style="font-weight:600;font-size:0.9rem;">${escapeHtml(r.title)}</div>
+          <div style="font-size:0.82rem;color:var(--text-sub);margin-top:2px;">${escapeHtml(r.description)}</div>
+          <div style="font-size:0.75rem;color:${color};margin-top:4px;">Impact: ${escapeHtml(r.impact)}</div>
+        </div>`;
+      }).join('');
+  } catch (err) {}
+}
+
+// ==========================================================================
+// Enhanced Ticket SLA (add to existing ticket intel)
+// ==========================================================================
+async function loadTicketIntelligence() {
+  if (!activeGuildId) return;
+  const el = document.getElementById('ticket-intel-content');
+  if (!el) return;
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
+  try {
+    const [ticketRes, slaRes] = await Promise.all([
+      fetch(`/api/guilds/${activeGuildId}/ticket-intelligence`),
+      fetch(`/api/guilds/${activeGuildId}/ticket-sla`),
+    ]);
+    const data = await ticketRes.json();
+    const sla = slaRes.ok ? await slaRes.json() : {};
+
+    let html = `
+      <div style="display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap;">
+        <div class="glass-inner p-3 text-center" style="flex:1;min-width:80px;">
+          <div style="font-size:1.5rem;font-weight:700;color:var(--primary);">${data.total_tickets}</div>
+          <div style="font-size:0.75rem;color:var(--text-sub);">Total</div>
+        </div>
+        <div class="glass-inner p-3 text-center" style="flex:1;min-width:80px;">
+          <div style="font-size:1.5rem;font-weight:700;color:var(--success);">${data.opened}</div>
+          <div style="font-size:0.75rem;color:var(--text-sub);">Opened</div>
+        </div>
+        <div class="glass-inner p-3 text-center" style="flex:1;min-width:80px;">
+          <div style="font-size:1.5rem;font-weight:700;color:var(--warning);">${data.closed}</div>
+          <div style="font-size:0.75rem;color:var(--text-sub);">Closed</div>
+        </div>
+        <div class="glass-inner p-3 text-center" style="flex:1;min-width:80px;">
+          <div style="font-size:1.5rem;font-weight:700;color:var(--primary);">${sla.avg_resolution_hours || 0}h</div>
+          <div style="font-size:0.75rem;color:var(--text-sub);">Avg Resolution</div>
+        </div>
+      </div>`;
+
+    if (sla.staff && sla.staff.length > 0) {
+      html += '<h3 style="margin-bottom:10px;">Staff Performance</h3>';
+      sla.staff.forEach((s, i) => {
+        html += `<div class="glass-inner p-3 mb-2" style="display:flex;align-items:center;gap:12px;">
+          <span style="font-weight:600;width:24px;">#${i + 1}</span>
+          <span style="flex:1;">${escapeHtml(s.user_id)}</span>
+          <span style="font-size:0.85rem;">${s.resolved} resolved</span>
+        </div>`;
+      });
+    }
+    el.innerHTML = html;
+  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to load ticket intelligence.</div>'; }
+}
+
+// ==========================================================================
+// Enhanced Growth Center with Recommendations
+// ==========================================================================
+async function loadGrowthCenter() {
+  if (!activeGuildId) return;
+  const el = document.getElementById('growth-content');
+  if (!el) return;
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
+  try {
+    const [growthRes, retRes] = await Promise.all([
+      fetch(`/api/guilds/${activeGuildId}/growth-center`),
+      fetch(`/api/guilds/${activeGuildId}/retention`),
+    ]);
+
+    const data = await growthRes.json();
+    const ret = retRes.ok ? await retRes.json() : {};
+    const growthColor = data.net_growth >= 0 ? 'var(--success)' : 'var(--danger)';
+
+    let html = `
+      <div style="display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap;">
+        <div class="glass-inner p-3 text-center" style="flex:1;min-width:100px;">
+          <div style="font-size:1.5rem;font-weight:700;color:var(--success);">${data.total_joins}</div>
+          <div style="font-size:0.75rem;color:var(--text-sub);">Joins</div>
+        </div>
+        <div class="glass-inner p-3 text-center" style="flex:1;min-width:100px;">
+          <div style="font-size:1.5rem;font-weight:700;color:var(--danger);">${data.total_leaves}</div>
+          <div style="font-size:0.75rem;color:var(--text-sub);">Leaves</div>
+        </div>
+        <div class="glass-inner p-3 text-center" style="flex:1;min-width:100px;">
+          <div style="font-size:1.5rem;font-weight:700;color:${growthColor};">${data.net_growth >= 0 ? '+' : ''}${data.net_growth}</div>
+          <div style="font-size:0.75rem;color:var(--text-sub);">Net Growth</div>
+        </div>
+        <div class="glass-inner p-3 text-center" style="flex:1;min-width:100px;">
+          <div style="font-size:1.5rem;font-weight:700;color:var(--primary);">${data.avg_active_users}</div>
+          <div style="font-size:0.75rem;color:var(--text-sub);">Avg Active</div>
+        </div>
+      </div>`;
+
+    // Retention cards
+    if (ret.retention_1d !== undefined) {
+      html += '<h3 style="margin-bottom:10px;"><i class="fa-solid fa-user-clock"></i> Retention Rate</h3>';
+      html += '<div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;">';
+      [{ k: '1d', label: '1 Day', val: ret.retention_1d }, { k: '7d', label: '7 Day', val: ret.retention_7d }, { k: '30d', label: '30 Day', val: ret.retention_30d }].forEach(r => {
+        const c = r.val >= 80 ? 'var(--success)' : r.val >= 50 ? 'var(--warning)' : 'var(--danger)';
+        html += `<div class="glass-inner p-3 text-center" style="flex:1;min-width:100px;">
+          <div style="font-size:1.5rem;font-weight:700;color:${c};">${r.val}%</div>
+          <div style="font-size:0.75rem;color:var(--text-sub);">${r.label} Retention</div>
+        </div>`;
+      });
+      html += '</div>';
+    }
+
+    if (data.daily.length > 0) {
+      html += '<h3 style="margin-bottom:10px;">Daily Trend</h3>';
+      html += '<div style="overflow-x:auto;">';
+      html += '<table class="premium-table" style="width:100%;font-size:0.82rem;"><thead><tr><th>Date</th><th>Joins</th><th>Leaves</th><th>Active</th></tr></thead><tbody>';
+      data.daily.slice(-14).reverse().forEach(d => {
+        html += `<tr><td>${d.date}</td><td style="color:var(--success);">+${d.joins}</td><td style="color:var(--danger);">-${d.leaves}</td><td>${d.active_users}</td></tr>`;
+      });
+      html += '</tbody></table></div>';
+    }
+
+    html += '<div id="growth-recommendations"></div>';
+    el.innerHTML = html;
+    loadGrowthRecommendations();
+  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to load growth center.</div>'; }
+}
+
+// ==========================================================================
+// Bulk Role Actions
+// ==========================================================================
+function updateBulkDeleteBtn(selected) {
+  const btn = document.getElementById('btn-bulk-delete');
+  const count = document.getElementById('bulk-count');
+  if (!btn || !count) return;
+  if (selected.size > 0) {
+    btn.style.display = 'inline-flex';
+    count.textContent = selected.size;
+  } else {
+    btn.style.display = 'none';
+  }
+}
+
+async function bulkDeleteSelected() {
+  const checks = document.querySelectorAll('.role-bulk-check:checked');
+  const ids = Array.from(checks).map(cb => cb.getAttribute('data-role-id'));
+  if (ids.length === 0) return;
+  const ok = confirm(`Delete ${ids.length} role(s)? This cannot be undone.`);
+  if (!ok) return;
+  try {
+    showToast(`Deleting ${ids.length} roles...`, 'info');
+    const res = await fetch(`/api/guilds/${activeGuildId}/roles/bulk-delete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role_ids: ids }),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      showToast(`Deleted ${data.deleted} role(s).`, 'success');
+      if (data.errors.length > 0) showToast(data.errors[0], 'warning');
+      loadServerRoles();
+    } else {
+      showToast('Bulk delete failed.', 'error');
+    }
+  } catch (err) { showToast('Network error.', 'error'); }
+}
+
+// ==========================================================================
+// Role Dependencies
+// ==========================================================================
+async function loadRoleDependencies() {
+  if (!activeGuildId) return;
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/roles/dependencies`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const warning = document.getElementById('role-deps-warning');
+    const list = document.getElementById('role-deps-list');
+    if (!warning || !list) return;
+
+    if (data.dependencies.length > 0) {
+      warning.classList.remove('hidden');
+      list.innerHTML = data.dependencies.map(d =>
+        `<div style="margin-top:4px;"><strong>${escapeHtml(d.role_name)}</strong> is used by: ${d.used_by.map(u => `<span style="padding:1px 6px;border-radius:4px;background:rgba(239,68,68,0.1);font-size:0.78rem;">${escapeHtml(u)}</span>`).join(' ')}</div>`
+      ).join('');
+    } else {
+      warning.classList.add('hidden');
+    }
+  } catch (err) {}
+}
+
+// ==========================================================================
+// Role Export / Import
+// ==========================================================================
+async function exportRoles() {
+  if (!activeGuildId) return;
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/roles/export`);
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `roles_${data.guild_name.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Roles exported.', 'success');
+  } catch (err) { showToast('Export failed.', 'error'); }
+}
+
+async function importRoles(event) {
+  const file = event.target.files[0];
+  if (!file || !activeGuildId) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if (!data.roles || !Array.isArray(data.roles)) {
+      showToast('Invalid role export file.', 'error');
+      return;
+    }
+    const ok = confirm(`Import ${data.roles.length} role(s)?`);
+    if (!ok) return;
+    showToast(`Importing ${data.roles.length} roles...`, 'info');
+    const res = await fetch(`/api/guilds/${activeGuildId}/roles/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roles: data.roles }),
+    });
+    if (res.ok) {
+      const result = await res.json();
+      showToast(`Imported ${result.created} role(s).`, 'success');
+      loadServerRoles();
+    } else {
+      showToast('Import failed.', 'error');
+    }
+  } catch (err) { showToast('Invalid JSON file.', 'error'); }
+  event.target.value = '';
+}
+
+// ==========================================================================
+// Permission Simulator
+// ==========================================================================
+const SIM_PERMS = {
+  view_channel: { label: 'View Channels', category: 'General' },
+  send_messages: { label: 'Send Messages', category: 'General' },
+  embed_links: { label: 'Embed Links', category: 'General' },
+  attach_files: { label: 'Attach Files', category: 'General' },
+  add_reactions: { label: 'Add Reactions', category: 'General' },
+  connect: { label: 'Connect to Voice', category: 'Voice' },
+  speak: { label: 'Speak', category: 'Voice' },
+  manage_messages: { label: 'Manage Messages', category: 'Moderation' },
+  moderate_members: { label: 'Timeout Members', category: 'Moderation' },
+  kick_members: { label: 'Kick Members', category: 'Moderation' },
+  ban_members: { label: 'Ban Members', category: 'Moderation' },
+  manage_roles: { label: 'Manage Roles', category: 'Admin' },
+  manage_channels: { label: 'Manage Channels', category: 'Admin' },
+  manage_guild: { label: 'Manage Server', category: 'Admin' },
+  administrator: { label: 'Administrator', category: 'Admin' },
+  view_audit_log: { label: 'View Audit Log', category: 'Admin' },
+  manage_webhooks: { label: 'Manage Webhooks', category: 'Admin' },
+};
+
+function openPermSimulator() {
+  const sel = document.getElementById('sim-role-select');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Choose a role...</option>';
+  serverRoles.forEach(r => { sel.innerHTML += `<option value="${r.id}">${r.name}</option>`; });
+  document.getElementById('sim-results').innerHTML = '<div class="text-center py-3" style="color:var(--text-sub);">Select a role to simulate.</div>';
+  openModal('perm-simulator-modal');
+}
+
+function runPermSimulation() {
+  const roleId = document.getElementById('sim-role-select').value;
+  const el = document.getElementById('sim-results');
+  if (!roleId || !el) { el.innerHTML = '<div class="text-center py-3" style="color:var(--text-sub);">Select a role.</div>'; return; }
+
+  const role = serverRoles.find(r => r.id === roleId);
+  if (!role) return;
+
+  const perms = BigInt(role.permissions || 0);
+  const can = [];
+  const cannot = [];
+
+  for (const [key, info] of Object.entries(SIM_PERMS)) {
+    const flag = DISCORD_PERMS[key];
+    if (flag && (perms & BigInt(flag))) {
+      can.push(info.label);
+    } else {
+      cannot.push(info.label);
+    }
+  }
+
+  let html = `<div style="font-weight:600;margin-bottom:8px;">Simulating: <span style="color:${role.color};">${escapeHtml(role.name)}</span></div>`;
+  if (can.length > 0) {
+    html += '<div style="margin-bottom:8px;"><span style="font-size:0.8rem;font-weight:600;color:var(--success);">CAN:</span></div>';
+    html += can.map(p => `<div style="padding:3px 8px;font-size:0.82rem;color:var(--success);">✓ ${p}</div>`).join('');
+  }
+  if (cannot.length > 0) {
+    html += '<div style="margin:8px 0;"><span style="font-size:0.8rem;font-weight:600;color:var(--danger);">CANNOT:</span></div>';
+    html += cannot.map(p => `<div style="padding:3px 8px;font-size:0.82rem;color:var(--danger);">✗ ${p}</div>`).join('');
+  }
+  el.innerHTML = html;
+}
+
+// ==========================================================================
+// Role Health Score (shown in analytics bar)
+// ==========================================================================
+function computeRoleHealth(role) {
+  let score = 100;
+  const issues = [];
+  const perms = BigInt(role.permissions || 0);
+
+  // No members
+  if (role.member_count === 0) {
+    score -= 20;
+    issues.push('No members assigned');
+  }
+
+  // Administrator permission
+  if (perms & BigInt(0x0000000008000000)) {
+    score -= 30;
+    issues.push('Has Administrator permission');
+  }
+
+  // Manage Roles without being admin
+  if ((perms & BigInt(0x0000002000)) && !(perms & BigInt(0x0000000008000000))) {
+    score -= 10;
+    issues.push('Can manage roles');
+  }
+
+  // Default color
+  if (role.color === '#99AAB5' || role.color === '#000000') {
+    score -= 5;
+    issues.push('Uses default color');
+  }
+
+  return { score: Math.max(0, score), issues };
 }

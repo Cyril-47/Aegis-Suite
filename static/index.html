@@ -14,20 +14,26 @@
   <link rel="stylesheet" href="/static/responsive.css">
   <!-- FontAwesome Icons (local for offline support) -->
   <link rel="stylesheet" href="/static/css/all.min.css">
+  <!-- Preload critical assets -->
+  <link rel="preload" href="/static/bot_logo.png" as="image">
+  <link rel="preload" href="/static/css/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/static/css/fonts/outfit-latin.woff2" as="font" type="font/woff2" crossorigin>
 </head>
 <body>
+  <!-- Skip Navigation Link for Accessibility -->
+  <a href="#main-content" class="skip-link" style="position: absolute; left: -9999px; top: auto; width: 1px; height: 1px; overflow: hidden; z-index: 999999;">Skip to main content</a>
 
   <!-- Background Aurora Glows -->
   <div class="glow-aurora glow-indigo"></div>
   <div class="glow-aurora glow-emerald"></div>
 
   <!-- AUTH SETUP OVERLAY -->
-  <div id="auth-setup-overlay" class="wizard-container hidden">
+  <div id="auth-setup-overlay" class="wizard-container hidden" role="dialog" aria-modal="true" aria-labelledby="auth-setup-title">
     <div class="wizard-box glass">
       <div class="wizard-header">
         <div class="logo-area">
           <i class="fa-solid fa-user-lock bot-logo"></i>
-          <h1>Set Admin Password</h1>
+          <h1 id="auth-setup-title">Set Admin Password</h1>
         </div>
         <p>Set a secure password to protect your server optimization dashboard from unauthorized access.</p>
       </div>
@@ -37,7 +43,7 @@
             <label for="setup-password">Admin Password <span class="required">*</span></label>
             <div class="password-wrapper">
               <input type="password" id="setup-password" placeholder="Min. 6 characters..." required>
-              <button type="button" class="btn-toggle-pass" onclick="togglePasswordVisibility('setup-password')">
+              <button type="button" class="btn-toggle-pass" data-toggle-password="setup-password" aria-label="Toggle password visibility">
                 <i class="fa-solid fa-eye"></i>
               </button>
             </div>
@@ -46,7 +52,7 @@
             <label for="setup-confirm-password">Confirm Password <span class="required">*</span></label>
             <div class="password-wrapper">
               <input type="password" id="setup-confirm-password" placeholder="Confirm password..." required>
-              <button type="button" class="btn-toggle-pass" onclick="togglePasswordVisibility('setup-confirm-password')">
+              <button type="button" class="btn-toggle-pass" data-toggle-password="setup-confirm-password" aria-label="Toggle password visibility">
                 <i class="fa-solid fa-eye"></i>
               </button>
             </div>
@@ -60,7 +66,7 @@
   </div>
 
   <!-- AUTH LOGIN OVERLAY -->
-  <div id="auth-login-overlay" class="wizard-container hidden">
+  <div id="auth-login-overlay" class="wizard-container hidden" role="dialog" aria-modal="true" aria-labelledby="auth-login-title">
     <div class="wizard-box glass">
       <div class="wizard-header">
         <div class="logo-area">
@@ -75,7 +81,7 @@
             <label for="login-password">Connection Code or Password <span class="required">*</span></label>
             <div class="password-wrapper">
               <input type="password" id="login-password" placeholder="Enter server code or password..." required style="text-transform: uppercase;">
-              <button type="button" class="btn-toggle-pass" onclick="togglePasswordVisibility('login-password')">
+              <button type="button" class="btn-toggle-pass" data-toggle-password="login-password" aria-label="Toggle password visibility">
                 <i class="fa-solid fa-eye"></i>
               </button>
             </div>
@@ -121,7 +127,7 @@
   </div>
 
   <!-- OFFLINE NOTICE (Visible when bot is offline) -->
-  <div id="offline-notice-overlay" class="wizard-container hidden">
+  <div id="offline-notice-overlay" class="wizard-container hidden" role="dialog" aria-modal="true" aria-labelledby="offline-notice-title">
     <div class="wizard-box glass text-center">
       <div class="wizard-header" style="text-align: center; display: flex; flex-direction: column; align-items: center;">
         <div class="logo-area" style="display: flex; flex-direction: column; align-items: center; justify-content: center;">
@@ -134,7 +140,7 @@
   </div>
 
   <!-- HOSTING MODE SELECTOR (First-launch chooser) -->
-  <div id="hosting-mode-selector-overlay" class="wizard-container hidden">
+  <div id="hosting-mode-selector-overlay" class="wizard-container hidden" role="dialog" aria-modal="true" aria-labelledby="hosting-mode-title">
     <div class="wizard-box glass">
       <div class="wizard-header">
         <div class="logo-area">
@@ -162,16 +168,17 @@
         <button type="button" id="hosting-mode-selector-cancel" class="btn btn-secondary mt-2 w-100 hidden">
           <i class="fa-solid fa-xmark"></i> Cancel
         </button>
+        <div id="hosting-mode-selector-error" class="hidden mt-3 p-3 text-center" style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; color: var(--danger); font-size: 0.85rem;" role="alert"></div>
       </div>
     </div>
   </div>
 
   <!-- IMPORT TEMPLATE JSON MODAL -->
-  <div id="template-import-overlay" class="wizard-container hidden" style="z-index: 10000; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);">
+  <div id="template-import-overlay" class="wizard-container hidden" role="dialog" aria-modal="true" aria-labelledby="template-import-title" style="z-index: 10000; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);">
     <div class="wizard-box glass" style="max-width: 600px; width: 90%; padding: 25px; border-radius: 16px;">
       <div class="flex-between border-bottom pb-2 mb-3" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 10px; margin-bottom: 15px;">
         <h2 style="font-size: 1.3rem; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 8px; margin: 0;"><i class="fa-solid fa-file-import"></i> Paste Template JSON</h2>
-        <button type="button" onclick="closeImportTemplateModal();" style="background: none; border: none; color: var(--text-sub); font-size: 1.8rem; cursor: pointer; line-height: 1; padding: 0;">&times;</button>
+        <button type="button" data-close-modal="template-import-overlay" aria-label="Close modal" style="background: none; border: none; color: var(--text-sub); font-size: 1.8rem; cursor: pointer; line-height: 1; padding: 0;">&times;</button>
       </div>
       <div class="input-group">
         <label for="template-import-name" style="font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; display: block;">Template Name <span class="required">*</span></label>
@@ -182,18 +189,18 @@
         <textarea id="template-import-json" placeholder='{ "roles": [...], "categories": [...] }' class="glass-input" rows="8" style="font-family: monospace; font-size: 0.85rem; resize: vertical; padding: 10px; width: 100%; border-radius: 8px;"></textarea>
       </div>
       <div class="flex-end mt-4" style="display: flex; justify-content: flex-end; gap: 10px;">
-        <button type="button" class="btn btn-secondary" onclick="closeImportTemplateModal();" style="border-radius: 8px;">Cancel</button>
+        <button type="button" class="btn btn-secondary" data-close-modal="template-import-overlay" style="border-radius: 8px;">Cancel</button>
         <button type="button" id="btn-submit-import-json" class="btn btn-primary btn-glow" style="border-radius: 8px;">Import Template</button>
       </div>
     </div>
   </div>
 
   <!-- RESTORE BACKUP MODAL -->
-  <div id="restore-backup-overlay" class="wizard-container hidden" style="z-index: 10000; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);">
+  <div id="restore-backup-overlay" class="wizard-container hidden" role="dialog" aria-modal="true" aria-labelledby="restore-backup-title" style="z-index: 10000; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);">
     <div class="wizard-box glass" style="max-width: 500px; width: 90%; padding: 25px; border-radius: 16px;">
       <div class="flex-between border-bottom pb-2 mb-3" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 10px; margin-bottom: 15px;">
         <h2 style="font-size: 1.3rem; font-weight: 700; color: var(--success); display: flex; align-items: center; gap: 8px; margin: 0;"><i class="fa-solid fa-clock-rotate-left"></i> Restore Server Backup</h2>
-        <button type="button" onclick="document.getElementById('restore-backup-overlay').classList.add('hidden');" style="background: none; border: none; color: var(--text-sub); font-size: 1.8rem; cursor: pointer; line-height: 1; padding: 0;">&times;</button>
+        <button type="button" data-close-modal="restore-backup-overlay" aria-label="Close modal" style="background: none; border: none; color: var(--text-sub); font-size: 1.8rem; cursor: pointer; line-height: 1; padding: 0;">&times;</button>
       </div>
       <p style="font-size: 0.9rem; color: var(--text-sub); margin-bottom: 20px;">Select a previously saved backup to restore your server's layout.</p>
       <div class="input-group mb-4">
@@ -203,14 +210,14 @@
         </select>
       </div>
       <div class="flex-between" style="display: flex; justify-content: space-between; gap: 15px;">
-        <button type="button" class="btn btn-secondary w-50" onclick="document.getElementById('restore-backup-overlay').classList.add('hidden');" style="border-radius: 8px;">Cancel</button>
+        <button type="button" class="btn btn-secondary w-50" data-close-modal="restore-backup-overlay" style="border-radius: 8px;">Cancel</button>
         <button type="button" id="btn-confirm-restore-backup" class="btn btn-success btn-glow w-50" style="border-radius: 8px;">Next &rarr;</button>
       </div>
     </div>
   </div>
 
   <!-- TEMPLATE PREVIEW & CUSTOMIZATION MODAL -->
-  <div id="template-preview-overlay" class="wizard-container hidden" style="z-index: 10000; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);">
+  <div id="template-preview-overlay" class="wizard-container hidden" role="dialog" aria-modal="true" aria-labelledby="preview-template-title" style="z-index: 10000; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);">
     <div class="wizard-box glass" style="max-width: 800px; width: 90%;">
       <div class="wizard-header">
         <div class="logo-area">
@@ -271,7 +278,7 @@
   </div>
 
   <!-- MAIN APP CONTAINER -->
-  <div id="main-app" class="app-layout">
+  <div id="main-content" class="app-layout">
     
     <!-- SIDEBAR -->
     <aside class="sidebar glass">
@@ -290,6 +297,9 @@
         <button class="nav-item" data-tab="tab-auditor">
           <i class="fa-solid fa-shield-halved"></i> Server Auditor
         </button>
+        <button class="nav-item" data-tab="tab-roles">
+          <i class="fa-solid fa-user-shield"></i> Role Management
+        </button>
         <button class="nav-item" data-tab="tab-smart">
           <i class="fa-solid fa-chart-line"></i> Smart Features
         </button>
@@ -299,20 +309,14 @@
         <button class="nav-item" data-tab="tab-tickets">
           <i class="fa-solid fa-ticket"></i> Support Tickets
         </button>
-        <button class="nav-item" data-tab="tab-roles">
-          <i class="fa-solid fa-user-shield"></i> Role Creator
-        </button>
-        <button class="nav-item" data-tab="tab-role-panels">
-          <i class="fa-solid fa-tags"></i> Role Panels
-        </button>
         <button class="nav-item" data-tab="tab-templates">
           <i class="fa-solid fa-layer-group"></i> Server Layouts & Templates
         </button>
         <button class="nav-item" data-tab="tab-welcome">
           <i class="fa-solid fa-door-open"></i> Welcome Setup
         </button>
-        <button class="nav-item" data-tab="tab-automod">
-          <i class="fa-solid fa-gavel"></i> Auto-Moderation
+        <button class="nav-item" data-tab="tab-automation">
+          <i class="fa-solid fa-gears"></i> Automation
         </button>
         <button class="nav-item" data-tab="tab-embed-builder">
           <i class="fa-solid fa-envelope-open-text"></i> Embed Builder Pro
@@ -320,17 +324,11 @@
         <button class="nav-item" data-tab="tab-music">
           <i class="fa-solid fa-music"></i> Music Player
         </button>
-        <button class="nav-item" data-tab="tab-scheduler">
-          <i class="fa-solid fa-clock"></i> Scheduler
-        </button>
         <button class="nav-item" data-tab="tab-giveaways">
           <i class="fa-solid fa-gift"></i> Giveaways
         </button>
         <button class="nav-item" data-tab="tab-leveling">
           <i class="fa-solid fa-trophy"></i> Leveling & XP
-        </button>
-        <button class="nav-item" data-tab="tab-auto-responder">
-          <i class="fa-solid fa-robot"></i> Auto-Responder
         </button>
         <button class="nav-item" data-tab="tab-audit-log">
           <i class="fa-solid fa-list-check"></i> Audit Log
@@ -341,6 +339,10 @@
       </nav>
 
       <div class="sidebar-footer-actions">
+        <select id="language-selector" class="sidebar-action-btn" title="Select Language" style="background: transparent; border: 1px solid var(--card-border); color: var(--text-sub); padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer;">
+          <option value="en">English</option>
+          <option value="es">Español</option>
+        </select>
         <button id="btn-theme-toggle" class="sidebar-action-btn" title="Toggle Theme">
           <i class="fa-solid fa-circle-half-stroke"></i> Theme
         </button>
@@ -351,7 +353,7 @@
 
       <div class="bot-badge-container">
         <div class="bot-badge glass-inner">
-          <img id="bot-avatar" src="/static/bot_logo.png" alt="Bot Avatar">
+          <img id="bot-avatar" src="/static/bot_logo.png" alt="Bot Avatar" width="48" height="48" loading="lazy">
           <div class="bot-badge-info">
             <h4 id="bot-username">Loading Bot...</h4>
             <span id="bot-status" class="status-offline">Offline</span>
@@ -401,6 +403,7 @@
       <div class="tab-content-container">
 
         <!-- TAB: OVERVIEW -->
+        <!-- TAB: COMMAND CENTER -->
         <section id="tab-overview" class="tab-pane active">
           <!-- Feature Availability Warning (visible only in local_pc mode) -->
           <div id="feature-availability-warning" class="feature-availability-warning hidden">
@@ -479,7 +482,7 @@
               </div>
               <div class="card-body bot-details-grid">
                 <div class="bot-visual">
-                  <img id="bot-overview-avatar" src="/static/bot_logo.png" alt="Bot Avatar" class="large-avatar">
+                  <img id="bot-overview-avatar" src="/static/bot_logo.png" alt="Bot Avatar" class="large-avatar" width="64" height="64" loading="lazy">
                   <div class="bot-ping-status">
                     <span class="status-indicator"></span>
                     <span id="bot-overview-status-text">DISCONNECTED</span>
@@ -542,7 +545,7 @@
             <div id="active-server-card" class="card glass span-4 hidden">
               <div class="card-header border-bottom">
                 <div class="guild-header-details">
-                  <img id="active-guild-icon" src="" alt="Guild Icon" class="guild-avatar">
+                    <img id="active-guild-icon" src="" alt="Guild Icon" class="guild-avatar" width="48" height="48" loading="lazy">
                   <div>
                     <h2 id="active-guild-name">My Discord Server</h2>
                     <span id="active-guild-id" class="sub-label">ID: -</span>
@@ -636,46 +639,131 @@
           </div>
         </section>
 
-        <!-- TAB: AUDITOR -->
+        <!-- TAB: SERVER AUDITOR -->
         <section id="tab-auditor" class="tab-pane hidden">
           <div class="grid-layout">
-            <!-- Score Meter -->
-            <div class="card glass span-1 text-center py-4">
-              <div class="card-header text-center">
-                <h2>Health Score</h2>
-              </div>
-              <div class="card-body flex-center flex-column">
-                <div class="radial-progress-wrapper">
-                  <svg class="radial-svg" viewBox="0 0 120 120">
-                    <circle class="circle-bg" cx="60" cy="60" r="50"></circle>
-                    <circle id="audit-score-circle" class="circle-progress" cx="60" cy="60" r="50" style="stroke-dashoffset: 314;"></circle>
-                  </svg>
-                  <div class="radial-text" id="audit-score-value">0%</div>
-                </div>
-                <div id="audit-score-rating" class="score-rating-badge rating-none">NOT SCANNED</div>
-                <button id="btn-run-audit" class="btn btn-primary btn-glow mt-4">
-                  <i class="fa-solid fa-magnifying-glass-shield"></i> Scan Server
+            <!-- Server Health Score -->
+            <div class="card glass span-4" id="cc-health-card">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-heart-pulse"></i> Server Health</h2>
+                <button id="cc-analyze-btn" class="btn btn-primary btn-glow btn-sm" data-action="run-command-center-scan">
+                  <i class="fa-solid fa-magnifying-glass-chart"></i> Analyze Server
                 </button>
+              </div>
+              <div class="card-body">
+                <div id="cc-loading" class="text-center py-4">
+                  <i class="fa-solid fa-spinner fa-spin"></i> Loading Auditor...
+                </div>
+                <div id="cc-content" class="hidden">
+                  <div style="display: flex; align-items: center; gap: 32px; margin-bottom: 24px;">
+                    <!-- Score Gauge -->
+                    <div style="position: relative; width: 140px; height: 140px; flex-shrink: 0;">
+                      <svg viewBox="0 0 120 120" style="width: 100%; height: 100%; transform: rotate(-90deg);">
+                        <circle cx="60" cy="60" r="50" stroke="var(--card-border)" stroke-width="10" fill="none"/>
+                        <circle id="cc-score-circle" cx="60" cy="60" r="50" stroke="var(--success)" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="314" stroke-dashoffset="314"/>
+                      </svg>
+                      <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                        <span id="cc-score-value" style="font-size: 2rem; font-weight: 700; color: var(--text-main);">0</span>
+                        <span id="cc-score-label" style="font-size: 0.7rem; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.05em;">Loading...</span>
+                      </div>
+                    </div>
+                    <!-- Dimension Scores -->
+                    <div style="flex: 1; display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;">
+                      <div class="cc-dim-card" id="cc-dim-security">
+                        <i class="fa-solid fa-shield-halved"></i>
+                        <span class="cc-dim-score">--</span>
+                        <span class="cc-dim-label">Security</span>
+                      </div>
+                      <div class="cc-dim-card" id="cc-dim-moderation">
+                        <i class="fa-solid fa-gavel"></i>
+                        <span class="cc-dim-score">--</span>
+                        <span class="cc-dim-label">Moderation</span>
+                      </div>
+                      <div class="cc-dim-card" id="cc-dim-structure">
+                        <i class="fa-solid fa-sitemap"></i>
+                        <span class="cc-dim-score">--</span>
+                        <span class="cc-dim-label">Structure</span>
+                      </div>
+                      <div class="cc-dim-card" id="cc-dim-engagement">
+                        <i class="fa-solid fa-users"></i>
+                        <span class="cc-dim-score">--</span>
+                        <span class="cc-dim-label">Engagement</span>
+                      </div>
+                      <div class="cc-dim-card" id="cc-dim-automation">
+                        <i class="fa-solid fa-robot"></i>
+                        <span class="cc-dim-score">--</span>
+                        <span class="cc-dim-label">Automation</span>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Quick Stats -->
+                  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;">
+                    <div class="glass-inner p-3 text-center">
+                      <div style="font-size: 1.4rem; font-weight: 700; color: var(--primary);" id="cc-members">0</div>
+                      <div style="font-size: 0.75rem; color: var(--text-sub);">Members</div>
+                    </div>
+                    <div class="glass-inner p-3 text-center">
+                      <div style="font-size: 1.4rem; font-weight: 700; color: var(--primary);" id="cc-channels">0</div>
+                      <div style="font-size: 0.75rem; color: var(--text-sub);">Channels</div>
+                    </div>
+                    <div class="glass-inner p-3 text-center">
+                      <div style="font-size: 1.4rem; font-weight: 700; color: var(--primary);" id="cc-roles">0</div>
+                      <div style="font-size: 0.75rem; color: var(--text-sub);">Roles</div>
+                    </div>
+                    <div class="glass-inner p-3 text-center">
+                      <div style="font-size: 1.4rem; font-weight: 700; color: var(--success);" id="cc-online">0</div>
+                      <div style="font-size: 0.75rem; color: var(--text-sub);">Online</div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <!-- Audit Details -->
-            <div class="card glass span-3">
+            <!-- Notifications & Alerts -->
+            <div class="card glass span-2">
               <div class="card-header border-bottom">
-                <h2>Audit Findings & Security Analysis</h2>
+                <h2><i class="fa-solid fa-bell"></i> Alerts & Notifications</h2>
               </div>
-              <div class="card-body">
-                <div id="audit-loading" class="text-center py-5 hidden">
-                  <i class="fa-solid fa-circle-notch fa-spin large-spinner"></i>
-                  <p class="mt-3">Analyzing guild structure, safety levels, and role overrides...</p>
+              <div class="card-body" id="cc-notifications">
+                <div class="text-center py-3" style="color: var(--text-sub);">
+                  <i class="fa-solid fa-check-circle" style="font-size: 1.5rem; color: var(--success);"></i>
+                  <p style="margin-top: 8px;">No issues detected</p>
                 </div>
-                <div id="audit-results-empty" class="text-center py-5">
-                  <i class="fa-solid fa-shield-halved big-icon opacity-50"></i>
-                  <p class="mt-3">Click the "Scan Server" button to run the automated safety and design audit.</p>
+              </div>
+            </div>
+
+            <!-- Audit Timeline -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-clock-rotate-left"></i> Recent Activity</h2>
+              </div>
+              <div class="card-body" id="cc-timeline">
+                <div class="text-center py-3" style="color: var(--text-sub);">
+                  No recent activity to show.
                 </div>
-                <div id="audit-results-list" class="checklist-list hidden">
-                  <!-- Dynamic check cards go here -->
+              </div>
+            </div>
+
+            <!-- Findings -->
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-clipboard-list"></i> Audit Findings</h2>
+              </div>
+              <div class="card-body" id="cc-findings">
+                <div class="text-center py-3" style="color: var(--text-sub);">
+                  Run a server scan to see findings.
                 </div>
+              </div>
+            </div>
+
+            <!-- Deep Security Checks -->
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-shield-virus"></i> Security Audit</h2>
+                <button class="btn btn-primary btn-glow btn-sm" data-action="load-security-checks"><i class="fa-solid fa-magnifying-glass"></i> Run Security Scan</button>
+              </div>
+              <div class="card-body" id="cc-security-checks">
+                <div class="text-center py-3" style="color: var(--text-sub);">Click "Run Security Scan" to check server security.</div>
               </div>
             </div>
 
@@ -696,10 +784,30 @@
               </div>
             </div>
 
+            <!-- Score History -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-chart-line"></i> Score History</h2>
+              </div>
+              <div class="card-body" style="height: 220px;">
+                <canvas id="chart-score-history"></canvas>
+              </div>
+            </div>
+
+            <!-- Config History -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-code-branch"></i> Config History</h2>
+              </div>
+              <div class="card-body" id="cc-config-history" style="max-height: 250px; overflow-y: auto;">
+                <div class="text-center py-3" style="color: var(--text-sub);">Loading config history...</div>
+              </div>
+            </div>
+
             <!-- Health Timeline Card -->
             <div class="card glass span-4">
               <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-chart-line"></i> Health Timeline</h2>
+                <h2><i class="fa-solid fa-chart-line"></i> Health Activity Timeline</h2>
                 <select id="timeline-days" style="width: auto; padding: 6px 12px; font-size: 0.82rem;">
                   <option value="7">Last 7 days</option>
                   <option value="14">Last 14 days</option>
@@ -715,8 +823,87 @@
           </div>
         </section>
 
-        <!-- TAB: SMART FEATURES (Analytics) -->
+        <!-- TAB: SMART FEATURES COMMAND CENTER -->
         <section id="tab-smart" class="tab-pane hidden">
+          <div class="sub-tab-container">
+            <button class="sub-tab-btn active" data-sub-tab="command-center-sub"><i class="fa-solid fa-shield-halved"></i> Command Center</button>
+            <button class="sub-tab-btn" data-sub-tab="analytics-overview-sub">Analytics Overview</button>
+            <button class="sub-tab-btn" data-sub-tab="recommendations-sub">Recommendations</button>
+            <button class="sub-tab-btn" data-sub-tab="config-doctor-sub">Config Doctor</button>
+            <button class="sub-tab-btn" data-sub-tab="permission-doctor-sub">Permission Doctor</button>
+            <button class="sub-tab-btn" data-sub-tab="growth-sub">Growth Center</button>
+            <button class="sub-tab-btn" data-sub-tab="mod-intel-sub">Mod Intel</button>
+            <button class="sub-tab-btn" data-sub-tab="raid-detector-sub">Raid Detector</button>
+            <button class="sub-tab-btn" data-sub-tab="role-cleaner-sub">Role Cleaner</button>
+            <button class="sub-tab-btn" data-sub-tab="channel-cleaner-sub">Channel Cleaner</button>
+            <button class="sub-tab-btn" data-sub-tab="backup-advisor-sub">Backup Advisor</button>
+            <button class="sub-tab-btn" data-sub-tab="perm-heatmap-sub">Permission Heatmap</button>
+            <button class="sub-tab-btn" data-sub-tab="channel-heatmap-sub">Activity Heatmap</button>
+            <button class="sub-tab-btn" data-sub-tab="maturity-sub">Maturity Score</button>
+          </div>
+
+          <!-- COMMAND CENTER LANDING PAGE -->
+          <div id="command-center-sub" class="sub-tab-pane">
+            <div class="grid-layout">
+              <!-- Server Health Score -->
+              <div class="card glass span-2">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-heart-pulse"></i> Server Health</h2>
+                  <button class="btn btn-sm btn-primary" onclick="refreshCommandCenter()"><i class="fa-solid fa-refresh"></i> Refresh</button>
+                </div>
+                <div class="card-body" id="cc-health-content">
+                  <div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Analyzing server...</div>
+                </div>
+              </div>
+
+              <!-- Quick Wins -->
+              <div class="card glass span-2">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-bolt"></i> Quick Wins</h2>
+                  <p>Easiest improvements with highest score gains</p>
+                </div>
+                <div class="card-body" id="cc-quick-wins-content">
+                  <div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Finding quick wins...</div>
+                </div>
+              </div>
+
+              <!-- Priority Queue -->
+              <div class="card glass span-2">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-list-ol"></i> Priority Queue</h2>
+                  <p>Top issues ranked by severity and impact</p>
+                </div>
+                <div class="card-body" id="cc-priority-content">
+                  <div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Building priority queue...</div>
+                </div>
+              </div>
+
+              <!-- Score Trends -->
+              <div class="card glass span-2">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-chart-line"></i> Score Trends</h2>
+                  <p>Health score progression over time</p>
+                </div>
+                <div class="card-body" id="cc-trends-content">
+                  <div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading trends...</div>
+                </div>
+              </div>
+
+              <!-- Dimension Breakdown -->
+              <div class="card glass span-4">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-chart-radar"></i> Dimension Breakdown</h2>
+                  <p>Score breakdown across all categories</p>
+                </div>
+                <div class="card-body" id="cc-dimensions-content">
+                  <div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading dimensions...</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div id="analytics-overview-sub" class="sub-tab-pane">
+
           <div class="grid-layout">
             <!-- Overview Card -->
             <div class="card glass span-2">
@@ -819,7 +1006,207 @@
               </div>
             </div>
           </div>
-        </section>
+        
+          </div>
+
+          <div id="growth-sub" class="sub-tab-pane hidden">
+
+          <div class="grid-layout">
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-arrow-trend-up"></i> Growth Center</h2>
+              </div>
+              <div class="card-body" id="growth-content">
+                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+              </div>
+            </div>
+          </div>
+        
+          </div>
+
+          <div id="mod-intel-sub" class="sub-tab-pane hidden">
+
+          <div class="grid-layout">
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-ranking-star"></i> Moderator Performance</h2>
+              </div>
+              <div class="card-body" id="mod-intel-content">
+                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+              </div>
+            </div>
+          </div>
+        
+          </div>
+
+          <div id="perm-heatmap-sub" class="sub-tab-pane hidden">
+
+          <div class="grid-layout">
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-table-cells"></i> Permission Heatmap</h2>
+                <p>Visual matrix of roles vs permissions. Red = dangerous, green = safe.</p>
+              </div>
+              <div class="card-body" style="overflow-x:auto;">
+                <div id="heatmap-content">
+                  <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        
+          </div>
+
+          <div id="channel-heatmap-sub" class="sub-tab-pane hidden">
+
+          <div class="grid-layout">
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-fire"></i> Channel Activity Heatmap</h2>
+                <p>Message activity by hour of day and day of week. Brighter = more active.</p>
+              </div>
+              <div class="card-body" id="channel-heatmap-content" style="overflow-x:auto;">
+                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+              </div>
+            </div>
+          </div>
+        
+          </div>
+
+          <div id="benchmark-sub" class="sub-tab-pane hidden">
+          <div class="grid-layout">
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-scale-balanced"></i> Server Benchmarking</h2>
+                <p>Compare your server against average metrics from other servers.</p>
+              </div>
+              <div class="card-body" id="benchmark-content">
+                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+              </div>
+            </div>
+          </div>
+          </div>
+
+          <!-- Recommendations Sub-Tab -->
+          <div id="recommendations-sub" class="sub-tab-pane hidden">
+          <div class="grid-layout">
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-lightbulb"></i> Smart Recommendations</h2>
+                <p>Smart suggestions to improve your server.</p>
+              </div>
+              <div class="card-body" id="recommendations-content">
+                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+              </div>
+            </div>
+          </div>
+          </div>
+
+          <!-- Config Doctor Sub-Tab -->
+          <div id="config-doctor-sub" class="sub-tab-pane hidden">
+          <div class="grid-layout">
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-heart-pulse"></i> Config Doctor</h2>
+                <p>Health check for your server configuration.</p>
+              </div>
+              <div class="card-body" id="config-doctor-content">
+                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+              </div>
+            </div>
+          </div>
+          </div>
+
+          <!-- Permission Doctor Sub-Tab -->
+          <div id="permission-doctor-sub" class="sub-tab-pane hidden">
+          <div class="grid-layout">
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-shield-halved"></i> Permission Doctor</h2>
+                <p>Analyze role permissions for security risks.</p>
+              </div>
+              <div class="card-body" id="permission-doctor-content">
+                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+              </div>
+            </div>
+          </div>
+          </div>
+
+          <!-- Raid Detector Sub-Tab -->
+          <div id="raid-detector-sub" class="sub-tab-pane hidden">
+          <div class="grid-layout">
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-user-shield"></i> Smart Raid Detector</h2>
+                <p>Detect suspicious join patterns and raid activity.</p>
+              </div>
+              <div class="card-body" id="raid-detector-content">
+                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+              </div>
+            </div>
+          </div>
+          </div>
+
+          <!-- Role Cleaner Sub-Tab -->
+          <div id="role-cleaner-sub" class="sub-tab-pane hidden">
+          <div class="grid-layout">
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-broom"></i> Smart Role Cleaner</h2>
+                <p>Detect unused, duplicate, or obsolete roles.</p>
+              </div>
+              <div class="card-body" id="role-cleaner-content">
+                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+              </div>
+            </div>
+          </div>
+          </div>
+
+          <!-- Channel Cleaner Sub-Tab -->
+          <div id="channel-cleaner-sub" class="sub-tab-pane hidden">
+          <div class="grid-layout">
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-trash-can"></i> Smart Channel Cleaner</h2>
+                <p>Detect dead, duplicate, or archived channels.</p>
+              </div>
+              <div class="card-body" id="channel-cleaner-content">
+                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+              </div>
+            </div>
+          </div>
+          </div>
+
+          <!-- Backup Advisor Sub-Tab -->
+          <div id="backup-advisor-sub" class="sub-tab-pane hidden">
+          <div class="grid-layout">
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-cloud-arrow-up"></i> Smart Backup Advisor</h2>
+                <p>Track backup health and recommendations.</p>
+              </div>
+              <div class="card-body" id="backup-advisor-content">
+                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+              </div>
+            </div>
+          </div>
+          </div>
+
+          <!-- Maturity Score Sub-Tab -->
+          <div id="maturity-sub" class="sub-tab-pane hidden">
+          <div class="grid-layout">
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-trophy"></i> Server Maturity Score</h2>
+                <p>Comprehensive maturity assessment across all dimensions.</p>
+              </div>
+              <div class="card-body" id="maturity-content">
+                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+              </div>
+            </div>
+          </div>
+          </div>
+</section>
 
         <!-- TAB: CUSTOM COMMANDS -->
         <section id="tab-commands" class="tab-pane hidden">
@@ -889,6 +1276,13 @@
 
         <!-- TAB: SUPPORT TICKETS -->
         <section id="tab-tickets" class="tab-pane hidden">
+          <div class="sub-tab-container">
+            <button class="sub-tab-btn active" data-sub-tab="tickets-setup-sub">Ticket Panels Setup</button>
+            <button class="sub-tab-btn" data-sub-tab="tickets-intel-sub">Ticket Intel</button>
+          </div>
+
+          <div id="tickets-setup-sub" class="sub-tab-pane">
+
           <div class="grid-layout">
             <!-- Ticket Configuration Settings -->
             <div class="card glass span-2">
@@ -954,7 +1348,24 @@
               </div>
             </div>
           </div>
-        </section>
+        
+          </div>
+
+          <div id="tickets-intel-sub" class="sub-tab-pane hidden">
+
+          <div class="grid-layout">
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-chart-pie"></i> Ticket Intelligence</h2>
+              </div>
+              <div class="card-body" id="ticket-intel-content">
+                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+              </div>
+            </div>
+          </div>
+        
+          </div>
+</section>
 
         <!-- TAB: WELCOME SETUP -->
         <section id="tab-welcome" class="tab-pane hidden">
@@ -1040,27 +1451,25 @@
             <!-- Preview Embed Card -->
             <div class="card glass span-2">
               <div class="card-header border-bottom">
-                <h2>Welcome Embed Preview</h2>
-                <p>Real-time visual simulation of what members will see on Discord.</p>
+                <h2><i class="fa-solid fa-eye"></i> Welcome Preview</h2>
+                <p>Live Discord-accurate preview of your welcome embed.</p>
               </div>
-              <div class="card-body flex-center bg-discord-chat">
-                <div class="discord-message">
-                  <img src="/static/bot_logo.png" class="discord-author-avatar" alt="Bot avatar">
-                  <div class="discord-message-content">
-                    <div class="discord-message-header">
-                      <span class="discord-author-name">Server Optimizer Bot</span>
-                      <span class="discord-bot-tag">BOT</span>
-                      <span class="discord-timestamp">Today at 12:00 PM</span>
+              <div class="card-body" style="background: #313338; border-radius: 12px; padding: 16px;">
+                <!-- Discord-style message -->
+                <div style="display: flex; gap: 12px; align-items: flex-start;">
+                  <div style="width: 40px; height: 40px; border-radius: 50%; background: #5865F2; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    <i class="fa-solid fa-robot" style="color: #fff; font-size: 1.1rem;"></i>
+                  </div>
+                  <div style="flex: 1; min-width: 0;">
+                    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px;">
+                      <span style="font-weight: 600; color: #fff; font-size: 0.95rem;">Aegis Bot</span>
+                      <span style="font-size: 0.7rem; color: #94a3b8; background: #5865F2; padding: 1px 6px; border-radius: 4px; font-weight: 500;">BOT</span>
+                      <span style="font-size: 0.75rem; color: #94a3b8;">Today at 12:00</span>
                     </div>
-                    <div id="preview-embed-border" class="discord-embed" style="border-left-color: #6366f1;">
-                      <div class="discord-embed-grid">
-                        <div class="discord-embed-main">
-                          <h4 id="preview-embed-title" class="discord-embed-title">Welcome to the Server, GamerName!</h4>
-                          <div id="preview-embed-desc" class="discord-embed-description">We are thrilled to have you here! Please make sure to check out the rules and have a wonderful time.</div>
-                        </div>
-                        <img src="/static/bot_logo.png" class="discord-embed-thumbnail" alt="User avatar">
-                      </div>
-                      <div class="discord-embed-footer">Member #1</div>
+                    <!-- Discord Embed -->
+                    <div style="background: #2b2d31; border-left: 4px solid #6366f1; border-radius: 4px; padding: 12px 16px; max-width: 520px;">
+                      <div style="font-weight: 600; color: #fff; font-size: 0.95rem; margin-bottom: 4px;" id="preview-embed-title">Welcome to the Server!</div>
+                      <div style="color: #dcddde; font-size: 0.88rem; line-height: 1.4;" id="preview-embed-desc">Welcome @User to our server! We hope you enjoy your stay.</div>
                     </div>
                   </div>
                 </div>
@@ -1117,156 +1526,52 @@
           </div>
         </section>
 
-        <!-- TAB: AUTOMOD -->
-        <section id="tab-automod" class="tab-pane hidden">
-          <div class="grid-layout">
-            <!-- Auto-Moderation Settings -->
-            <div class="card glass span-2">
-              <div class="card-header border-bottom">
-                <h2>Auto-Moderation Settings</h2>
-              </div>
-              <div class="card-body">
-                <form id="automod-form">
-                  <div class="toggle-group mb-4">
-                    <span class="toggle-label font-weight-500">Enable Auto-Moderation Suite:</span>
-                    <label class="switch">
-                      <input type="checkbox" id="automod-enabled" checked>
-                      <span class="slider round"></span>
-                    </label>
-                  </div>
-                  <p class="setting-desc mb-4">Activates filters that scan and handle chat infractions. Automatically warning users and deleting messages.</p>
 
-                  <div class="toggle-group mb-2">
-                    <span class="toggle-label">Block Profanity & Swearwords:</span>
-                    <label class="switch">
-                      <input type="checkbox" id="automod-profanity" checked>
-                      <span class="slider round"></span>
-                    </label>
-                  </div>
-                  <p class="setting-desc mb-4">Automatically deletes messages matching the filtered words list. Staff members bypass this check.</p>
-
-                  <div class="toggle-group mb-2">
-                    <span class="toggle-label">Block Links:</span>
-                    <label class="switch">
-                      <input type="checkbox" id="automod-links">
-                      <span class="slider round"></span>
-                    </label>
-                  </div>
-                  <p class="setting-desc mb-4">Removes links shared by normal users (blocks advertisement and phishing links). Staff members bypass this check.</p>
-
-                  <div class="input-group" id="whitelisted-domains-group">
-                    <label for="automod-whitelisted-domains">Whitelisted Domains (one per line):</label>
-                    <textarea id="automod-whitelisted-domains" class="glass-input" rows="3" placeholder="e.g. google.com&#10;github.com"></textarea>
-                    <small>Links to these domains will be allowed.</small>
-                  </div>
-
-
-                  <div class="input-group" id="whitelisted-invites-group">
-                    <label for="automod-whitelisted-invites">Whitelisted Invites (one per line):</label>
-                    <textarea id="automod-whitelisted-invites" class="glass-input" rows="3" placeholder="e.g. aegis-dev&#10;discord-invite-code"></textarea>
-                    <small>Specific invite codes that are allowed.</small>
-                  </div>
-
-                  <div class="input-group">
-                    <label for="automod-max-mentions">Mass Mention Threshold:</label>
-                    <input type="number" id="automod-max-mentions" min="1" max="50" value="5">
-                    <small>Deletes messages containing more than this number of mentions (blocks ping spam raids).</small>
-                  </div>
-
-                  <div class="input-group">
-                    <label for="automod-log-channel">Mod Logs Channel:</label>
-                    <select id="automod-log-channel" class="glass-input">
-                      <option value="">Choose log channel...</option>
-                    </select>
-                    <small>Channel where AutoMod infractions and server status reports are logged.</small>
-                  </div>
-
-                  <button type="submit" class="btn btn-primary btn-glow mt-3">
-                    <i class="fa-solid fa-floppy-disk"></i> Save Moderation Settings
-                  </button>
-                </form>
-              </div>
-            </div>
-
-            <!-- Blocklist management -->
-            <div class="card glass span-2">
-              <div class="card-header border-bottom">
-                <h2>Custom Word Filter Blocklist</h2>
-                <p>Add specific slurs, spam keywords, or links that the bot should automatically delete.</p>
-              </div>
-              <div class="card-body">
-                <div class="input-group">
-                  <label for="automod-words">Filtered Words (Comma Separated):</label>
-                  <textarea id="automod-words" rows="8" placeholder="badword1, spamlink.com, slurs..."></textarea>
-                  <small>Checks for exact word matches (case-insensitive) in user messages. Bypassed by members with Administrator or Manage Messages permissions.</small>
-                </div>
-              </div>
-            </div>
-
-            <div class="card glass span-2 mt-4">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-shield-halved"></i> Anti-Raid Protection</h2>
-                <p>Detect and respond to mass-join attacks and suspicious accounts.</p>
-              </div>
-              <div class="card-body">
-                <form id="anti-raid-form">
-                  <div class="input-group">
-                    <label>
-                      <input type="checkbox" id="ar-enabled"> Enable Anti-Raid Protection
-                    </label>
-                  </div>
-                  <div class="grid-layout" style="grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
-                    <div class="input-group">
-                      <label>Response Mode</label>
-                      <select id="ar-response-mode">
-                        <option value="passive">Passive (Log Only)</option>
-                        <option value="alert" selected>Alert (Mod-Log + DM)</option>
-                        <option value="lockdown">Lockdown (Temp Mute New Joins)</option>
-                        <option value="auto_verify">Auto-Verify (Captcha Required)</option>
-                      </select>
-                    </div>
-                    <div class="input-group">
-                      <label>Join Rate Threshold</label>
-                      <input type="number" id="ar-join-threshold" value="5" min="2" max="50">
-                      <small>Members per window to trigger raid alert</small>
-                    </div>
-                    <div class="input-group">
-                      <label>Window (seconds)</label>
-                      <input type="number" id="ar-window-seconds" value="30" min="10" max="300">
-                    </div>
-                    <div class="input-group">
-                      <label>Min Account Age (days)</label>
-                      <input type="number" id="ar-min-age" value="7" min="1" max="90">
-                      <small>Accounts younger than this are flagged</small>
-                    </div>
-                    <div class="input-group">
-                      <label>Suspicious Score Threshold</label>
-                      <input type="number" id="ar-score-threshold" value="70" min="30" max="100">
-                      <small>Score 0-100, higher = more strict</small>
-                    </div>
-                    <div class="input-group">
-                      <label>
-                        <input type="checkbox" id="ar-dm-owner" checked> DM Server Owner on Raid
-                      </label>
-                    </div>
-                  </div>
-                  <button type="submit" class="btn btn-primary btn-glow mt-4">
-                    <i class="fa-solid fa-save"></i> Save Anti-Raid Settings
-                  </button>
-                </form>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- TAB: ROLE CREATOR -->
+        <!-- TAB: ROLE STUDIO -->
         <section id="tab-roles" class="tab-pane hidden">
+          <div class="sub-tab-container">
+            <button class="sub-tab-btn active" data-sub-tab="role-creator-sub">Role Creator & Hierarchy</button>
+            <button class="sub-tab-btn" data-sub-tab="role-panels-sub">Role Selection Panels</button>
+            <button class="sub-tab-btn" data-sub-tab="cleanup-sub">Cleanup Wizard</button>
+          </div>
+
+          <div id="role-creator-sub" class="sub-tab-pane">
+          <!-- Role Analytics Bar -->
+          <div class="glass p-3 mb-4" style="display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <i class="fa-solid fa-users-gear" style="color: var(--primary);"></i>
+              <span style="font-weight: 600;">Total Roles:</span>
+              <span id="role-stat-total" style="font-weight: 700; color: var(--primary);">0</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <i class="fa-solid fa-triangle-exclamation" style="color: var(--warning);"></i>
+              <span style="font-weight: 600;">Unused:</span>
+              <span id="role-stat-unused" style="font-weight: 700; color: var(--warning);">0</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <i class="fa-solid fa-crown" style="color: var(--success);"></i>
+              <span style="font-weight: 600;">Most Used:</span>
+              <span id="role-stat-most-used" style="font-weight: 700; color: var(--success);">-</span>
+            </div>
+            <div style="flex: 1;"></div>
+            <button class="btn btn-secondary btn-small" data-action="open-role-compare-modal"><i class="fa-solid fa-code-compare"></i> Compare</button>
+            <button class="btn btn-secondary btn-small" data-action="open-perm-simulator"><i class="fa-solid fa-flask"></i> Simulate</button>
+            <button class="btn btn-secondary btn-small" data-action="open-role-templates-modal"><i class="fa-solid fa-wand-magic-sparkles"></i> Templates</button>
+            <button class="btn btn-secondary btn-small" data-action="export-roles"><i class="fa-solid fa-download"></i> Export</button>
+            <button class="btn btn-secondary btn-small" data-action="import-roles"><i class="fa-solid fa-upload"></i> Import</button>
+            <input type="file" id="import-roles-file" accept=".json" class="hidden" onchange="importRoles(event)">
+                <button class="btn btn-secondary btn-small" id="btn-bulk-delete" style="display:none;" data-action="bulk-delete-selected"><i class="fa-solid fa-trash"></i> Delete Selected (<span id="bulk-count">0</span>)</button>
+          </div>
+          <div id="role-deps-warning" class="hidden" style="padding: 10px 16px; margin-bottom: 16px; background: rgba(239,68,68,0.08); border-left: 3px solid var(--danger); border-radius: 8px; font-size: 0.85rem;">
+            <i class="fa-solid fa-link-slash" style="color: var(--danger);"></i> <strong>Role Dependencies Detected</strong>
+            <div id="role-deps-list" style="margin-top: 6px;"></div>
+          </div>
+
           <div class="grid-layout">
             <!-- Create Role Form -->
             <div class="card glass span-2">
               <div class="card-header border-bottom">
                 <h2><i class="fa-solid fa-user-shield"></i> Create Server Role</h2>
-                <p>Add a new role to your server with custom styling and settings.</p>
               </div>
               <div class="card-body">
                 <form id="role-creator-form">
@@ -1274,7 +1579,6 @@
                     <label for="role-name">Role Name <span class="required">*</span></label>
                     <input type="text" id="role-name" placeholder="e.g. Community Leader" required>
                   </div>
-
                   <div class="input-group">
                     <label for="role-color">Role Color:</label>
                     <div class="color-picker-wrapper">
@@ -1282,27 +1586,30 @@
                       <input type="text" id="role-color-hex" value="#99AAB5" placeholder="#99AAB5" maxlength="7">
                     </div>
                   </div>
-
                   <div class="toggle-group mb-4">
                     <span class="toggle-label font-weight-500">Display Role Separately (Hoist):</span>
-                    <label class="switch">
-                      <input type="checkbox" id="role-hoist">
-                      <span class="slider round"></span>
-                    </label>
+                    <label class="switch"><input type="checkbox" id="role-hoist"><span class="slider round"></span></label>
                   </div>
-
-                  <button type="submit" class="btn btn-primary btn-glow">
-                    <i class="fa-solid fa-plus"></i> Create Role
-                  </button>
+                  <button type="submit" class="btn btn-primary btn-glow"><i class="fa-solid fa-plus"></i> Create Role</button>
                 </form>
               </div>
             </div>
 
-            <!-- Server Roles List -->
+            <!-- Role Hierarchy View -->
             <div class="card glass span-2">
               <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-users-gear"></i> Server Roles</h2>
-                <p>List of all roles configured on your Discord server. Click delete to remove them.</p>
+                <h2><i class="fa-solid fa-sitemap"></i> Role Hierarchy</h2>
+                <p>Drag to reorder. Top = highest authority.</p>
+              </div>
+              <div class="card-body" id="role-hierarchy-container" style="max-height: 350px; overflow-y: auto;">
+                <div id="role-hierarchy-empty" class="text-center py-4" style="color: var(--text-sub);">No roles loaded.</div>
+              </div>
+            </div>
+
+            <!-- Server Roles Table -->
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-table-list"></i> All Roles</h2>
               </div>
               <div class="card-body p-0">
                 <div class="table-container max-h-400">
@@ -1312,25 +1619,225 @@
                         <th>Role Name</th>
                         <th>Color</th>
                         <th>Members</th>
+                        <th>Risk</th>
                         <th>Actions</th>
                       </tr>
                     </thead>
-                    <tbody id="roles-list-body">
-                      <!-- Dynamic rows go here -->
-                    </tbody>
+                    <tbody id="roles-list-body"></tbody>
                   </table>
                   <div id="roles-empty" class="text-center py-5">
                     <i class="fa-solid fa-user-shield big-icon opacity-50"></i>
-                    <p class="mt-2 text-sub">No roles loaded. Ensure a server is selected and bot is online.</p>
+                    <p class="mt-2 text-sub">No roles loaded.</p>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </section>
 
-        <!-- TAB: ROLE PANELS -->
-        <section id="tab-role-panels" class="tab-pane hidden">
+        <!-- MODAL: Edit Role -->
+        <div id="edit-role-modal" class="wizard-container hidden" role="dialog" aria-modal="true" aria-labelledby="edit-role-title">
+          <div class="wizard-box glass" style="max-width: 560px;">
+            <div class="wizard-header">
+              <div class="logo-area">
+                <i class="fa-solid fa-pen-to-square bot-logo"></i>
+                <h1>Edit Role</h1>
+              </div>
+              <p>Modify role properties and permissions.</p>
+            </div>
+            <div class="card-body px-4 pb-4">
+              <input type="hidden" id="edit-role-id">
+              <div class="input-group">
+                <label>Role Name</label>
+                <input type="text" id="edit-role-name">
+              </div>
+              <div class="input-group">
+                <label>Color</label>
+                <div class="color-picker-wrapper">
+                  <input type="color" id="edit-role-color-picker" value="#99aab5">
+                  <input type="text" id="edit-role-color-hex" value="#99AAB5" maxlength="7">
+                </div>
+              </div>
+              <div class="toggle-group mb-3">
+                <span class="toggle-label">Display Separately (Hoist):</span>
+                <label class="switch"><input type="checkbox" id="edit-role-hoist"><span class="slider round"></span></label>
+              </div>
+              <div class="toggle-group mb-3">
+                <span class="toggle-label">Allow Mention:</span>
+                <label class="switch"><input type="checkbox" id="edit-role-mentionable"><span class="slider round"></span></label>
+              </div>
+
+              <!-- Permission Builder -->
+              <div id="edit-role-perms-section" class="mt-3">
+                <h3 style="margin-bottom: 12px;"><i class="fa-solid fa-key"></i> Permissions</h3>
+                <div id="perm-builder-warning" class="hidden" style="padding: 8px 12px; background: rgba(239,68,68,0.1); border-left: 3px solid var(--danger); border-radius: 6px; margin-bottom: 12px; font-size: 0.85rem;">
+                  <i class="fa-solid fa-triangle-exclamation" style="color: var(--danger);"></i> This role has dangerous permissions (Administrator or Manage Roles). Use with caution.
+                </div>
+                <div class="perm-category">
+                  <div class="perm-cat-header" role="button" tabindex="0" aria-expanded="true">
+                    <i class="fa-solid fa-chevron-down"></i> General
+                  </div>
+                  <div class="perm-cat-body">
+                    <label class="perm-check"><input type="checkbox" data-perm="view_channel"> View Channels</label>
+                    <label class="perm-check"><input type="checkbox" data-perm="send_messages"> Send Messages</label>
+                    <label class="perm-check"><input type="checkbox" data-perm="embed_links"> Embed Links</label>
+                    <label class="perm-check"><input type="checkbox" data-perm="attach_files"> Attach Files</label>
+                    <label class="perm-check"><input type="checkbox" data-perm="add_reactions"> Add Reactions</label>
+                    <label class="perm-check"><input type="checkbox" data-perm="read_message_history"> Read Message History</label>
+                  </div>
+                </div>
+                <div class="perm-category">
+                  <div class="perm-cat-header" role="button" tabindex="0" aria-expanded="true">
+                    <i class="fa-solid fa-chevron-down"></i> Voice
+                  </div>
+                  <div class="perm-cat-body">
+                    <label class="perm-check"><input type="checkbox" data-perm="connect"> Connect</label>
+                    <label class="perm-check"><input type="checkbox" data-perm="speak"> Speak</label>
+                    <label class="perm-check"><input type="checkbox" data-perm="use_voice_activation"> Use Voice Activity</label>
+                    <label class="perm-check"><input type="checkbox" data-perm="priority_speaker"> Priority Speaker</label>
+                  </div>
+                </div>
+                <div class="perm-category">
+                  <div class="perm-cat-header" role="button" tabindex="0" aria-expanded="true">
+                    <i class="fa-solid fa-chevron-down"></i> Moderation
+                  </div>
+                  <div class="perm-cat-body">
+                    <label class="perm-check"><input type="checkbox" data-perm="manage_messages"> Manage Messages</label>
+                    <label class="perm-check"><input type="checkbox" data-perm="moderate_members"> Timeout Members</label>
+                    <label class="perm-check"><input type="checkbox" data-perm="kick_members"> Kick Members</label>
+                    <label class="perm-check"><input type="checkbox" data-perm="ban_members"> Ban Members</label>
+                  </div>
+                </div>
+                <div class="perm-category">
+                  <div class="perm-cat-header" role="button" tabindex="0" aria-expanded="true">
+                    <i class="fa-solid fa-chevron-down"></i> Administration
+                  </div>
+                  <div class="perm-cat-body">
+                    <label class="perm-check"><input type="checkbox" data-perm="manage_roles"> Manage Roles</label>
+                    <label class="perm-check"><input type="checkbox" data-perm="manage_channels"> Manage Channels</label>
+                    <label class="perm-check"><input type="checkbox" data-perm="manage_guild"> Manage Server</label>
+                    <label class="perm-check perm-danger"><input type="checkbox" data-perm="administrator"> <strong>Administrator</strong> <span class="tag tag-red" style="font-size:0.65rem;">DANGER</span></label>
+                  </div>
+                </div>
+                <div class="perm-category">
+                  <div class="perm-cat-header" role="button" tabindex="0" aria-expanded="true">
+                    <i class="fa-solid fa-chevron-down"></i> Advanced
+                  </div>
+                  <div class="perm-cat-body">
+                    <label class="perm-check"><input type="checkbox" data-perm="use_slash_commands"> Use Slash Commands</label>
+                    <label class="perm-check"><input type="checkbox" data-perm="manage_webhooks"> Manage Webhooks</label>
+                    <label class="perm-check"><input type="checkbox" data-perm="view_audit_log"> View Audit Log</label>
+                  </div>
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 12px; margin-top: 20px;">
+                <button class="btn btn-secondary" data-close-modal="edit-role-modal" style="flex:1;">Cancel</button>
+                <button class="btn btn-primary btn-glow" id="btn-save-role" style="flex:1;"><i class="fa-solid fa-save"></i> Save Changes</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MODAL: Role Templates -->
+        <div id="role-templates-modal" class="wizard-container hidden" role="dialog" aria-modal="true" aria-labelledby="role-templates-title">
+          <div class="wizard-box glass" style="max-width: 640px;">
+            <div class="wizard-header">
+              <div class="logo-area">
+                <i class="fa-solid fa-wand-magic-sparkles bot-logo"></i>
+                <h1>Role Templates</h1>
+              </div>
+              <p>One-click create a full role set for your server type.</p>
+            </div>
+            <div class="card-body px-4 pb-4">
+              <div class="grid-layout" style="grid-template-columns: repeat(3, 1fr); gap: 12px;">
+                <div class="template-card glass-inner p-3" data-template="gaming" role="button" tabindex="0" style="cursor:pointer; border: 2px solid transparent; border-radius: 12px; text-align: center;">
+                  <i class="fa-solid fa-gamepad" style="font-size: 1.5rem; color: var(--primary); margin-bottom: 8px;"></i>
+                  <h3 style="font-size: 0.9rem;">Gaming Server</h3>
+                  <div style="font-size: 0.75rem; color: var(--text-sub); margin-top: 4px;">Admin, Mod, VIP, Member</div>
+                </div>
+                <div class="template-card glass-inner p-3" data-template="community" role="button" tabindex="0" style="cursor:pointer; border: 2px solid transparent; border-radius: 12px; text-align: center;">
+                  <i class="fa-solid fa-people-group" style="font-size: 1.5rem; color: var(--success); margin-bottom: 8px;"></i>
+                  <h3 style="font-size: 0.9rem;">Community Server</h3>
+                  <div style="font-size: 0.75rem; color: var(--text-sub); margin-top: 4px;">Leader, Helper, Active, Member</div>
+                </div>
+                <div class="template-card glass-inner p-3" data-template="support" role="button" tabindex="0" style="cursor:pointer; border: 2px solid transparent; border-radius: 12px; text-align: center;">
+                  <i class="fa-solid fa-headset" style="font-size: 1.5rem; color: var(--warning); margin-bottom: 8px;"></i>
+                  <h3 style="font-size: 0.9rem;">Support Server</h3>
+                  <div style="font-size: 0.75rem; color: var(--text-sub); margin-top: 4px;">Agent, Supervisor, User</div>
+                </div>
+              </div>
+              <div id="template-preview" class="mt-3 hidden">
+                <h3 style="font-size: 0.9rem; margin-bottom: 8px;">Preview:</h3>
+                <div id="template-preview-roles" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
+              </div>
+              <div style="display: flex; gap: 12px; margin-top: 20px;">
+                <button class="btn btn-secondary" data-close-modal="role-templates-modal" style="flex:1;">Cancel</button>
+                <button class="btn btn-primary btn-glow" id="btn-apply-template" disabled style="flex:1;"><i class="fa-solid fa-wand-magic-sparkles"></i> Apply Template</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MODAL: Compare Roles -->
+        <div id="role-compare-modal" class="wizard-container hidden" role="dialog" aria-modal="true" aria-labelledby="role-compare-title">
+          <div class="wizard-box glass" style="max-width: 700px;">
+            <div class="wizard-header">
+              <div class="logo-area">
+                <i class="fa-solid fa-code-compare bot-logo"></i>
+                <h1>Compare Roles</h1>
+              </div>
+              <p>Side-by-side permission diff between two roles.</p>
+            </div>
+            <div class="card-body px-4 pb-4">
+              <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+                <div class="input-group" style="flex:1;">
+                  <label>Role A</label>
+                  <select id="compare-role-a" class="glass-input" onchange="runRoleComparison()"><option value="">Select...</option></select>
+                </div>
+                <div class="input-group" style="flex:1;">
+                  <label>Role B</label>
+                  <select id="compare-role-b" class="glass-input" onchange="runRoleComparison()"><option value="">Select...</option></select>
+                </div>
+              </div>
+              <div id="compare-results" style="max-height: 300px; overflow-y: auto;">
+                <div class="text-center py-3" style="color: var(--text-sub);">Select two roles to compare.</div>
+              </div>
+              <div style="margin-top: 16px;">
+                <button class="btn btn-secondary w-100" data-close-modal="role-compare-modal">Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- MODAL: Permission Simulator -->
+        <div id="perm-simulator-modal" class="wizard-container hidden" role="dialog" aria-modal="true" aria-labelledby="perm-simulator-title">
+          <div class="wizard-box glass" style="max-width: 500px;">
+            <div class="wizard-header">
+              <div class="logo-area">
+                <i class="fa-solid fa-flask bot-logo"></i>
+                <h1>Permission Simulator</h1>
+              </div>
+              <p>Test what a role can and cannot do.</p>
+            </div>
+            <div class="card-body px-4 pb-4">
+              <div class="input-group">
+                <label>Select Role</label>
+                <select id="sim-role-select" class="glass-input" onchange="runPermSimulation()">
+                  <option value="">Choose a role...</option>
+                </select>
+              </div>
+              <div id="sim-results" style="margin-top: 16px;">
+                <div class="text-center py-3" style="color: var(--text-sub);">Select a role to simulate.</div>
+              </div>
+              <div style="margin-top: 16px;">
+                <button class="btn btn-secondary w-100" data-close-modal="perm-simulator-modal">Close</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        </div> <!-- End of role-creator-sub -->
+
+        <div id="role-panels-sub" class="sub-tab-pane hidden">
           <div class="grid-layout">
             <!-- Config Form -->
             <div class="card glass span-2">
@@ -1431,7 +1938,7 @@
               </div>
               <div class="card-body flex-center bg-discord-chat flex-column py-5">
                 <div class="discord-message">
-                  <img src="/static/bot_logo.png" class="discord-author-avatar" alt="Bot avatar">
+                  <img src="/static/bot_logo.png" class="discord-author-avatar" alt="Bot avatar" width="40" height="40" loading="lazy">
                   <div class="discord-message-content">
                     <div class="discord-message-header">
                       <span class="discord-author-name">Server Optimizer Bot</span>
@@ -1454,10 +1961,48 @@
               </div>
             </div>
           </div>
-        </section>
+        </div> <!-- End of role-panels-sub -->
 
-        <!-- TAB: SERVER LAYOUTS & TEMPLATES -->
-        <section id="tab-templates" class="tab-pane hidden">
+        <div id="cleanup-sub" class="sub-tab-pane hidden">
+          <div class="grid-layout">
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-broom"></i> Cleanup Wizard</h2>
+                <button class="btn btn-primary btn-glow btn-sm" data-action="load-cleanup-preview"><i class="fa-solid fa-magnifying-glass"></i> Scan Server</button>
+              </div>
+              <div class="card-body">
+                <div id="cleanup-stats" style="display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap;">
+                  <div class="glass-inner p-3 text-center" style="flex:1;min-width:120px;">
+                    <div style="font-size:1.5rem;font-weight:700;" id="cleanup-score">--</div>
+                    <div style="font-size:0.75rem;color:var(--text-sub);">Cleanup Score</div>
+                  </div>
+                  <div class="glass-inner p-3 text-center" style="flex:1;min-width:120px;">
+                    <div style="font-size:1.5rem;font-weight:700;color:var(--warning);" id="cleanup-unused-roles">0</div>
+                    <div style="font-size:0.75rem;color:var(--text-sub);">Unused Roles</div>
+                  </div>
+                  <div class="glass-inner p-3 text-center" style="flex:1;min-width:120px;">
+                    <div style="font-size:1.5rem;font-weight:700;color:var(--warning);" id="cleanup-empty-channels">0</div>
+                    <div style="font-size:0.75rem;color:var(--text-sub);">Empty Channels</div>
+                  </div>
+                  <div class="glass-inner p-3 text-center" style="flex:1;min-width:120px;">
+                    <div style="font-size:1.5rem;font-weight:700;color:var(--warning);" id="cleanup-empty-cats">0</div>
+                    <div style="font-size:0.75rem;color:var(--text-sub);">Empty Categories</div>
+                  </div>
+                </div>
+                <div id="cleanup-results">
+                  <div class="text-center py-4" style="color:var(--text-sub);">
+                     <i class="fa-solid fa-broom" style="font-size:2rem;opacity:0.3;"></i>
+                     <p style="margin-top:8px;">Click "Scan Server" to preview cleanup opportunities.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div> <!-- End of cleanup-sub -->
+      </section>
+
+      <!-- TAB: SERVER LAYOUTS & TEMPLATES -->
+      <section id="tab-templates" class="tab-pane hidden">
           <div class="grid-layout">
             <!-- Backup Current Layout Card -->
             <div class="card glass span-2">
@@ -2259,94 +2804,6 @@
           </div>
         </section>
 
-        <!-- TAB: SCHEDULER -->
-        <section id="tab-scheduler" class="tab-pane hidden">
-          <div class="grid-layout">
-            <!-- Schedule Form -->
-            <div class="card glass span-2">
-              <div class="card-header border-bottom">
-                <h2>Schedule Event Message</h2>
-                <p>Configure automated messages to broadcast once or on a recurring timeline.</p>
-              </div>
-              <div class="card-body">
-                <form id="scheduler-form">
-                  <div class="input-group">
-                    <label for="scheduler-channel">Target Channel <span class="required">*</span></label>
-                    <select id="scheduler-channel" class="glass-input" required>
-                      <option value="">Select channel...</option>
-                    </select>
-                  </div>
-
-                  <div class="input-group">
-                    <label for="scheduler-content">Message Content <span class="required">*</span></label>
-                    <textarea id="scheduler-content" rows="4" placeholder="Message content support markdown..." required></textarea>
-                  </div>
-
-                  <div class="grid-2-col">
-                    <div class="input-group">
-                      <label for="scheduler-type">Timeline Style <span class="required">*</span></label>
-                      <select id="scheduler-type" class="glass-input" required>
-                        <option value="once">Send Once</option>
-                        <option value="recurring">Recurring Schedule</option>
-                      </select>
-                    </div>
-                    <div class="input-group" id="scheduler-datetime-wrapper">
-                      <label for="scheduler-datetime">Target Date & Time <span class="required">*</span></label>
-                      <input type="datetime-local" id="scheduler-datetime" class="glass-input">
-                    </div>
-                  </div>
-
-                  <div class="grid-2-col hidden" id="scheduler-recurring-wrapper">
-                    <div class="input-group">
-                      <label for="scheduler-interval-type">Time Unit:</label>
-                      <select id="scheduler-interval-type" class="glass-input">
-                        <option value="hourly">Hourly</option>
-                        <option value="daily">Daily</option>
-                        <option value="weekly">Weekly</option>
-                      </select>
-                    </div>
-                    <div class="input-group">
-                      <label for="scheduler-interval-val">Repeat Every:</label>
-                      <input type="number" id="scheduler-interval-val" min="1" max="100" value="1" class="glass-input">
-                    </div>
-                  </div>
-
-                  <button type="submit" class="btn btn-primary btn-glow mt-3">
-                    <i class="fa-solid fa-calendar-plus"></i> Deploy Scheduled Message
-                  </button>
-                </form>
-              </div>
-            </div>
-
-            <!-- Active Schedules -->
-            <div class="card glass span-2">
-              <div class="card-header border-bottom">
-                <h2>Active Scheduled Broadcasts</h2>
-              </div>
-              <div class="card-body p-0">
-                <div class="table-container max-h-400">
-                  <table class="premium-table" id="table-scheduler">
-                    <thead>
-                      <tr>
-                        <th>Channel</th>
-                        <th>Type / Timing</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody id="scheduler-list-body">
-                      <!-- Active schedules go here -->
-                    </tbody>
-                  </table>
-                  <div id="scheduler-empty" class="text-center py-5">
-                    <i class="fa-solid fa-clock big-icon opacity-50"></i>
-                    <p class="mt-2 text-sub">No scheduled messages configured. Set one up on the left!</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
 
         <!-- TAB: LEVELING & XP -->
         <section id="tab-leveling" class="tab-pane hidden">
@@ -2457,8 +2914,309 @@
           </div>
         </section>
 
-        <!-- TAB: AUTO-RESPONDERS -->
-        <section id="tab-auto-responder" class="tab-pane hidden">
+
+        <!-- TAB: AUDIT LOG -->
+        <section id="tab-audit-log" class="tab-pane hidden">
+          <div id="hosting-mode-settings-panel" class="card glass hidden">
+            <div class="card-header">
+              <h3><i class="fa-solid fa-server"></i> Hosting Mode</h3>
+            </div>
+            <div class="card-body">
+              <p>Current mode: <strong id="hosting-mode-settings-current">Unconfigured</strong></p>
+              <button type="button" id="hosting-mode-settings-switch" class="btn btn-secondary">
+                <i class="fa-solid fa-arrow-right-arrow-left"></i> <span id="hosting-mode-settings-switch-label">Switch</span>
+              </button>
+              <div id="hosting-mode-settings-confirmation" class="hosting-mode-settings-confirmation hidden">
+                <div id="hosting-mode-settings-warning"></div>
+                <div class="confirmation-actions">
+                  <button type="button" id="hosting-mode-settings-confirm" class="btn btn-primary"></button>
+                  <button type="button" id="hosting-mode-settings-cancel" class="btn btn-secondary">Cancel</button>
+                </div>
+              </div>
+              <div id="hosting-mode-settings-error" class="hosting-mode-settings-error hidden" role="alert"></div>
+            </div>
+          </div>
+
+          <div class="card glass">
+            <div class="card-header border-bottom flex-between flex-wrap">
+              <div>
+                <h2>Dashboard Audit Trail</h2>
+                <p>Chronological feed of administrative and moderation actions logged via this optimizer dashboard.</p>
+              </div>
+              <div class="flex-between mt-2 mt-md-0">
+                <select id="audit-log-scope" class="glass-input mr-2">
+                  <option value="GUILD" selected>This Server Only</option>
+                  <option value="GLOBAL">System/Global Only</option>
+                  <option value="ALL">All Logs</option>
+                </select>
+                <select id="audit-log-filter" class="glass-input mr-2">
+                  <option value="ALL">All Categories</option>
+                  <option value="BOT_CONTROL">Bot Lifecycle</option>
+                  <option value="CONFIG_CHANGE">Configurations</option>
+                  <option value="BACKUP_ACTION">Backup & Restore</option>
+                  <option value="ROLE_ACTION">Roles Config</option>
+                  <option value="TICKET_ACTION">Ticketing Panel</option>
+                  <option value="MUSIC_ACTION">Music Player</option>
+                  <option value="SCHEDULE_ACTION">Message Scheduler</option>
+                  <option value="LEVELING_ACTION">Leveling Settings</option>
+                  <option value="AUTORESPONDER_ACTION">Auto-Responder</option>
+                </select>
+                <button id="btn-audit-log-refresh" class="btn btn-secondary btn-icon-only" title="Refresh Logs">
+                  <i class="fa-solid fa-rotate"></i>
+                </button>
+              </div>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-container max-h-500">
+                <table class="premium-table" id="table-audit-logs">
+                  <thead>
+                    <tr>
+                      <th>Timestamp</th>
+                      <th>Category</th>
+                      <th>User/Actor</th>
+                      <th>Action Logged</th>
+                      <th>Target Server</th>
+                    </tr>
+                  </thead>
+                  <tbody id="audit-logs-list-body">
+                    <!-- Audit logs entries populate dynamically -->
+                  </tbody>
+                </table>
+                <div id="audit-logs-empty" class="text-center py-5">
+                  <i class="fa-solid fa-list-check big-icon opacity-50"></i>
+                  <p class="mt-2 text-sub">No dashboard actions recorded in audit logs.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+
+
+
+        <!-- TAB: TICKET INTELLIGENCE -->
+        
+
+        <!-- TAB: MODERATOR INTELLIGENCE -->
+        
+
+
+        <!-- TAB: AUTOMATION CENTER -->
+        <section id="tab-automation" class="tab-pane hidden">
+          <div class="sub-tab-container">
+            <button class="sub-tab-btn active" data-sub-tab="automation-overview-sub">Automation Overview</button>
+            <button class="sub-tab-btn" data-sub-tab="automod-sub">Auto-Moderation</button>
+            <button class="sub-tab-btn" data-sub-tab="incidents-sub">Incidents & Security</button>
+            <button class="sub-tab-btn" data-sub-tab="auto-responder-sub">Auto-Responders</button>
+            <button class="sub-tab-btn" data-sub-tab="scheduler-sub">Scheduler</button>
+          </div>
+
+          <div id="automation-overview-sub" class="sub-tab-pane">
+
+          <div class="grid-layout">
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-gears"></i> Automation Center</h2>
+              </div>
+              <div class="card-body" id="automation-content">
+                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+              </div>
+            </div>
+          </div>
+        
+          </div>
+
+          <div id="automod-sub" class="sub-tab-pane hidden">
+
+          <div class="grid-layout">
+            <!-- Auto-Moderation Settings -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2>Auto-Moderation Settings</h2>
+              </div>
+              <div class="card-body">
+                <form id="automod-form">
+                  <div class="toggle-group mb-4">
+                    <span class="toggle-label font-weight-500">Enable Auto-Moderation Suite:</span>
+                    <label class="switch">
+                      <input type="checkbox" id="automod-enabled" checked>
+                      <span class="slider round"></span>
+                    </label>
+                  </div>
+                  <p class="setting-desc mb-4">Activates filters that scan and handle chat infractions. Automatically warning users and deleting messages.</p>
+
+                  <div class="toggle-group mb-2">
+                    <span class="toggle-label">Block Profanity & Swearwords:</span>
+                    <label class="switch">
+                      <input type="checkbox" id="automod-profanity" checked>
+                      <span class="slider round"></span>
+                    </label>
+                  </div>
+                  <p class="setting-desc mb-4">Automatically deletes messages matching the filtered words list. Staff members bypass this check.</p>
+
+                  <div class="toggle-group mb-2">
+                    <span class="toggle-label">Block Links:</span>
+                    <label class="switch">
+                      <input type="checkbox" id="automod-links">
+                      <span class="slider round"></span>
+                    </label>
+                  </div>
+                  <p class="setting-desc mb-4">Removes links shared by normal users (blocks advertisement and phishing links). Staff members bypass this check.</p>
+
+                  <div class="input-group" id="whitelisted-domains-group">
+                    <label for="automod-whitelisted-domains">Whitelisted Domains (one per line):</label>
+                    <textarea id="automod-whitelisted-domains" class="glass-input" rows="3" placeholder="e.g. google.com&#10;github.com"></textarea>
+                    <small>Links to these domains will be allowed.</small>
+                  </div>
+
+
+                  <div class="input-group" id="whitelisted-invites-group">
+                    <label for="automod-whitelisted-invites">Whitelisted Invites (one per line):</label>
+                    <textarea id="automod-whitelisted-invites" class="glass-input" rows="3" placeholder="e.g. aegis-dev&#10;discord-invite-code"></textarea>
+                    <small>Specific invite codes that are allowed.</small>
+                  </div>
+
+                  <div class="input-group">
+                    <label for="automod-max-mentions">Mass Mention Threshold:</label>
+                    <input type="number" id="automod-max-mentions" min="1" max="50" value="5">
+                    <small>Deletes messages containing more than this number of mentions (blocks ping spam raids).</small>
+                  </div>
+
+                  <div class="input-group">
+                    <label for="automod-log-channel">Mod Logs Channel:</label>
+                    <select id="automod-log-channel" class="glass-input">
+                      <option value="">Choose log channel...</option>
+                    </select>
+                    <small>Channel where AutoMod infractions and server status reports are logged.</small>
+                  </div>
+
+                  <button type="submit" class="btn btn-primary btn-glow mt-3">
+                    <i class="fa-solid fa-floppy-disk"></i> Save Moderation Settings
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            <!-- Blocklist management -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2>Custom Word Filter Blocklist</h2>
+                <p>Add specific slurs, spam keywords, or links that the bot should automatically delete.</p>
+              </div>
+              <div class="card-body">
+                <div class="input-group">
+                  <label for="automod-words">Filtered Words (Comma Separated):</label>
+                  <textarea id="automod-words" rows="8" placeholder="badword1, spamlink.com, slurs..."></textarea>
+                  <small>Checks for exact word matches (case-insensitive) in user messages. Bypassed by members with Administrator or Manage Messages permissions.</small>
+                </div>
+              </div>
+            </div>
+
+            <div class="card glass span-2 mt-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-shield-halved"></i> Anti-Raid Protection</h2>
+                <p>Detect and respond to mass-join attacks and suspicious accounts.</p>
+              </div>
+              <div class="card-body">
+                <form id="anti-raid-form">
+                  <div class="input-group">
+                    <label>
+                      <input type="checkbox" id="ar-enabled"> Enable Anti-Raid Protection
+                    </label>
+                  </div>
+                  <div class="grid-layout" style="grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
+                    <div class="input-group">
+                      <label>Response Mode</label>
+                      <select id="ar-response-mode">
+                        <option value="passive">Passive (Log Only)</option>
+                        <option value="alert" selected>Alert (Mod-Log + DM)</option>
+                        <option value="lockdown">Lockdown (Temp Mute New Joins)</option>
+                        <option value="auto_verify">Auto-Verify (Captcha Required)</option>
+                      </select>
+                    </div>
+                    <div class="input-group">
+                      <label>Join Rate Threshold</label>
+                      <input type="number" id="ar-join-threshold" value="5" min="2" max="50">
+                      <small>Members per window to trigger raid alert</small>
+                    </div>
+                    <div class="input-group">
+                      <label>Window (seconds)</label>
+                      <input type="number" id="ar-window-seconds" value="30" min="10" max="300">
+                    </div>
+                    <div class="input-group">
+                      <label>Min Account Age (days)</label>
+                      <input type="number" id="ar-min-age" value="7" min="1" max="90">
+                      <small>Accounts younger than this are flagged</small>
+                    </div>
+                    <div class="input-group">
+                      <label>Suspicious Score Threshold</label>
+                      <input type="number" id="ar-score-threshold" value="70" min="30" max="100">
+                      <small>Score 0-100, higher = more strict</small>
+                    </div>
+                    <div class="input-group">
+                      <label>
+                        <input type="checkbox" id="ar-dm-owner" checked> DM Server Owner on Raid
+                      </label>
+                    </div>
+                  </div>
+                  <button type="submit" class="btn btn-primary btn-glow mt-4">
+                    <i class="fa-solid fa-save"></i> Save Anti-Raid Settings
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        
+          </div>
+
+          <div id="incidents-sub" class="sub-tab-pane hidden">
+
+          <div class="grid-layout">
+            <!-- Incident Stats -->
+            <div class="card glass span-4">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-shield-virus"></i> Incident Center</h2>
+                <div style="display:flex;gap:8px;align-items:center;">
+                  <select id="incident-days" class="glass-input" style="width:auto;padding:6px 10px;font-size:0.82rem;" onchange="loadIncidents()">
+                    <option value="7">Last 7 days</option>
+                    <option value="30" selected>Last 30 days</option>
+                    <option value="90">Last 90 days</option>
+                  </select>
+                </div>
+              </div>
+              <div class="card-body">
+                <div style="display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap;">
+                  <div class="glass-inner p-3 text-center" style="flex:1;min-width:100px;">
+                    <div style="font-size:1.5rem;font-weight:700;color:var(--text-main);" id="inc-total">0</div>
+                    <div style="font-size:0.75rem;color:var(--text-sub);">Total</div>
+                  </div>
+                  <div class="glass-inner p-3 text-center" style="flex:1;min-width:100px;">
+                    <div style="font-size:1.5rem;font-weight:700;color:var(--danger);" id="inc-critical">0</div>
+                    <div style="font-size:0.75rem;color:var(--text-sub);">Critical</div>
+                  </div>
+                  <div class="glass-inner p-3 text-center" style="flex:1;min-width:100px;">
+                    <div style="font-size:1.5rem;font-weight:700;color:var(--warning);" id="inc-high">0</div>
+                    <div style="font-size:0.75rem;color:var(--text-sub);">High</div>
+                  </div>
+                  <div class="glass-inner p-3 text-center" style="flex:1;min-width:100px;">
+                    <div style="font-size:1.5rem;font-weight:700;color:var(--primary);" id="inc-medium">0</div>
+                    <div style="font-size:0.75rem;color:var(--text-sub);">Medium</div>
+                  </div>
+                </div>
+                <div id="incidents-list">
+                  <div class="text-center py-4" style="color:var(--text-sub);">
+                    <i class="fa-solid fa-shield-halved" style="font-size:2rem;opacity:0.3;"></i>
+                    <p style="margin-top:8px;">Loading incidents...</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        
+          </div>
+
+          <div id="auto-responder-sub" class="sub-tab-pane hidden">
+
           <div class="grid-layout">
             <!-- Create Responder -->
             <div class="card glass span-2">
@@ -2560,83 +3318,105 @@
               </div>
             </div>
           </div>
-        </section>
-
-        <!-- TAB: AUDIT LOG -->
-        <section id="tab-audit-log" class="tab-pane hidden">
-          <div id="hosting-mode-settings-panel" class="card glass hidden">
-            <div class="card-header">
-              <h3><i class="fa-solid fa-server"></i> Hosting Mode</h3>
-            </div>
-            <div class="card-body">
-              <p>Current mode: <strong id="hosting-mode-settings-current">Unconfigured</strong></p>
-              <button type="button" id="hosting-mode-settings-switch" class="btn btn-secondary">
-                <i class="fa-solid fa-arrow-right-arrow-left"></i> <span id="hosting-mode-settings-switch-label">Switch</span>
-              </button>
-              <div id="hosting-mode-settings-confirmation" class="hosting-mode-settings-confirmation hidden">
-                <div id="hosting-mode-settings-warning"></div>
-                <div class="confirmation-actions">
-                  <button type="button" id="hosting-mode-settings-confirm" class="btn btn-primary"></button>
-                  <button type="button" id="hosting-mode-settings-cancel" class="btn btn-secondary">Cancel</button>
-                </div>
-              </div>
-              <div id="hosting-mode-settings-error" class="hosting-mode-settings-error hidden" role="alert"></div>
-            </div>
+        
           </div>
 
-          <div class="card glass">
-            <div class="card-header border-bottom flex-between flex-wrap">
-              <div>
-                <h2>Dashboard Audit Trail</h2>
-                <p>Chronological feed of administrative and moderation actions logged via this optimizer dashboard.</p>
+          <div id="scheduler-sub" class="sub-tab-pane hidden">
+
+          <div class="grid-layout">
+            <!-- Schedule Form -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2>Schedule Event Message</h2>
+                <p>Configure automated messages to broadcast once or on a recurring timeline.</p>
               </div>
-              <div class="flex-between mt-2 mt-md-0">
-                <select id="audit-log-scope" class="glass-input mr-2">
-                  <option value="GUILD" selected>This Server Only</option>
-                  <option value="GLOBAL">System/Global Only</option>
-                  <option value="ALL">All Logs</option>
-                </select>
-                <select id="audit-log-filter" class="glass-input mr-2">
-                  <option value="ALL">All Categories</option>
-                  <option value="BOT_CONTROL">Bot Lifecycle</option>
-                  <option value="CONFIG_CHANGE">Configurations</option>
-                  <option value="BACKUP_ACTION">Backup & Restore</option>
-                  <option value="ROLE_ACTION">Roles Config</option>
-                  <option value="TICKET_ACTION">Ticketing Panel</option>
-                  <option value="MUSIC_ACTION">Music Player</option>
-                  <option value="SCHEDULE_ACTION">Message Scheduler</option>
-                  <option value="LEVELING_ACTION">Leveling Settings</option>
-                  <option value="AUTORESPONDER_ACTION">Auto-Responder</option>
-                </select>
-                <button id="btn-audit-log-refresh" class="btn btn-secondary btn-icon-only" title="Refresh Logs">
-                  <i class="fa-solid fa-rotate"></i>
-                </button>
+              <div class="card-body">
+                <form id="scheduler-form">
+                  <div class="input-group">
+                    <label for="scheduler-channel">Target Channel <span class="required">*</span></label>
+                    <select id="scheduler-channel" class="glass-input" required>
+                      <option value="">Select channel...</option>
+                    </select>
+                  </div>
+
+                  <div class="input-group">
+                    <label for="scheduler-content">Message Content <span class="required">*</span></label>
+                    <textarea id="scheduler-content" rows="4" placeholder="Message content support markdown..." required></textarea>
+                  </div>
+
+                  <div class="grid-2-col">
+                    <div class="input-group">
+                      <label for="scheduler-type">Timeline Style <span class="required">*</span></label>
+                      <select id="scheduler-type" class="glass-input" required>
+                        <option value="once">Send Once</option>
+                        <option value="recurring">Recurring Schedule</option>
+                      </select>
+                    </div>
+                    <div class="input-group" id="scheduler-datetime-wrapper">
+                      <label for="scheduler-datetime">Target Date & Time <span class="required">*</span></label>
+                      <input type="datetime-local" id="scheduler-datetime" class="glass-input">
+                    </div>
+                  </div>
+
+                  <div class="grid-2-col hidden" id="scheduler-recurring-wrapper">
+                    <div class="input-group">
+                      <label for="scheduler-interval-type">Time Unit:</label>
+                      <select id="scheduler-interval-type" class="glass-input">
+                        <option value="hourly">Hourly</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                      </select>
+                    </div>
+                    <div class="input-group">
+                      <label for="scheduler-interval-val">Repeat Every:</label>
+                      <input type="number" id="scheduler-interval-val" min="1" max="100" value="1" class="glass-input">
+                    </div>
+                  </div>
+
+                  <button type="submit" class="btn btn-primary btn-glow mt-3">
+                    <i class="fa-solid fa-calendar-plus"></i> Deploy Scheduled Message
+                  </button>
+                </form>
               </div>
             </div>
-            <div class="card-body p-0">
-              <div class="table-container max-h-500">
-                <table class="premium-table" id="table-audit-logs">
-                  <thead>
-                    <tr>
-                      <th>Timestamp</th>
-                      <th>Category</th>
-                      <th>User/Actor</th>
-                      <th>Action Logged</th>
-                      <th>Target Server</th>
-                    </tr>
-                  </thead>
-                  <tbody id="audit-logs-list-body">
-                    <!-- Audit logs entries populate dynamically -->
-                  </tbody>
-                </table>
-                <div id="audit-logs-empty" class="text-center py-5">
-                  <i class="fa-solid fa-list-check big-icon opacity-50"></i>
-                  <p class="mt-2 text-sub">No dashboard actions recorded in audit logs.</p>
+
+            <!-- Active Schedules -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2>Active Scheduled Broadcasts</h2>
+              </div>
+              <div class="card-body p-0">
+                <div class="table-container max-h-400">
+                  <table class="premium-table" id="table-scheduler">
+                    <thead>
+                      <tr>
+                        <th>Channel</th>
+                        <th>Type / Timing</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody id="scheduler-list-body">
+                      <!-- Active schedules go here -->
+                    </tbody>
+                  </table>
+                  <div id="scheduler-empty" class="text-center py-5">
+                    <i class="fa-solid fa-clock big-icon opacity-50"></i>
+                    <p class="mt-2 text-sub">No scheduled messages configured. Set one up on the left!</p>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </section>
+        
+          </div>
+</section>
+
+        <!-- TAB: PERMISSION HEATMAP -->
+        
+
+        <!-- TAB: CHANNEL ACTIVITY HEATMAP -->
+
 
         <!-- TAB: LIVE LOGS -->
         <section id="tab-logs" class="tab-pane hidden">
@@ -2674,9 +3454,17 @@
   <!-- Notification Toast Container -->
   <div id="toast-container" class="toast-container"></div>
 
+  <!-- Command Palette -->
+  <div id="command-palette" class="hidden" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);z-index:10001;display:flex;align-items:flex-start;justify-content:center;padding-top:20vh;">
+    <div style="background:var(--bg-secondary);border:1px solid var(--card-border);border-radius:16px;width:90%;max-width:500px;overflow:hidden;box-shadow:0 25px 50px rgba(0,0,0,0.5);">
+      <input type="text" id="command-palette-input" placeholder="Type a command or search..." style="width:100%;padding:16px 20px;background:transparent;border:none;border-bottom:1px solid var(--card-border);color:var(--text-main);font-size:1rem;outline:none;">
+      <div id="command-palette-results" style="max-height:300px;overflow-y:auto;padding:8px;"></div>
+    </div>
+  </div>
+
   <!-- Script -->
-  <script src="/static/chart.min.js"></script>
-  <script>
+  <script src="/static/chart.min.js" defer></script>
+  <script defer>
     // Smart Features Analytics
     (function() {
       const API = window.BOT_API_URL || '';
@@ -2902,6 +3690,6 @@
       document.getElementById('analytics-msg-days')?.addEventListener('change', loadMessageChart);
     })();
   </script>
-  <script src="/static/app.js?v=1.1.0"></script>
+  <script src="/static/app.js?v=1.1.0" defer></script>
 </body>
 </html>

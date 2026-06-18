@@ -80,6 +80,66 @@ BUILTIN_METADATA = {
         "category": "Support",
         "description": "Customer helpdesk setup with ticket panels, staff lobby, and mod log channels.",
         "icon": "fa-ticket"
+    },
+    "music": {
+        "display_name": "Music Server",
+        "category": "Creative",
+        "description": "For music communities with DJ booths, listening parties, and dedicated voice channels.",
+        "icon": "fa-music"
+    },
+    "education": {
+        "display_name": "Education Hub",
+        "category": "Education",
+        "description": "School and learning communities with course channels, study groups, and teacher areas.",
+        "icon": "fa-graduation-cap"
+    },
+    "crypto": {
+        "display_name": "Crypto & Web3",
+        "category": "Finance",
+        "description": "Cryptocurrency communities with trading discussions, alpha calls, and technical analysis.",
+        "icon": "fa-bitcoin-sign"
+    },
+    "art": {
+        "display_name": "Art & Creative",
+        "category": "Creative",
+        "description": "For artists and creators with galleries, feedback channels, and tutorial spaces.",
+        "icon": "fa-palette"
+    },
+    "podcast": {
+        "display_name": "Podcast Network",
+        "category": "Creative",
+        "description": "Podcast communities with episode releases, discussions, and recording studios.",
+        "icon": "fa-podcast"
+    },
+    "photography": {
+        "display_name": "Photography Club",
+        "category": "Creative",
+        "description": "Photography communities with showcases, critiques, gear talk, and location sharing.",
+        "icon": "fa-camera"
+    },
+    "developer": {
+        "display_name": "Developer Hub",
+        "category": "Technology",
+        "description": "Coding communities with language channels, code review, and project collaboration.",
+        "icon": "fa-code"
+    },
+    "fitness": {
+        "display_name": "Fitness & Health",
+        "category": "Lifestyle",
+        "description": "Fitness communities with workout plans, nutrition tips, and progress tracking.",
+        "icon": "fa-dumbbell"
+    },
+    "food": {
+        "display_name": "Food & Cooking",
+        "category": "Lifestyle",
+        "description": "Food enthusiast communities with recipes, photos, and cooking discussions.",
+        "icon": "fa-utensils"
+    },
+    "travel": {
+        "display_name": "Travel Network",
+        "category": "Lifestyle",
+        "description": "Travel communities with destination guides, tips, and trip planning.",
+        "icon": "fa-plane"
     }
 }
 BUILTIN_NAMES = set(BUILTIN_METADATA.keys())
@@ -163,6 +223,16 @@ class CreateRoleRequest(BaseModel):
     name: str
     color: str
     hoist: bool = False
+
+class EditRoleRequest(BaseModel):
+    name: Optional[str] = None
+    color: Optional[str] = None
+    hoist: Optional[bool] = None
+    mentionable: Optional[bool] = None
+    permissions: Optional[int] = None
+
+class CloneRoleRequest(BaseModel):
+    name: Optional[str] = None
 
 class RolePanelButton(BaseModel):
     role_id: str
@@ -820,7 +890,9 @@ async def get_roles(guild_id: str):
             "position": r.position,
             "member_count": len(r.members),
             "managed": r.managed,
-            "hoist": r.hoist
+            "hoist": r.hoist,
+            "mentionable": r.mentionable,
+            "permissions": r.permissions.value,
         })
     # Sort roles by position descending
     roles_list.sort(key=lambda x: x["position"], reverse=True)
@@ -906,6 +978,264 @@ async def delete_role(guild_id: str, role_id: str):
     except Exception as e:
         logger.error(f"Failed to delete role {role_id} in guild {guild_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.put("/api/guilds/{guild_id}/roles/{role_id}")
+async def edit_role(guild_id: str, role_id: str, request: EditRoleRequest):
+    bot = get_active_bot()
+    guild = bot.get_guild(parse_id(guild_id, "guild_id"))
+    if not guild:
+        raise HTTPException(status_code=404, detail="Guild not found.")
+
+    role = guild.get_role(parse_id(role_id, "role_id"))
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found.")
+
+    if not guild.me.guild_permissions.manage_roles:
+        raise HTTPException(status_code=403, detail="Bot lacks 'Manage Roles' permission.")
+
+    if role.position >= guild.me.top_role.position:
+        raise HTTPException(status_code=403, detail=f"Cannot edit role '{role.name}': it is higher than or equal to the bot's highest role.")
+
+    kwargs = {}
+    if request.name is not None:
+        kwargs["name"] = request.name
+    if request.color is not None:
+        color_hex = request.color.replace("#", "")
+        try:
+            kwargs["color"] = discord.Color(int(color_hex, 16))
+        except ValueError:
+            pass
+    if request.hoist is not None:
+        kwargs["hoist"] = request.hoist
+    if request.mentionable is not None:
+        kwargs["mentionable"] = request.mentionable
+    if request.permissions is not None:
+        kwargs["permissions"] = discord.Permissions(request.permissions)
+
+    if not kwargs:
+        raise HTTPException(status_code=400, detail="No fields to update.")
+
+    try:
+        await role.edit(**kwargs, reason="Edited via Web Dashboard")
+        audit_log.log_action("admin", "ROLE_ACTION", f"Edited role '{role.name}' ({role_id})", guild_id)
+        return {
+            "status": "success",
+            "role": {
+                "id": str(role.id),
+                "name": role.name,
+                "color": f"#{role.color.value:06X}" if role.color.value else "#99AAB5",
+                "hoist": role.hoist,
+                "mentionable": role.mentionable,
+                "permissions": role.permissions.value,
+            }
+        }
+    except discord.Forbidden:
+        raise HTTPException(status_code=403, detail=f"Discord Forbidden: Cannot edit role '{role.name}'.")
+    except Exception as e:
+        logger.error(f"Failed to edit role {role_id} in guild {guild_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/api/guilds/{guild_id}/roles/{role_id}/clone")
+async def clone_role(guild_id: str, role_id: str, request: CloneRoleRequest = None):
+    bot = get_active_bot()
+    guild = bot.get_guild(parse_id(guild_id, "guild_id"))
+    if not guild:
+        raise HTTPException(status_code=404, detail="Guild not found.")
+
+    role = guild.get_role(parse_id(role_id, "role_id"))
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found.")
+
+    if not guild.me.guild_permissions.manage_roles:
+        raise HTTPException(status_code=403, detail="Bot lacks 'Manage Roles' permission.")
+
+    new_name = (request.name if request else None) or f"{role.name} (Copy)"
+
+    try:
+        new_role = await guild.create_role(
+            name=new_name,
+            color=role.color,
+            hoist=role.hoist,
+            permissions=role.permissions,
+            reason=f"Cloned from '{role.name}' via Web Dashboard"
+        )
+        audit_log.log_action("admin", "ROLE_ACTION", f"Cloned role '{role.name}' → '{new_name}'", guild_id)
+        return {
+            "status": "success",
+            "role": {
+                "id": str(new_role.id),
+                "name": new_role.name,
+                "color": f"#{new_role.color.value:06X}" if new_role.color.value else "#99AAB5",
+            }
+        }
+    except discord.Forbidden:
+        raise HTTPException(status_code=403, detail="Discord Forbidden: Cannot create role.")
+    except Exception as e:
+        logger.error(f"Failed to clone role {role_id} in guild {guild_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/api/guilds/{guild_id}/roles/{role_id}/members")
+async def get_role_members(guild_id: str, role_id: str):
+    bot = get_active_bot()
+    guild = bot.get_guild(parse_id(guild_id, "guild_id"))
+    if not guild:
+        raise HTTPException(status_code=404, detail="Guild not found.")
+
+    role = guild.get_role(parse_id(role_id, "role_id"))
+    if not role:
+        raise HTTPException(status_code=404, detail="Role not found.")
+
+    members = []
+    for m in role.members:
+        members.append({
+            "id": str(m.id),
+            "name": m.name,
+            "display_name": m.display_name,
+            "avatar": str(m.display_avatar.url) if m.display_avatar else None,
+        })
+    return {"role_id": role_id, "role_name": role.name, "member_count": len(members), "members": members}
+
+@router.post("/api/guilds/{guild_id}/roles/bulk-delete")
+async def bulk_delete_roles(guild_id: str, request: Request):
+    body = await request.json()
+    role_ids = body.get("role_ids", [])
+    if not role_ids:
+        raise HTTPException(status_code=400, detail="No role IDs provided.")
+
+    bot = get_active_bot()
+    guild = bot.get_guild(parse_id(guild_id, "guild_id"))
+    if not guild:
+        raise HTTPException(status_code=404, detail="Guild not found.")
+
+    if not guild.me.guild_permissions.manage_roles:
+        raise HTTPException(status_code=403, detail="Bot lacks 'Manage Roles' permission.")
+
+    deleted = 0
+    errors = []
+    for rid in role_ids:
+        role = guild.get_role(parse_id(rid, "role_id"))
+        if not role or role.is_default() or role.managed:
+            continue
+        if role.position >= guild.me.top_role.position:
+            errors.append(f"Cannot delete '{role.name}': hierarchy constraint.")
+            continue
+        try:
+            await role.delete(reason="Bulk delete via Web Dashboard")
+            deleted += 1
+        except Exception as e:
+            errors.append(f"Failed to delete '{role.name}': {str(e)}")
+
+    audit_log.log_action("admin", "ROLE_ACTION", f"Bulk deleted {deleted} roles", guild_id)
+    return {"status": "success", "deleted": deleted, "errors": errors}
+
+@router.get("/api/guilds/{guild_id}/roles/dependencies")
+async def get_role_dependencies(guild_id: str):
+    bot = get_active_bot()
+    if not bot:
+        raise HTTPException(status_code=503, detail="Bot not connected")
+
+    guild = bot.get_guild(parse_id(guild_id, "guild_id"))
+    if not guild:
+        raise HTTPException(status_code=404, detail="Guild not found")
+
+    dependencies = []
+    guild_config = {}
+    try:
+        from aegis.core.utils import get_guild_config
+        guild_config = get_guild_config(guild_id)
+    except Exception:
+        pass
+
+    for role in guild.roles:
+        if role.is_default() or role.managed:
+            continue
+
+        used_by = []
+
+        # Check ticket system
+        ticket_cfg = guild_config.get("ticket_settings", {})
+        if str(role.id) in str(ticket_cfg.get("support_role_id", "")):
+            used_by.append("Support Tickets")
+
+        # Check welcome system
+        welcome_cfg = guild_config.get("welcome_settings", {})
+        if str(role.id) in str(welcome_cfg.get("auto_role_id", "")):
+            used_by.append("Welcome Auto-Role")
+
+        # Check role panels
+        panels = guild_config.get("role_panels", [])
+        for panel in panels:
+            for btn in panel.get("buttons", []):
+                if str(btn.get("role_id")) == str(role.id):
+                    used_by.append(f"Role Panel: {panel.get('title', 'Unknown')}")
+                    break
+
+        # Check automod
+        automod_cfg = guild_config.get("automod_settings", {})
+        if str(role.id) in str(automod_cfg.get("muted_role_id", "")):
+            used_by.append("AutoMod Mute Role")
+
+        if used_by:
+            dependencies.append({"role_id": str(role.id), "role_name": role.name, "used_by": used_by})
+
+    return {"dependencies": dependencies}
+
+@router.get("/api/guilds/{guild_id}/roles/export")
+async def export_roles(guild_id: str):
+    bot = get_active_bot()
+    guild = bot.get_guild(parse_id(guild_id, "guild_id"))
+    if not guild:
+        raise HTTPException(status_code=404, detail="Guild not found")
+
+    roles_data = []
+    for r in guild.roles:
+        if r.is_default():
+            continue
+        roles_data.append({
+            "name": r.name,
+            "color": f"#{r.color.value:06X}" if r.color.value else "#99AAB5",
+            "hoist": r.hoist,
+            "mentionable": r.mentionable,
+            "permissions": r.permissions.value,
+            "position": r.position,
+        })
+
+    return {"guild_name": guild.name, "roles": roles_data, "exported_at": datetime.datetime.now(datetime.timezone.utc).isoformat()}
+
+@router.post("/api/guilds/{guild_id}/roles/import")
+async def import_roles(guild_id: str, request: Request):
+    body = await request.json()
+    roles_data = body.get("roles", [])
+    if not roles_data:
+        raise HTTPException(status_code=400, detail="No roles to import.")
+
+    bot = get_active_bot()
+    guild = bot.get_guild(parse_id(guild_id, "guild_id"))
+    if not guild:
+        raise HTTPException(status_code=404, detail="Guild not found.")
+
+    if not guild.me.guild_permissions.manage_roles:
+        raise HTTPException(status_code=403, detail="Bot lacks 'Manage Roles' permission.")
+
+    created = 0
+    for rd in roles_data:
+        try:
+            color_hex = rd.get("color", "#99AAB5").replace("#", "")
+            color_val = int(color_hex, 16) if color_hex else 0
+            await guild.create_role(
+                name=rd.get("name", "Imported Role"),
+                color=discord.Color(color_val),
+                hoist=rd.get("hoist", False),
+                mentionable=rd.get("mentionable", False),
+                permissions=discord.Permissions(rd.get("permissions", 0)),
+                reason="Imported via Web Dashboard",
+            )
+            created += 1
+        except Exception:
+            pass
+
+    audit_log.log_action("admin", "ROLE_ACTION", f"Imported {created} roles", guild_id)
+    return {"status": "success", "created": created}
 
 @router.post("/api/roles/panel/deploy")
 async def deploy_role_panel(request: RolePanelDeployRequest, req_data: Request):
@@ -1069,7 +1399,13 @@ async def save_template(request: TemplateSaveRequest, req_data: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/api/templates/upload")
-async def upload_template(request: TemplateUploadRequest):
+async def upload_template(request: TemplateUploadRequest, req_data: Request):
+    auth_header = req_data.headers.get("Authorization")
+    token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else ""
+    session_role = auth.get_session_role(token)
+    if session_role not in ("admin", "tenant"):
+        raise HTTPException(status_code=403, detail="Forbidden: Admin or tenant role required.")
+
     import re
     safe_name = re.sub(r'[^a-zA-Z0-9_-]', '', request.name)
     if not safe_name:
@@ -1097,7 +1433,7 @@ async def upload_template(request: TemplateUploadRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/api/templates/{name}/preview")
-async def get_template_preview(name: str, guild_id: str, request: Request, handling: str = "keep"):
+async def get_template_preview(name: str, guild_id: str, request: Request, handling: str = "archive"):
     auth_header = request.headers.get("Authorization")
     token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else ""
     session_guild_id = auth.get_session_guild_id(token)
@@ -1178,7 +1514,13 @@ async def apply_template(request: TemplateApplyRequest, req_data: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/api/templates/{name}")
-async def delete_template(name: str):
+async def delete_template(name: str, req_data: Request):
+    auth_header = req_data.headers.get("Authorization")
+    token = auth_header.split(" ")[1] if auth_header and auth_header.startswith("Bearer ") else ""
+    session_role = auth.get_session_role(token)
+    if session_role not in ("admin", "tenant"):
+        raise HTTPException(status_code=403, detail="Forbidden: Admin or tenant role required.")
+
     templates_dir = utils.get_writeable_path("templates")
     import re
     safe_name = re.sub(r'[^a-zA-Z0-9_-]', '', name)

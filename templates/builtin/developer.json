@@ -1,0 +1,247 @@
+{
+  "name": "developer",
+  "verification_level": "medium",
+  "explicit_content_filter": "all_members",
+  "roles": [
+    {
+      "name": "Admin",
+      "color": 15671396,
+      "hoist": true,
+      "permissions": 8,
+      "position": 4
+    },
+    {
+      "name": "Moderator",
+      "color": 3900150,
+      "hoist": true,
+      "permissions": 268435486,
+      "position": 3
+    },
+    {
+      "name": "Lead Dev",
+      "color": 3447003,
+      "hoist": true,
+      "permissions": 268435486,
+      "position": 2
+    },
+    {
+      "name": "Developer",
+      "color": 1752220,
+      "hoist": false,
+      "permissions": 104324673,
+      "position": 1
+    },
+    {
+      "name": "Junior",
+      "color": 12370112,
+      "hoist": false,
+      "permissions": 104324673,
+      "position": 1
+    }
+  ],
+  "categories": [
+    {
+      "name": "💻 INFORMATION",
+      "position": 1,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "welcome",
+          "type": "text",
+          "position": 1,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        },
+        {
+          "name": "rules",
+          "type": "text",
+          "position": 2,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        },
+        {
+          "name": "announcements",
+          "type": "text",
+          "position": 3,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🐍 LANGUAGES",
+      "position": 2,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "python",
+          "type": "text",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "javascript",
+          "type": "text",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "web-dev",
+          "type": "text",
+          "position": 3,
+          "overwrites": []
+        },
+        {
+          "name": "general-coding",
+          "type": "text",
+          "position": 4,
+          "overwrites": []
+        }
+      ]
+    },
+    {
+      "name": "📋 CODE REVIEW",
+      "position": 3,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "review-requests",
+          "type": "text",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "code-snippets",
+          "type": "text",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "bug-reports",
+          "type": "text",
+          "position": 3,
+          "overwrites": []
+        }
+      ]
+    },
+    {
+      "name": "🚀 PROJECTS",
+      "position": 4,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "project-showcase",
+          "type": "text",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "open-source",
+          "type": "text",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "job-board",
+          "type": "text",
+          "position": 3,
+          "overwrites": []
+        },
+        {
+          "name": "Pair Programming",
+          "type": "voice",
+          "position": 4,
+          "overwrites": []
+        }
+      ]
+    },
+    {
+      "name": "🔊 VOICE CHANNELS",
+      "position": 5,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "Chill Lounge",
+          "type": "voice",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "Rubber Duck",
+          "type": "voice",
+          "position": 2,
+          "overwrites": []
+        }
+      ]
+    },
+    {
+      "name": "🛡️ STAFF AREA",
+      "position": 6,
+      "overwrites": [
+        {
+          "target_type": "role",
+          "target_name": "@everyone",
+          "allow": 0,
+          "deny": 1024
+        },
+        {
+          "target_type": "role",
+          "target_name": "Admin",
+          "allow": 1024,
+          "deny": 0
+        },
+        {
+          "target_type": "role",
+          "target_name": "Moderator",
+          "allow": 1024,
+          "deny": 0
+        },
+        {
+          "target_type": "role",
+          "target_name": "Lead Dev",
+          "allow": 1024,
+          "deny": 0
+        }
+      ],
+      "channels": [
+        {
+          "name": "staff-chat",
+          "type": "text",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "mod-logs",
+          "type": "text",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "Staff Meeting",
+          "type": "voice",
+          "position": 3,
+          "overwrites": []
+        }
+      ]
+    }
+  ],
+  "uncategorized_channels": []
+}

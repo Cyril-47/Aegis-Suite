@@ -1,0 +1,242 @@
+{
+  "name": "podcast",
+  "verification_level": "medium",
+  "explicit_content_filter": "all_members",
+  "roles": [
+    {
+      "name": "Admin",
+      "color": 15671396,
+      "hoist": true,
+      "permissions": 8,
+      "position": 4
+    },
+    {
+      "name": "Moderator",
+      "color": 3900150,
+      "hoist": true,
+      "permissions": 268435486,
+      "position": 3
+    },
+    {
+      "name": "Host",
+      "color": 16729344,
+      "hoist": true,
+      "permissions": 1048576,
+      "position": 2
+    },
+    {
+      "name": "Co-Host",
+      "color": 16750848,
+      "hoist": true,
+      "permissions": 1048576,
+      "position": 2
+    },
+    {
+      "name": "Listener",
+      "color": 3447003,
+      "hoist": false,
+      "permissions": 104324673,
+      "position": 1
+    }
+  ],
+  "categories": [
+    {
+      "name": "🎙️ INFORMATION",
+      "position": 1,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "welcome",
+          "type": "text",
+          "position": 1,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        },
+        {
+          "name": "rules",
+          "type": "text",
+          "position": 2,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        },
+        {
+          "name": "announcements",
+          "type": "text",
+          "position": 3,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "📻 EPISODES",
+      "position": 2,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "latest-episode",
+          "type": "text",
+          "position": 1,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "@everyone",
+              "allow": 0,
+              "deny": 2048
+            }
+          ]
+        },
+        {
+          "name": "episode-archive",
+          "type": "text",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "timestamps",
+          "type": "text",
+          "position": 3,
+          "overwrites": []
+        }
+      ]
+    },
+    {
+      "name": "💬 DISCUSSION",
+      "position": 3,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "general",
+          "type": "text",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "episode-discussion",
+          "type": "text",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "suggestions",
+          "type": "text",
+          "position": 3,
+          "overwrites": []
+        },
+        {
+          "name": "guest-request",
+          "type": "text",
+          "position": 4,
+          "overwrites": []
+        }
+      ]
+    },
+    {
+      "name": "🎙️ VOICE RECORDING",
+      "position": 4,
+      "overwrites": [],
+      "channels": [
+        {
+          "name": "Pre-Show Lounge",
+          "type": "voice",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "Recording Studio",
+          "type": "voice",
+          "position": 2,
+          "overwrites": [
+            {
+              "target_type": "role",
+              "target_name": "Listener",
+              "allow": 0,
+              "deny": 1048576
+            }
+          ]
+        },
+        {
+          "name": "Post-Show Chat",
+          "type": "voice",
+          "position": 3,
+          "overwrites": []
+        }
+      ]
+    },
+    {
+      "name": "🛡️ STAFF AREA",
+      "position": 5,
+      "overwrites": [
+        {
+          "target_type": "role",
+          "target_name": "@everyone",
+          "allow": 0,
+          "deny": 1024
+        },
+        {
+          "target_type": "role",
+          "target_name": "Admin",
+          "allow": 1024,
+          "deny": 0
+        },
+        {
+          "target_type": "role",
+          "target_name": "Moderator",
+          "allow": 1024,
+          "deny": 0
+        },
+        {
+          "target_type": "role",
+          "target_name": "Host",
+          "allow": 1024,
+          "deny": 0
+        },
+        {
+          "target_type": "role",
+          "target_name": "Co-Host",
+          "allow": 1024,
+          "deny": 0
+        }
+      ],
+      "channels": [
+        {
+          "name": "staff-chat",
+          "type": "text",
+          "position": 1,
+          "overwrites": []
+        },
+        {
+          "name": "show-notes",
+          "type": "text",
+          "position": 2,
+          "overwrites": []
+        },
+        {
+          "name": "Staff Meeting",
+          "type": "voice",
+          "position": 3,
+          "overwrites": []
+        }
+      ]
+    }
+  ],
+  "uncategorized_channels": []
+}
