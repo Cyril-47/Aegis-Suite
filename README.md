@@ -235,8 +235,8 @@ aegis
 
 | Step | Action |
 |------|--------|
-| ① | **Invite Aegis** — Click **Invite Bot** on the dashboard login page. You need **Administrator** permission. |
-| ② | **Run `!linkdashboard`** — Type in any text channel. The bot replies with a 6-digit code (10 min expiry). |
+| ① | **Invite Aegis** — Click **Invite Bot** on the dashboard login page at `https://[your domain]/`. You need **Administrator** permission. |
+| ② | **Run `/linkdashboard`** — Type in any text channel. The bot replies with a 6-digit code (10 min expiry). |
 | ③ | **Paste the code** — Enter it on the dashboard and click **Unlock Dashboard**. |
 | ④ | **You're in** — The dashboard now shows your server's panel. |
 
