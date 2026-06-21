@@ -253,7 +253,8 @@ The features below depend on the bot process being continuously connected to Dis
 - Dashboard configuration changes
 - Server health audit scan
 - Server layout optimizer
-- Role creator and role panel deployment
+- Role creator
+- Role panel deployment
 - Custom commands configuration
 - Server template save and apply
 - Embed builder

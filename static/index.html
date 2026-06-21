@@ -339,10 +339,6 @@
       </nav>
 
       <div class="sidebar-footer-actions">
-        <select id="language-selector" class="sidebar-action-btn" title="Select Language" style="background: transparent; border: 1px solid var(--card-border); color: var(--text-sub); padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer;">
-          <option value="en">English</option>
-          <option value="es">Español</option>
-        </select>
         <button id="btn-theme-toggle" class="sidebar-action-btn" title="Toggle Theme">
           <i class="fa-solid fa-circle-half-stroke"></i> Theme
         </button>
@@ -415,31 +411,44 @@
             <div class="warning-sections">
               <section class="warning-section warning-section-impacted">
                 <h4>Impacted by intermittent uptime</h4>
-                <ul>
-                  <li>Auto-moderation message handlers</li>
-                  <li>Scheduled messages background loop</li>
-                  <li>Giveaway end-time scheduler</li>
-                  <li>Leveling XP grants on member messages</li>
-                  <li><code>on_guild_remove</code> session revocation</li>
-                  <li><code>/linkdashboard</code> pairing-code expiry</li>
-                  <li>Periodic audit log roll-ups</li>
-                  <li>Welcome embeds and auto-role assignment on member join</li>
-                  <li>Auto-responders</li>
+                <ul style="list-style:none;padding:0;margin:0;">
+                  <li><i class="fa-solid fa-triangle-exclamation" style="color: var(--warning); font-size: 0.8rem; margin-right: 6px;"></i>Auto-moderation message handlers</li>
+                  <li><i class="fa-solid fa-triangle-exclamation" style="color: var(--warning); font-size: 0.8rem; margin-right: 6px;"></i>Scheduled messages background loop</li>
+                  <li><i class="fa-solid fa-triangle-exclamation" style="color: var(--warning); font-size: 0.8rem; margin-right: 6px;"></i>Giveaway end-time scheduler</li>
+                  <li><i class="fa-solid fa-triangle-exclamation" style="color: var(--warning); font-size: 0.8rem; margin-right: 6px;"></i>Leveling XP grants on member messages</li>
+                  <li><i class="fa-solid fa-triangle-exclamation" style="color: var(--warning); font-size: 0.8rem; margin-right: 6px;"></i><code>on_guild_remove</code> session revocation</li>
+                  <li><i class="fa-solid fa-triangle-exclamation" style="color: var(--warning); font-size: 0.8rem; margin-right: 6px;"></i><code>/linkdashboard</code> pairing-code expiry</li>
+                  <li><i class="fa-solid fa-triangle-exclamation" style="color: var(--warning); font-size: 0.8rem; margin-right: 6px;"></i>Periodic audit log roll-ups</li>
+                  <li><i class="fa-solid fa-triangle-exclamation" style="color: var(--warning); font-size: 0.8rem; margin-right: 6px;"></i>Welcome embeds and auto-role assignment on member join</li>
+                  <li><i class="fa-solid fa-triangle-exclamation" style="color: var(--warning); font-size: 0.8rem; margin-right: 6px;"></i>Auto-responders</li>
+                  <li><i class="fa-solid fa-triangle-exclamation" style="color: var(--warning); font-size: 0.8rem; margin-right: 6px;"></i>Guardian Mode automation triggers</li>
+                  <li><i class="fa-solid fa-triangle-exclamation" style="color: var(--warning); font-size: 0.8rem; margin-right: 6px;"></i>Raid detection and auto-lockdown</li>
+                  <li><i class="fa-solid fa-triangle-exclamation" style="color: var(--warning); font-size: 0.8rem; margin-right: 6px;"></i>Fuzzy spam detection</li>
+                  <li><i class="fa-solid fa-triangle-exclamation" style="color: var(--warning); font-size: 0.8rem; margin-right: 6px;"></i>Sentiment analysis and scoring</li>
+                  <li><i class="fa-solid fa-triangle-exclamation" style="color: var(--warning); font-size: 0.8rem; margin-right: 6px;"></i>Dynamic slowmode enforcement</li>
+                  <li><i class="fa-solid fa-triangle-exclamation" style="color: var(--warning); font-size: 0.8rem; margin-right: 6px;"></i>Live SSE alert stream</li>
                 </ul>
               </section>
               <section class="warning-section warning-section-unaffected">
                 <h4>Unaffected by intermittent uptime</h4>
-                <ul>
-                  <li>Dashboard configuration changes</li>
-                  <li>Server health audit scan</li>
-                  <li>Server layout optimizer</li>
-                  <li>Role creator</li>
-                  <li>Role panel deployment</li>
-                  <li>Custom commands configuration</li>
-                  <li>Server template save and apply</li>
-                  <li>Embed builder</li>
-                  <li>Server backup and restore</li>
-                  <li>Audit log viewer</li>
+                <ul style="list-style:none;padding:0;margin:0;">
+                  <li><i class="fa-solid fa-check" style="color: var(--success); font-size: 0.8rem; margin-right: 6px;"></i>Dashboard configuration changes</li>
+                  <li><i class="fa-solid fa-check" style="color: var(--success); font-size: 0.8rem; margin-right: 6px;"></i>Server health audit scan</li>
+                  <li><i class="fa-solid fa-check" style="color: var(--success); font-size: 0.8rem; margin-right: 6px;"></i>Server layout optimizer</li>
+                  <li><i class="fa-solid fa-check" style="color: var(--success); font-size: 0.8rem; margin-right: 6px;"></i>Role creator</li>
+                  <li><i class="fa-solid fa-check" style="color: var(--success); font-size: 0.8rem; margin-right: 6px;"></i>Role panel deployment</li>
+                  <li><i class="fa-solid fa-check" style="color: var(--success); font-size: 0.8rem; margin-right: 6px;"></i>Custom commands configuration</li>
+                  <li><i class="fa-solid fa-check" style="color: var(--success); font-size: 0.8rem; margin-right: 6px;"></i>Server template save and apply</li>
+                  <li><i class="fa-solid fa-check" style="color: var(--success); font-size: 0.8rem; margin-right: 6px;"></i>Embed builder</li>
+                  <li><i class="fa-solid fa-check" style="color: var(--success); font-size: 0.8rem; margin-right: 6px;"></i>Server backup and restore</li>
+                  <li><i class="fa-solid fa-check" style="color: var(--success); font-size: 0.8rem; margin-right: 6px;"></i>Audit log viewer</li>
+                  <li><i class="fa-solid fa-check" style="color: var(--success); font-size: 0.8rem; margin-right: 6px;"></i>Smart analyzers (config doctor, permission doctor, role/channel cleaners)</li>
+                  <li><i class="fa-solid fa-check" style="color: var(--success); font-size: 0.8rem; margin-right: 6px;"></i>Analytics dashboards (heatmaps, growth, benchmarks, trends)</li>
+                  <li><i class="fa-solid fa-check" style="color: var(--success); font-size: 0.8rem; margin-right: 6px;"></i>Config history and rollback</li>
+                  <li><i class="fa-solid fa-check" style="color: var(--success); font-size: 0.8rem; margin-right: 6px;"></i>Ticket intelligence and moderator intelligence</li>
+                  <li><i class="fa-solid fa-check" style="color: var(--success); font-size: 0.8rem; margin-right: 6px;"></i>Member retention and growth center</li>
+                  <li><i class="fa-solid fa-check" style="color: var(--success); font-size: 0.8rem; margin-right: 6px;"></i>Permission heatmap</li>
+                  <li><i class="fa-solid fa-check" style="color: var(--success); font-size: 0.8rem; margin-right: 6px;"></i>Security checks and scoring</li>
                 </ul>
               </section>
             </div>
@@ -530,7 +539,9 @@
 
             <!-- Server Selector Helper -->
             <div id="no-server-selected-card" class="card glass span-4 text-center select-helper-card">
-              <i class="fa-solid fa-server big-icon animate-bounce"></i>
+              <div class="empty-server-icon">
+                <i class="fa-solid fa-server"></i>
+              </div>
               <h2>No Discord Server Selected</h2>
               <p>Please select a guild from the dropdown in the top right to analyze and optimize its structure.</p>
               <div class="invite-prompt-group">
@@ -641,182 +652,217 @@
 
         <!-- TAB: SERVER AUDITOR -->
         <section id="tab-auditor" class="tab-pane hidden">
-          <div class="grid-layout">
-            <!-- Server Health Score -->
-            <div class="card glass span-4" id="cc-health-card">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-heart-pulse"></i> Server Health</h2>
-                <button id="cc-analyze-btn" class="btn btn-primary btn-glow btn-sm" data-action="run-command-center-scan">
-                  <i class="fa-solid fa-magnifying-glass-chart"></i> Analyze Server
-                </button>
-              </div>
-              <div class="card-body">
-                <div id="cc-loading" class="text-center py-4">
-                  <i class="fa-solid fa-spinner fa-spin"></i> Loading Auditor...
+
+          <!-- Auditor sub-tab navigation -->
+          <div class="sub-tab-container mb-4">
+            <button class="sub-tab-btn active" data-sub-tab="auditor-overview-sub">
+              <i class="fa-solid fa-gauge-high"></i> Overview
+            </button>
+            <button class="sub-tab-btn" data-sub-tab="auditor-findings-sub">
+              <i class="fa-solid fa-clipboard-list"></i> Findings
+            </button>
+            <button class="sub-tab-btn" data-sub-tab="auditor-history-sub">
+              <i class="fa-solid fa-chart-line"></i> History
+            </button>
+          </div>
+
+          <!-- PANE 1 — Overview (visible by default, no hidden class) -->
+          <div id="auditor-overview-sub" class="sub-tab-pane">
+            <div class="grid-layout">
+              <!-- Server Health Score -->
+              <div class="card glass span-4" id="cc-health-card">
+                <div class="card-header border-bottom flex-header">
+                  <h2><i class="fa-solid fa-heart-pulse"></i> Server Health</h2>
+                  <button id="cc-analyze-btn" class="btn btn-secondary btn-small" data-action="run-command-center-scan">
+                    <i class="fa-solid fa-magnifying-glass-chart"></i> Analyze Server
+                  </button>
                 </div>
-                <div id="cc-content" class="hidden">
-                  <div style="display: flex; align-items: center; gap: 32px; margin-bottom: 24px;">
-                    <!-- Score Gauge -->
-                    <div style="position: relative; width: 140px; height: 140px; flex-shrink: 0;">
-                      <svg viewBox="0 0 120 120" style="width: 100%; height: 100%; transform: rotate(-90deg);">
-                        <circle cx="60" cy="60" r="50" stroke="var(--card-border)" stroke-width="10" fill="none"/>
-                        <circle id="cc-score-circle" cx="60" cy="60" r="50" stroke="var(--success)" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="314" stroke-dashoffset="314"/>
-                      </svg>
-                      <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                        <span id="cc-score-value" style="font-size: 2rem; font-weight: 700; color: var(--text-main);">0</span>
-                        <span id="cc-score-label" style="font-size: 0.7rem; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.05em;">Loading...</span>
+                <div class="card-body">
+                  <div id="cc-loading" class="text-center py-4">
+                    <i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading Auditor...
+                  </div>
+                  <div id="cc-content" class="hidden">
+                    <div style="display: flex; align-items: center; gap: 32px; margin-bottom: 24px;">
+                      <!-- Score Gauge -->
+                      <div style="position: relative; width: 140px; height: 140px; flex-shrink: 0;">
+                        <svg viewBox="0 0 120 120" style="width: 100%; height: 100%; transform: rotate(-90deg);">
+                          <circle cx="60" cy="60" r="50" stroke="var(--card-border)" stroke-width="10" fill="none"/>
+                          <circle id="cc-score-circle" cx="60" cy="60" r="50" stroke="var(--success)" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="314" stroke-dashoffset="314"/>
+                        </svg>
+                        <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+                          <span id="cc-score-value" style="font-size: 2rem; font-weight: 700; color: var(--text-main);">0</span>
+                          <span id="cc-score-label" style="font-size: 0.7rem; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.05em;">Loading...</span>
+                        </div>
+                      </div>
+                      <!-- Dimension Scores -->
+                      <div style="flex: 1; display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;">
+                        <div class="cc-dim-card" id="cc-dim-security">
+                          <i class="fa-solid fa-shield-halved"></i>
+                          <span class="cc-dim-score">--</span>
+                          <span class="cc-dim-label">Security</span>
+                        </div>
+                        <div class="cc-dim-card" id="cc-dim-moderation">
+                          <i class="fa-solid fa-gavel"></i>
+                          <span class="cc-dim-score">--</span>
+                          <span class="cc-dim-label">Moderation</span>
+                        </div>
+                        <div class="cc-dim-card" id="cc-dim-structure">
+                          <i class="fa-solid fa-sitemap"></i>
+                          <span class="cc-dim-score">--</span>
+                          <span class="cc-dim-label">Structure</span>
+                        </div>
+                        <div class="cc-dim-card" id="cc-dim-engagement">
+                          <i class="fa-solid fa-users"></i>
+                          <span class="cc-dim-score">--</span>
+                          <span class="cc-dim-label">Engagement</span>
+                        </div>
+                        <div class="cc-dim-card" id="cc-dim-automation">
+                          <i class="fa-solid fa-robot"></i>
+                          <span class="cc-dim-score">--</span>
+                          <span class="cc-dim-label">Automation</span>
+                        </div>
                       </div>
                     </div>
-                    <!-- Dimension Scores -->
-                    <div style="flex: 1; display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;">
-                      <div class="cc-dim-card" id="cc-dim-security">
-                        <i class="fa-solid fa-shield-halved"></i>
-                        <span class="cc-dim-score">--</span>
-                        <span class="cc-dim-label">Security</span>
+                    <!-- Quick Stats -->
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;">
+                      <div class="glass-inner p-3 text-center">
+                        <div style="font-size: 1.4rem; font-weight: 700; color: var(--primary);" id="cc-members">0</div>
+                        <div style="font-size: 0.75rem; color: var(--text-sub);">Members</div>
                       </div>
-                      <div class="cc-dim-card" id="cc-dim-moderation">
-                        <i class="fa-solid fa-gavel"></i>
-                        <span class="cc-dim-score">--</span>
-                        <span class="cc-dim-label">Moderation</span>
+                      <div class="glass-inner p-3 text-center">
+                        <div style="font-size: 1.4rem; font-weight: 700; color: var(--primary);" id="cc-channels">0</div>
+                        <div style="font-size: 0.75rem; color: var(--text-sub);">Channels</div>
                       </div>
-                      <div class="cc-dim-card" id="cc-dim-structure">
-                        <i class="fa-solid fa-sitemap"></i>
-                        <span class="cc-dim-score">--</span>
-                        <span class="cc-dim-label">Structure</span>
+                      <div class="glass-inner p-3 text-center">
+                        <div style="font-size: 1.4rem; font-weight: 700; color: var(--primary);" id="cc-roles">0</div>
+                        <div style="font-size: 0.75rem; color: var(--text-sub);">Roles</div>
                       </div>
-                      <div class="cc-dim-card" id="cc-dim-engagement">
-                        <i class="fa-solid fa-users"></i>
-                        <span class="cc-dim-score">--</span>
-                        <span class="cc-dim-label">Engagement</span>
-                      </div>
-                      <div class="cc-dim-card" id="cc-dim-automation">
-                        <i class="fa-solid fa-robot"></i>
-                        <span class="cc-dim-score">--</span>
-                        <span class="cc-dim-label">Automation</span>
+                      <div class="glass-inner p-3 text-center">
+                        <div style="font-size: 1.4rem; font-weight: 700; color: var(--success);" id="cc-online">0</div>
+                        <div style="font-size: 0.75rem; color: var(--text-sub);">Online</div>
                       </div>
                     </div>
                   </div>
-                  <!-- Quick Stats -->
-                  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;">
-                    <div class="glass-inner p-3 text-center">
-                      <div style="font-size: 1.4rem; font-weight: 700; color: var(--primary);" id="cc-members">0</div>
-                      <div style="font-size: 0.75rem; color: var(--text-sub);">Members</div>
-                    </div>
-                    <div class="glass-inner p-3 text-center">
-                      <div style="font-size: 1.4rem; font-weight: 700; color: var(--primary);" id="cc-channels">0</div>
-                      <div style="font-size: 0.75rem; color: var(--text-sub);">Channels</div>
-                    </div>
-                    <div class="glass-inner p-3 text-center">
-                      <div style="font-size: 1.4rem; font-weight: 700; color: var(--primary);" id="cc-roles">0</div>
-                      <div style="font-size: 0.75rem; color: var(--text-sub);">Roles</div>
-                    </div>
-                    <div class="glass-inner p-3 text-center">
-                      <div style="font-size: 1.4rem; font-weight: 700; color: var(--success);" id="cc-online">0</div>
-                      <div style="font-size: 0.75rem; color: var(--text-sub);">Online</div>
-                    </div>
+                </div>
+              </div>
+
+              <!-- Notifications & Alerts -->
+              <div class="card glass span-2">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-bell"></i> Alerts & Notifications</h2>
+                </div>
+                <div class="card-body" id="cc-notifications">
+                  <div class="text-center py-3" style="color: var(--text-sub);">
+                    <i class="fa-solid fa-check-circle" style="font-size: 1.5rem; color: var(--success);"></i>
+                    <p style="margin-top: 8px;">No issues detected</p>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Audit Timeline -->
+              <div class="card glass span-2">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-clock-rotate-left"></i> Recent Activity</h2>
+                </div>
+                <div class="card-body" id="cc-timeline">
+                  <div class="empty-state">
+                    <i class="fa-solid fa-clock-rotate-left empty-state-icon"></i>
+                    <div class="empty-state-title">No activity yet</div>
+                    <div class="empty-state-desc">Events will appear here as your server is used.</div>
                   </div>
                 </div>
               </div>
             </div>
+          </div>
 
-            <!-- Notifications & Alerts -->
-            <div class="card glass span-2">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-bell"></i> Alerts & Notifications</h2>
+          <!-- PANE 2 — Findings (hidden by default) -->
+          <div id="auditor-findings-sub" class="sub-tab-pane hidden">
+            <div class="grid-layout">
+              <!-- Findings -->
+              <div class="card glass span-2">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-clipboard-list"></i> Audit Findings</h2>
+                </div>
+                <div class="card-body" id="cc-findings">
+                  <div class="empty-state">
+                    <i class="fa-solid fa-magnifying-glass-chart empty-state-icon"></i>
+                    <div class="empty-state-title">No scan run yet</div>
+                    <div class="empty-state-desc">Click Analyze Server above to start.</div>
+                  </div>
+                </div>
               </div>
-              <div class="card-body" id="cc-notifications">
-                <div class="text-center py-3" style="color: var(--text-sub);">
-                  <i class="fa-solid fa-check-circle" style="font-size: 1.5rem; color: var(--success);"></i>
-                  <p style="margin-top: 8px;">No issues detected</p>
+
+              <!-- Deep Security Checks -->
+              <div class="card glass span-2">
+                <div class="card-header border-bottom flex-header">
+                  <h2><i class="fa-solid fa-shield-halved"></i> Deep Security Scan</h2>
+                  <button class="btn btn-secondary btn-small" data-action="load-security-checks"><i class="fa-solid fa-magnifying-glass"></i> Run Security Scan</button>
+                </div>
+                <div class="card-body" id="cc-security-checks">
+                  <div class="empty-state">
+                    <i class="fa-solid fa-shield-halved empty-state-icon"></i>
+                    <div class="empty-state-title">No security scan run</div>
+                    <div class="empty-state-desc">Click Run Security Scan to check server security.</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Recommendations Card -->
+              <div class="card glass span-4" id="recommendations-card">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-lightbulb"></i> Recommendations</h2>
+                  <p>Actionable suggestions to improve your server's health score.</p>
+                </div>
+                <div class="card-body">
+                  <div id="recommendations-loading" class="text-center py-3">
+                    <i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading recommendations...
+                  </div>
+                  <div id="recommendations-list" class="checklist-list hidden"></div>
+                  <div id="recommendations-empty" class="text-center py-3 hidden" style="color: #94a3b8;">
+                    <i class="fa-solid fa-check-circle" style="color: #34d399;"></i> No recommendations — your server is well configured!
+                  </div>
                 </div>
               </div>
             </div>
+          </div>
 
-            <!-- Audit Timeline -->
-            <div class="card glass span-2">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-clock-rotate-left"></i> Recent Activity</h2>
-              </div>
-              <div class="card-body" id="cc-timeline">
-                <div class="text-center py-3" style="color: var(--text-sub);">
-                  No recent activity to show.
+          <!-- PANE 3 — History (hidden by default) -->
+          <div id="auditor-history-sub" class="sub-tab-pane hidden">
+            <div class="grid-layout">
+              <!-- Score History -->
+              <div class="card glass span-2">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-chart-line"></i> Score History</h2>
+                </div>
+                <div class="card-body" style="height: 220px;">
+                  <canvas id="chart-score-history"></canvas>
                 </div>
               </div>
-            </div>
 
-            <!-- Findings -->
-            <div class="card glass span-4">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-clipboard-list"></i> Audit Findings</h2>
-              </div>
-              <div class="card-body" id="cc-findings">
-                <div class="text-center py-3" style="color: var(--text-sub);">
-                  Run a server scan to see findings.
+              <!-- Config History -->
+              <div class="card glass span-2">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-code-branch"></i> Config History</h2>
+                </div>
+                <div class="card-body" id="cc-config-history" style="max-height: 250px; overflow-y: auto;">
+                  <div class="text-center py-3" style="color: var(--text-sub);">Loading config history...</div>
                 </div>
               </div>
-            </div>
 
-            <!-- Deep Security Checks -->
-            <div class="card glass span-4">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-shield-virus"></i> Security Audit</h2>
-                <button class="btn btn-primary btn-glow btn-sm" data-action="load-security-checks"><i class="fa-solid fa-magnifying-glass"></i> Run Security Scan</button>
-              </div>
-              <div class="card-body" id="cc-security-checks">
-                <div class="text-center py-3" style="color: var(--text-sub);">Click "Run Security Scan" to check server security.</div>
-              </div>
-            </div>
-
-            <!-- Recommendations Card -->
-            <div class="card glass span-4" id="recommendations-card">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-lightbulb"></i> Recommendations</h2>
-                <p>Actionable suggestions to improve your server's health score.</p>
-              </div>
-              <div class="card-body">
-                <div id="recommendations-loading" class="text-center py-3">
-                  <i class="fa-solid fa-circle-notch fa-spin"></i> Loading recommendations...
+              <!-- Health Activity Timeline Card -->
+              <div class="card glass span-4">
+                <div class="card-header border-bottom flex-header">
+                  <h2><i class="fa-solid fa-chart-line"></i> Health Activity Timeline</h2>
+                  <select id="timeline-days" class="analytics-select">
+                    <option value="7">Last 7 days</option>
+                    <option value="14">Last 14 days</option>
+                    <option value="30" selected>Last 30 days</option>
+                  </select>
                 </div>
-                <div id="recommendations-list" class="checklist-list hidden"></div>
-                <div id="recommendations-empty" class="text-center py-3 hidden" style="color: #94a3b8;">
-                  <i class="fa-solid fa-check-circle" style="color: #34d399;"></i> No recommendations — your server is well configured!
-                </div>
-              </div>
-            </div>
-
-            <!-- Score History -->
-            <div class="card glass span-2">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-chart-line"></i> Score History</h2>
-              </div>
-              <div class="card-body" style="height: 220px;">
-                <canvas id="chart-score-history"></canvas>
-              </div>
-            </div>
-
-            <!-- Config History -->
-            <div class="card glass span-2">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-code-branch"></i> Config History</h2>
-              </div>
-              <div class="card-body" id="cc-config-history" style="max-height: 250px; overflow-y: auto;">
-                <div class="text-center py-3" style="color: var(--text-sub);">Loading config history...</div>
-              </div>
-            </div>
-
-            <!-- Health Timeline Card -->
-            <div class="card glass span-4">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-chart-line"></i> Health Activity Timeline</h2>
-                <select id="timeline-days" style="width: auto; padding: 6px 12px; font-size: 0.82rem;">
-                  <option value="7">Last 7 days</option>
-                  <option value="14">Last 14 days</option>
-                  <option value="30" selected>Last 30 days</option>
-                </select>
-              </div>
-              <div class="card-body">
-                <div style="position: relative; height: 250px;">
-                  <canvas id="chart-health-timeline"></canvas>
+                <div class="card-body">
+                  <div style="position: relative; height: 250px;">
+                    <canvas id="chart-health-timeline"></canvas>
+                  </div>
                 </div>
               </div>
             </div>
@@ -825,390 +871,561 @@
 
         <!-- TAB: SMART FEATURES COMMAND CENTER -->
         <section id="tab-smart" class="tab-pane hidden">
-          <div class="sub-tab-container">
-            <button class="sub-tab-btn active" data-sub-tab="command-center-sub"><i class="fa-solid fa-shield-halved"></i> Command Center</button>
-            <button class="sub-tab-btn" data-sub-tab="analytics-overview-sub">Analytics Overview</button>
-            <button class="sub-tab-btn" data-sub-tab="recommendations-sub">Recommendations</button>
-            <button class="sub-tab-btn" data-sub-tab="config-doctor-sub">Config Doctor</button>
-            <button class="sub-tab-btn" data-sub-tab="permission-doctor-sub">Permission Doctor</button>
-            <button class="sub-tab-btn" data-sub-tab="growth-sub">Growth Center</button>
-            <button class="sub-tab-btn" data-sub-tab="mod-intel-sub">Mod Intel</button>
-            <button class="sub-tab-btn" data-sub-tab="raid-detector-sub">Raid Detector</button>
-            <button class="sub-tab-btn" data-sub-tab="role-cleaner-sub">Role Cleaner</button>
-            <button class="sub-tab-btn" data-sub-tab="channel-cleaner-sub">Channel Cleaner</button>
-            <button class="sub-tab-btn" data-sub-tab="backup-advisor-sub">Backup Advisor</button>
-            <button class="sub-tab-btn" data-sub-tab="perm-heatmap-sub">Permission Heatmap</button>
-            <button class="sub-tab-btn" data-sub-tab="channel-heatmap-sub">Activity Heatmap</button>
-            <button class="sub-tab-btn" data-sub-tab="maturity-sub">Maturity Score</button>
-          </div>
+          <!-- Intelligence Center Module Navigation Cards -->
+          <div class="smart-nav-header mb-4">
+            <h1 style="font-size: 1.4rem; font-weight: 700; color: var(--text-main); margin: 0 0 4px;">
+              <i class="fa-solid fa-brain" style="color: var(--primary); margin-right: 8px;"></i>
+              Intelligence Center
+            </h1>
+            <p style="font-size: 0.82rem; color: var(--text-sub); margin-bottom: 16px;">
+              Server diagnostics, threat detection, backups, and metrics.
+            </p>
+            
+            <!-- Retained hidden select for backwards compatibility with JS handlers -->
+            <select id="smart-module-selector" class="analytics-select" style="display: none;">
+              <option value="command-center-sub" selected>Command Center</option>
+              <option value="intel-security">Security</option>
+              <option value="intel-community">Community</option>
+              <option value="intel-moderation">Moderation</option>
+              <option value="intel-activity">Activity</option>
+              <option value="intel-trends">Trends</option>
+              <option value="automation-rules-sub">Automation</option>
+              <option value="history-progress-sub">History</option>
+            </select>
 
-          <!-- COMMAND CENTER LANDING PAGE -->
-          <div id="command-center-sub" class="sub-tab-pane">
-            <div class="grid-layout">
-              <!-- Server Health Score -->
-              <div class="card glass span-2">
-                <div class="card-header border-bottom">
-                  <h2><i class="fa-solid fa-heart-pulse"></i> Server Health</h2>
-                  <button class="btn btn-sm btn-primary" onclick="refreshCommandCenter()"><i class="fa-solid fa-refresh"></i> Refresh</button>
-                </div>
-                <div class="card-body" id="cc-health-content">
-                  <div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Analyzing server...</div>
-                </div>
+            <div class="smart-mod-grid" id="smart-module-grid">
+              <div class="smart-mod-card active" data-module="command-center-sub" onclick="switchSmartModule(this)">
+                <span class="smart-mod-live-dot" title="Live data"></span>
+                <i class="fa-solid fa-shield-check"></i>
+                <span class="smart-mod-name">Command Center</span>
+                <span class="smart-mod-desc">Health & fixes</span>
               </div>
-
-              <!-- Quick Wins -->
-              <div class="card glass span-2">
-                <div class="card-header border-bottom">
-                  <h2><i class="fa-solid fa-bolt"></i> Quick Wins</h2>
-                  <p>Easiest improvements with highest score gains</p>
-                </div>
-                <div class="card-body" id="cc-quick-wins-content">
-                  <div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Finding quick wins...</div>
-                </div>
+              <div class="smart-mod-card" data-module="intel-security" onclick="switchSmartModule(this)">
+                <i class="fa-solid fa-lock"></i>
+                <span class="smart-mod-name">Security</span>
+                <span class="smart-mod-desc">Threats & raids</span>
               </div>
-
-              <!-- Priority Queue -->
-              <div class="card glass span-2">
-                <div class="card-header border-bottom">
-                  <h2><i class="fa-solid fa-list-ol"></i> Priority Queue</h2>
-                  <p>Top issues ranked by severity and impact</p>
-                </div>
-                <div class="card-body" id="cc-priority-content">
-                  <div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Building priority queue...</div>
-                </div>
+              <div class="smart-mod-card" data-module="intel-community" onclick="switchSmartModule(this)">
+                <i class="fa-solid fa-users-rays"></i>
+                <span class="smart-mod-name">Community</span>
+                <span class="smart-mod-desc">Growth & sentiment</span>
               </div>
-
-              <!-- Score Trends -->
-              <div class="card glass span-2">
-                <div class="card-header border-bottom">
-                  <h2><i class="fa-solid fa-chart-line"></i> Score Trends</h2>
-                  <p>Health score progression over time</p>
-                </div>
-                <div class="card-body" id="cc-trends-content">
-                  <div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading trends...</div>
-                </div>
+              <div class="smart-mod-card" data-module="intel-moderation" onclick="switchSmartModule(this)">
+                <i class="fa-solid fa-gavel"></i>
+                <span class="smart-mod-name">Moderation</span>
+                <span class="smart-mod-desc">SLAs & mod logs</span>
               </div>
-
-              <!-- Dimension Breakdown -->
-              <div class="card glass span-4">
-                <div class="card-header border-bottom">
-                  <h2><i class="fa-solid fa-chart-radar"></i> Dimension Breakdown</h2>
-                  <p>Score breakdown across all categories</p>
-                </div>
-                <div class="card-body" id="cc-dimensions-content">
-                  <div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading dimensions...</div>
-                </div>
+              <div class="smart-mod-card" data-module="intel-activity" onclick="switchSmartModule(this)">
+                <i class="fa-solid fa-fire"></i>
+                <span class="smart-mod-name">Activity</span>
+                <span class="smart-mod-desc">Heatmaps & trends</span>
+              </div>
+              <div class="smart-mod-card" data-module="intel-trends" onclick="switchSmartModule(this)">
+                <i class="fa-solid fa-chart-line"></i>
+                <span class="smart-mod-name">Trends</span>
+                <span class="smart-mod-desc">Score evolution</span>
+              </div>
+              <div class="smart-mod-card" data-module="automation-rules-sub" onclick="switchSmartModule(this)">
+                <i class="fa-solid fa-robot"></i>
+                <span class="smart-mod-name">Automation</span>
+                <span class="smart-mod-desc">Rules & guardian</span>
+              </div>
+              <div class="smart-mod-card" data-module="history-progress-sub" onclick="switchSmartModule(this)">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                <span class="smart-mod-name">History</span>
+                <span class="smart-mod-desc">Snapshots & timeline</span>
               </div>
             </div>
           </div>
 
-          <div id="analytics-overview-sub" class="sub-tab-pane">
+          <!-- SSE LIVE ALERTS STREAM RECONNECTING BANNER -->
+          <div id="sse-reconnect-banner" class="glass-inner p-2 mb-3 text-center hidden" style="border: 1px solid var(--warning); color: var(--warning); border-radius: 8px; font-size: 0.85rem; font-weight: 500;">
+            <i class="fa-solid fa-circle-notch fa-spin" style="margin-right: 8px;"></i> Live connection lost. Reconnecting to Aegis Command Stream...
+          </div>
 
-          <div class="grid-layout">
-            <!-- Overview Card -->
-            <div class="card glass span-2">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-chart-line"></i> Analytics Overview</h2>
-                <p>Server activity insights powered by persistent event tracking.</p>
+          <!-- PANE 1: COMMAND CENTER -->
+          <div id="command-center-sub" class="sub-tab-pane">
+            <div class="grid-layout">
+              <!-- Server Health Overview -->
+              <div class="card glass span-2" style="border-top: 3px solid var(--primary);">
+                <div class="card-header border-bottom flex-header">
+                  <h2><i class="fa-solid fa-heart-pulse"></i> Server Health</h2>
+                  <button class="btn btn-secondary btn-small" onclick="refreshCommandCenter()"><i class="fa-solid fa-arrows-rotate"></i> Refresh</button>
+                </div>
+                <div class="card-body" id="cc-health-content">
+                  <div class="skeleton-card">
+                    <div class="skeleton skeleton-heading"></div>
+                    <div class="skeleton skeleton-text"></div>
+                    <div class="skeleton skeleton-text-sm"></div>
+                  </div>
+                </div>
               </div>
-              <div class="card-body">
-                <div id="analytics-loading" class="text-center py-4">
-                  <i class="fa-solid fa-circle-notch fa-spin large-spinner"></i>
-                  <p class="mt-2">Loading analytics data...</p>
+
+              <!-- Today's Wins Card -->
+              <div class="card glass span-2" style="border-top: 3px solid var(--success);">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-trophy"></i> Active Safeguards & Wins</h2>
+                  <p>Aegis real-time security protection metrics</p>
                 </div>
-                <div id="analytics-empty" class="text-center py-4 hidden">
-                  <i class="fa-solid fa-chart-pie big-icon opacity-50"></i>
-                  <p class="mt-2">No analytics data yet. Data will appear as the bot processes messages and events.</p>
+                <div class="card-body" id="cc-wins-content">
+                  <div class="skeleton-card">
+                    <div class="skeleton skeleton-heading"></div>
+                    <div class="skeleton skeleton-text"></div>
+                    <div class="skeleton skeleton-text-sm"></div>
+                  </div>
                 </div>
-                <div id="analytics-overview" class="hidden">
-                  <div class="grid-layout" style="grid-template-columns: repeat(4, 1fr); gap: 12px;">
-                    <div class="stat-card glass-inner" style="padding: 16px; border-radius: 12px; text-align: center;">
-                      <div style="font-size: 0.78rem; color: var(--text-sub); margin-bottom: 4px;">Messages Today</div>
-                      <div id="stat-messages-today" style="font-size: 1.5rem; font-weight: 700; color: var(--primary);">0</div>
-                    </div>
-                    <div class="stat-card glass-inner" style="padding: 16px; border-radius: 12px; text-align: center;">
-                      <div style="font-size: 0.78rem; color: var(--text-sub); margin-bottom: 4px;">Active Users (7d)</div>
-                      <div id="stat-active-users" style="font-size: 1.5rem; font-weight: 700; color: var(--success);">0</div>
-                    </div>
-                    <div class="stat-card glass-inner" style="padding: 16px; border-radius: 12px; text-align: center;">
-                      <div style="font-size: 0.78rem; color: var(--text-sub); margin-bottom: 4px;">Voice Minutes (7d)</div>
-                      <div id="stat-voice-minutes" style="font-size: 1.5rem; font-weight: 700; color: var(--warning);">0</div>
-                    </div>
-                    <div class="stat-card glass-inner" style="padding: 16px; border-radius: 12px; text-align: center;">
-                      <div style="font-size: 0.78rem; color: var(--text-sub); margin-bottom: 4px;">Mod Actions (7d)</div>
-                      <div id="stat-mod-actions" style="font-size: 1.5rem; font-weight: 700; color: var(--danger);">0</div>
-                    </div>
+              </div>
+
+              <!-- Command Center Activity Feed -->
+              <div class="card glass span-2" style="border-top: 3px solid var(--warning);">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-list-check"></i> Command Center Activity Feed</h2>
+                  <p>Real-time log of security fixes, automations, and rollbacks</p>
+                </div>
+                <div class="card-body p-0" style="flex: 1; overflow-y: auto;">
+                  <div id="cc-activity-feed-list" class="checklist-list">
+                    <div class="text-center py-4" style="color: var(--text-sub);">No actions recorded in this session.</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Priority Action Center (Fix Queue) -->
+              <div class="card glass span-2" style="border-top: 3px solid var(--danger);">
+                <div class="card-header border-bottom flex-header">
+                  <div>
+                    <h2><i class="fa-solid fa-circle-exclamation"></i> Priority Action Center</h2>
+                    <p>Issues sorted by severity, projected health gain, and safety risk</p>
+                  </div>
+                  <div id="fix-queue-summary" class="badge" style="font-size: 0.8rem; padding: 4px 10px; margin-left: auto;">0 Issues Detected</div>
+                </div>
+                <div class="card-body" id="cc-fix-queue-content">
+                  <div class="skeleton-card">
+                    <div class="skeleton skeleton-heading"></div>
+                    <div class="skeleton skeleton-text"></div>
+                    <div class="skeleton skeleton-text-sm"></div>
                   </div>
                 </div>
               </div>
             </div>
+          </div>
 
-            <!-- Message Volume Chart -->
-            <div class="card glass span-2">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-comments"></i> Message Volume</h2>
-                <select id="analytics-msg-days" class="analytics-select">
-                  <option value="7">Last 7 days</option>
-                  <option value="14">Last 14 days</option>
-                  <option value="30" selected>Last 30 days</option>
-                </select>
-              </div>
-              <div class="card-body">
-                <div style="position: relative; height: 280px;">
-                  <canvas id="chart-messages"></canvas>
+          <!-- PANE 2.A: SECURITY INTELLIGENCE -->
+          <div id="intel-security" class="sub-tab-pane hidden">
+            <div class="grid-layout">
+              <div class="card glass span-2">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-shield-virus"></i> Raid Detector</h2>
+                  <p>Recent join velocity analysis and threat patterns</p>
+                </div>
+                <div class="card-body" id="intel-raid-content">
+                  <div class="skeleton-card">
+                    <div class="skeleton skeleton-heading"></div>
+                    <div class="skeleton skeleton-text"></div>
+                    <div class="skeleton skeleton-text-sm"></div>
+                  </div>
                 </div>
               </div>
-            </div>
-
-            <!-- Channel Activity -->
-            <div class="card glass span-1">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-hashtag"></i> Top Channels</h2>
-              </div>
-              <div class="card-body">
-                <div id="channel-activity-list" class="checklist-list">
-                  <div class="text-center py-4" style="color: var(--text-sub);">Loading...</div>
+              <div class="card glass span-2">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-user-shield"></i> Compromised Account Analyzer</h2>
+                  <p>Heuristic flags for suspicious account activities</p>
+                </div>
+                <div class="card-body" id="intel-security-compromised">
+                  <div class="text-center py-4" style="color: var(--text-sub);">All active accounts passed verification.</div>
                 </div>
               </div>
-            </div>
-
-            <!-- Top Users -->
-            <div class="card glass span-1">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-users"></i> Top Contributors</h2>
-              </div>
-              <div class="card-body">
-                <div id="top-users-list" class="checklist-list">
-                  <div class="text-center py-4" style="color: var(--text-sub);">Loading...</div>
+              <div class="card glass span-4">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-table-cells"></i> Permission Risk Matrix</h2>
+                  <p>Visual map of server role permissions. Red = dangerous, green = safe</p>
                 </div>
-              </div>
-            </div>
-
-            <!-- Moderation Breakdown -->
-            <div class="card glass span-2">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-gavel"></i> Moderation Activity</h2>
-              </div>
-              <div class="card-body">
-                <div style="position: relative; height: 250px;">
-                  <canvas id="chart-mod"></canvas>
-                </div>
-              </div>
-            </div>
-
-            <!-- Member Growth -->
-            <div class="card glass span-2">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-users-rays"></i> Member Growth</h2>
-              </div>
-              <div class="card-body">
-                <div id="member-growth-info" class="text-center py-4" style="color: var(--text-sub);">Loading...</div>
-              </div>
-            </div>
-          </div>
-        
-          </div>
-
-          <div id="growth-sub" class="sub-tab-pane hidden">
-
-          <div class="grid-layout">
-            <div class="card glass span-4">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-arrow-trend-up"></i> Growth Center</h2>
-              </div>
-              <div class="card-body" id="growth-content">
-                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
-              </div>
-            </div>
-          </div>
-        
-          </div>
-
-          <div id="mod-intel-sub" class="sub-tab-pane hidden">
-
-          <div class="grid-layout">
-            <div class="card glass span-4">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-ranking-star"></i> Moderator Performance</h2>
-              </div>
-              <div class="card-body" id="mod-intel-content">
-                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
-              </div>
-            </div>
-          </div>
-        
-          </div>
-
-          <div id="perm-heatmap-sub" class="sub-tab-pane hidden">
-
-          <div class="grid-layout">
-            <div class="card glass span-4">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-table-cells"></i> Permission Heatmap</h2>
-                <p>Visual matrix of roles vs permissions. Red = dangerous, green = safe.</p>
-              </div>
-              <div class="card-body" style="overflow-x:auto;">
-                <div id="heatmap-content">
-                  <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+                <div class="card-body" style="overflow-x: auto;" id="intel-permissions-heatmap">
+                  <div class="skeleton-card">
+                    <div class="skeleton skeleton-heading"></div>
+                    <div class="skeleton skeleton-text"></div>
+                    <div class="skeleton skeleton-text-sm"></div>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        
-          </div>
 
-          <div id="channel-heatmap-sub" class="sub-tab-pane hidden">
-
-          <div class="grid-layout">
-            <div class="card glass span-4">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-fire"></i> Channel Activity Heatmap</h2>
-                <p>Message activity by hour of day and day of week. Brighter = more active.</p>
+          <!-- PANE 2.B: COMMUNITY INTELLIGENCE -->
+          <div id="intel-community" class="sub-tab-pane hidden">
+            <div class="grid-layout">
+              <div class="card glass span-4" id="intel-growth-wrapper">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-users-rays"></i> Growth & Retention Analyzer</h2>
+                  <p>Member growth velocity, invite quality tracking, and retention logs</p>
+                </div>
+                <div class="card-body" id="intel-growth-content">
+                  <div class="skeleton-card">
+                    <div class="skeleton skeleton-heading"></div>
+                    <div class="skeleton skeleton-text"></div>
+                    <div class="skeleton skeleton-text-sm"></div>
+                  </div>
+                </div>
               </div>
-              <div class="card-body" id="channel-heatmap-content" style="overflow-x:auto;">
-                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+              <div class="card glass span-2">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-face-smile"></i> Sentiment & Sentiment Index</h2>
+                  <p>Real-time chat toxicity and user sentiment aggregates</p>
+                </div>
+                <div class="card-body" id="intel-sentiment-content">
+                  <div class="skeleton-card">
+                    <div class="skeleton skeleton-heading"></div>
+                    <div class="skeleton skeleton-text"></div>
+                    <div class="skeleton skeleton-text-sm"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="card glass span-2">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-scale-balanced"></i> Benchmark Comparisons</h2>
+                  <p>Performance comparison against average guild statistics</p>
+                </div>
+                <div class="card-body" id="intel-benchmark-content">
+                  <div class="skeleton-card">
+                    <div class="skeleton skeleton-heading"></div>
+                    <div class="skeleton skeleton-text"></div>
+                    <div class="skeleton skeleton-text-sm"></div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        
-          </div>
 
-          <div id="benchmark-sub" class="sub-tab-pane hidden">
-          <div class="grid-layout">
-            <div class="card glass span-4">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-scale-balanced"></i> Server Benchmarking</h2>
-                <p>Compare your server against average metrics from other servers.</p>
+          <!-- PANE 2.C: MODERATION INTELLIGENCE -->
+          <div id="intel-moderation" class="sub-tab-pane hidden">
+            <div class="grid-layout">
+              <div class="card glass span-2">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-ticket"></i> Ticket SLA & Resolution SLAs</h2>
+                  <p>Average response, closed ticket velocity, and moderator performance breakdown</p>
+                </div>
+                <div class="card-body" id="intel-moderation-sla-content">
+                  <div class="skeleton-card">
+                    <div class="skeleton skeleton-heading"></div>
+                    <div class="skeleton skeleton-text"></div>
+                    <div class="skeleton skeleton-text-sm"></div>
+                  </div>
+                </div>
               </div>
-              <div class="card-body" id="benchmark-content">
-                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+              <div class="card glass span-2">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-chart-column"></i> Moderator Activity Logs</h2>
+                  <p>Mod actions (kicks, bans, mutes) over time</p>
+                </div>
+                <div class="card-body" id="intel-moderation-activity-content">
+                  <div class="skeleton-card">
+                    <div class="skeleton skeleton-heading"></div>
+                    <div class="skeleton skeleton-text"></div>
+                    <div class="skeleton skeleton-text-sm"></div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          </div>
 
-          <!-- Recommendations Sub-Tab -->
-          <div id="recommendations-sub" class="sub-tab-pane hidden">
-          <div class="grid-layout">
-            <div class="card glass span-4">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-lightbulb"></i> Smart Recommendations</h2>
-                <p>Smart suggestions to improve your server.</p>
+          <!-- PANE 2.D: ACTIVITY HEATMAPS -->
+          <div id="intel-activity" class="sub-tab-pane hidden">
+            <div class="grid-layout">
+              <!-- Optimal timing insight cards -->
+              <div class="card glass span-2" style="border-top: 3px solid var(--primary);">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-calendar-check"></i> Best Time to Post</h2>
+                  <p>Peak activity window for announcements and events</p>
+                </div>
+                <div class="card-body" id="activity-best-time-content">
+                  <div style="font-size: 2rem; font-weight: 700; color: var(--primary); margin-bottom: 6px;" id="activity-best-time-value">--</div>
+                  <div style="font-size: 0.8rem; color: var(--text-sub);" id="activity-best-time-sub">Run analysis to find optimal timing</div>
+                </div>
               </div>
-              <div class="card-body" id="recommendations-content">
-                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+              <div class="card glass span-2" style="border-top: 3px solid var(--warning);">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-moon"></i> Dead Zone</h2>
+                  <p>Hours with consistently low engagement to avoid</p>
+                </div>
+                <div class="card-body" id="activity-dead-zone-content">
+                  <div style="font-size: 2rem; font-weight: 700; color: var(--warning); margin-bottom: 6px;" id="activity-dead-zone-value">--</div>
+                  <div style="font-size: 0.8rem; color: var(--text-sub);" id="activity-dead-zone-sub">Run analysis to identify quiet periods</div>
+                </div>
+              </div>
+
+              <div class="card glass span-4">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-fire"></i> Activity Velocity Heatmap</h2>
+                  <p>Message density by day and hour. Brighter nodes indicate active chat spikes</p>
+                </div>
+                <div class="card-body" style="overflow-x: auto;" id="intel-activity-heatmap-content">
+                  <div class="skeleton-card">
+                    <div class="skeleton skeleton-heading"></div>
+                    <div class="skeleton skeleton-text"></div>
+                    <div class="skeleton skeleton-text-sm"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="card glass span-2">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-comments"></i> Message Volume Trends</h2>
+                </div>
+                <div class="card-body">
+                  <div style="position: relative; height: 250px;">
+                    <canvas id="chart-messages-center"></canvas>
+                  </div>
+                </div>
+              </div>
+              <div class="card glass span-2">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-gavel"></i> Mod Incidents Volume</h2>
+                </div>
+                <div class="card-body">
+                  <div style="position: relative; height: 250px;">
+                    <canvas id="chart-mod-center"></canvas>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          </div>
 
-          <!-- Config Doctor Sub-Tab -->
-          <div id="config-doctor-sub" class="sub-tab-pane hidden">
-          <div class="grid-layout">
-            <div class="card glass span-4">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-heart-pulse"></i> Config Doctor</h2>
-                <p>Health check for your server configuration.</p>
+          <!-- PANE 2.E: HISTORICAL TREND ANALYTICS -->
+          <div id="intel-trends" class="sub-tab-pane hidden">
+            <div class="grid-layout">
+              <!-- Trend KPI row -->
+              <div class="card glass span-4">
+                <div class="card-body" style="padding: 16px 20px;">
+                  <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                    <div class="glass-inner p-3 text-center">
+                      <div style="font-size: 0.72rem; color: var(--text-sub); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em;">Peak Score (30d)</div>
+                      <div id="trend-stat-peak" style="font-size: 1.6rem; font-weight: 700; color: var(--primary);">--</div>
+                    </div>
+                    <div class="glass-inner p-3 text-center">
+                      <div style="font-size: 0.72rem; color: var(--text-sub); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em;">Week over Week</div>
+                      <div id="trend-stat-wow" style="font-size: 1.6rem; font-weight: 700; color: var(--success);">--</div>
+                    </div>
+                    <div class="glass-inner p-3 text-center">
+                      <div style="font-size: 0.72rem; color: var(--text-sub); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em;">Best Dimension</div>
+                      <div id="trend-stat-best" style="font-size: 1.6rem; font-weight: 700; color: var(--success);">--</div>
+                    </div>
+                    <div class="glass-inner p-3 text-center">
+                      <div style="font-size: 0.72rem; color: var(--text-sub); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em;">Needs Work</div>
+                      <div id="trend-stat-worst" style="font-size: 1.6rem; font-weight: 700; color: var(--warning);">--</div>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div class="card-body" id="config-doctor-content">
-                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+
+              <div class="card glass span-4">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-clock-rotate-left"></i> Health & Score Evolution History</h2>
+                  <p>Track metrics progress and dimension score ratings over the last 30 days</p>
+                </div>
+                <div class="card-body">
+                  <div style="position: relative; height: 300px;">
+                    <canvas id="chart-health-timeline-center"></canvas>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          </div>
 
-          <!-- Permission Doctor Sub-Tab -->
-          <div id="permission-doctor-sub" class="sub-tab-pane hidden">
-          <div class="grid-layout">
-            <div class="card glass span-4">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-shield-halved"></i> Permission Doctor</h2>
-                <p>Analyze role permissions for security risks.</p>
+          <!-- PANE 3: AUTOMATION CENTER -->
+          <div id="automation-rules-sub" class="sub-tab-pane hidden">
+            <div class="grid-layout">
+              <!-- Guardian Mode Safety Lock -->
+              <div class="card glass span-2">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-robot"></i> Guardian Mode</h2>
+                  <p>Autonomous server maintenance and policy checks</p>
+                </div>
+                <div class="card-body" id="auto-guardian-status">
+                  <div class="skeleton-card">
+                    <div class="skeleton skeleton-heading"></div>
+                    <div class="skeleton skeleton-text"></div>
+                    <div class="skeleton skeleton-text-sm"></div>
+                  </div>
+                </div>
               </div>
-              <div class="card-body" id="permission-doctor-content">
-                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+
+              <!-- Dynamic Adaptive Slowmode -->
+              <div class="card glass span-2">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-clock"></i> Dynamic Slowmode Policy</h2>
+                  <p>Automatically adjust channel slowmodes based on chat traffic density</p>
+                </div>
+                <div class="card-body" id="auto-slowmode-status">
+                  <div class="skeleton-card">
+                    <div class="skeleton skeleton-heading"></div>
+                    <div class="skeleton skeleton-text"></div>
+                    <div class="skeleton skeleton-text-sm"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Auto Maintenance Policies -->
+              <div class="card glass span-4">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-screwdriver-wrench"></i> Auto Maintenance Settings</h2>
+                  <p>Channel archivals, unused roles cleanup, and backup policies</p>
+                </div>
+                <div class="card-body" id="auto-maintenance-content">
+                  <div class="skeleton-card">
+                    <div class="skeleton skeleton-heading"></div>
+                    <div class="skeleton skeleton-text"></div>
+                    <div class="skeleton skeleton-text-sm"></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Rule Engine IFTTT Configurator -->
+              <div class="card glass span-4">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-gears"></i> Rule Engine</h2>
+                  <p>Triggers, conditions, and automated mitigation policies</p>
+                </div>
+                <div class="card-body" id="automation-rules-content">
+                  <div class="skeleton-card">
+                    <div class="skeleton skeleton-heading"></div>
+                    <div class="skeleton skeleton-text"></div>
+                    <div class="skeleton skeleton-text-sm"></div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          </div>
 
-          <!-- Raid Detector Sub-Tab -->
-          <div id="raid-detector-sub" class="sub-tab-pane hidden">
-          <div class="grid-layout">
-            <div class="card glass span-4">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-user-shield"></i> Smart Raid Detector</h2>
-                <p>Detect suspicious join patterns and raid activity.</p>
+          <!-- PANE 4: HISTORY & PROGRESS -->
+          <div id="history-progress-sub" class="sub-tab-pane hidden">
+            <div class="grid-layout">
+              <!-- Maturity score & Trends -->
+              <div class="card glass span-2">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-graduation-cap"></i> Maturity Index</h2>
+                  <p>Overall rating progress and opportunities breakdown</p>
+                </div>
+                <div class="card-body" id="history-maturity-content">
+                  <div class="text-center py-3" style="color: var(--text-sub);">Loading maturity score...</div>
+                </div>
               </div>
-              <div class="card-body" id="raid-detector-content">
-                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+
+              <!-- Config Rollback Snapshots list -->
+              <div class="card glass span-2">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-database"></i> Config Snapshot History</h2>
+                  <p>Manage and rollback server configuration snapshots</p>
+                </div>
+                <div class="card-body" id="cc-config-history" style="max-height: 280px; overflow-y: auto;">
+                  <div class="text-center py-3" style="color: var(--text-sub);">Loading config history...</div>
+                </div>
+              </div>
+
+              <!-- Incident log & timeline -->
+              <div class="card glass span-4">
+                <div class="card-header border-bottom">
+                  <h2><i class="fa-solid fa-shield-halved"></i> Chronological Security & Incident Timeline</h2>
+                  <p>Chronological incident logs and system mitigation actions</p>
+                </div>
+                <div class="card-body">
+                  <div id="timeline-content">
+                    <div class="text-center py-3" style="color: var(--text-sub);">Loading incident timeline...</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          </div>
 
-          <!-- Role Cleaner Sub-Tab -->
-          <div id="role-cleaner-sub" class="sub-tab-pane hidden">
-          <div class="grid-layout">
-            <div class="card glass span-4">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-broom"></i> Smart Role Cleaner</h2>
-                <p>Detect unused, duplicate, or obsolete roles.</p>
+          <!-- DANGEROUS ACTION CONFIRMATION MODAL -->
+          <div id="destructive-confirm-modal" class="wizard-container hidden" role="dialog" aria-modal="true" style="z-index: 10000; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">
+            <div class="wizard-box glass" style="max-width: 480px; padding: 30px; text-align: left;">
+              <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px; border-bottom: 1px solid var(--card-border); padding-bottom: 12px;">
+                <i class="fa-solid fa-triangle-exclamation" style="color: var(--danger); font-size: 1.8rem;"></i>
+                <h2 id="destructive-modal-title" style="margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--text-main);">Confirm Action</h2>
               </div>
-              <div class="card-body" id="role-cleaner-content">
-                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+              <p id="destructive-modal-description" style="color: var(--text-sub); font-size: 0.9rem; margin-bottom: 20px; line-height: 1.5;">This is a destructive action that will modify or delete server assets. Please confirm you want to proceed.</p>
+              
+              <div class="input-group" style="margin-bottom: 24px;">
+                <label for="destructive-confirm-input" style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 8px; display: block;">Type <strong style="color: var(--text-main);">CONFIRM</strong> to authorize this action:</label>
+                <input type="text" id="destructive-confirm-input" placeholder="CONFIRM" class="glass-input w-100" style="padding: 10px 14px; border-radius: 8px; font-weight: 700; text-align: center; letter-spacing: 2px;">
+              </div>
+
+              <div style="display: flex; gap: 12px;">
+                <button type="button" class="btn btn-secondary" onclick="closeDestructiveModal()" style="flex: 1; border-radius: 8px;">Cancel</button>
+                <button type="button" id="destructive-execute-btn" class="btn btn-danger" disabled style="flex: 1; border-radius: 8px; background: var(--danger); border-color: var(--danger);">Execute</button>
               </div>
             </div>
           </div>
-          </div>
+        </section>
 
-          <!-- Channel Cleaner Sub-Tab -->
-          <div id="channel-cleaner-sub" class="sub-tab-pane hidden">
-          <div class="grid-layout">
-            <div class="card glass span-4">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-trash-can"></i> Smart Channel Cleaner</h2>
-                <p>Detect dead, duplicate, or archived channels.</p>
-              </div>
-              <div class="card-body" id="channel-cleaner-content">
-                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
-              </div>
-            </div>
-          </div>
-          </div>
+<!-- AUTOMATION RULE MODAL -->
+<div id="automation-rule-modal" class="wizard-container hidden" role="dialog" aria-modal="true" style="z-index: 10000; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">
+  <div class="wizard-box glass" style="max-width: 600px; max-height: 85vh; overflow-y: auto;">
+    <div class="wizard-header">
+      <div class="logo-area">
+        <i class="fa-solid fa-gears bot-logo"></i>
+        <h1 id="rule-modal-title">Add Automation Rule</h1>
+      </div>
+      <p>Define a trigger, conditions, and actions for the bot to execute automatically.</p>
+    </div>
+    <div class="card-body px-4 pb-4">
+      <input type="hidden" id="rule-edit-id">
 
-          <!-- Backup Advisor Sub-Tab -->
-          <div id="backup-advisor-sub" class="sub-tab-pane hidden">
-          <div class="grid-layout">
-            <div class="card glass span-4">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-cloud-arrow-up"></i> Smart Backup Advisor</h2>
-                <p>Track backup health and recommendations.</p>
-              </div>
-              <div class="card-body" id="backup-advisor-content">
-                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
-              </div>
-            </div>
-          </div>
-          </div>
+      <div class="input-group">
+        <label for="rule-name">Rule Name <span class="required">*</span></label>
+        <input type="text" id="rule-name" placeholder="e.g. Auto-mute spam accounts" required>
+      </div>
 
-          <!-- Maturity Score Sub-Tab -->
-          <div id="maturity-sub" class="sub-tab-pane hidden">
-          <div class="grid-layout">
-            <div class="card glass span-4">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-trophy"></i> Server Maturity Score</h2>
-                <p>Comprehensive maturity assessment across all dimensions.</p>
-              </div>
-              <div class="card-body" id="maturity-content">
-                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
-              </div>
-            </div>
-          </div>
-          </div>
-</section>
+      <div class="input-group">
+        <label for="rule-trigger">Trigger Event <span class="required">*</span></label>
+        <select id="rule-trigger" class="glass-input w-100" style="padding: 10px 14px; border-radius: 8px;">
+          <option value="">Select a trigger...</option>
+          <option value="member_join">Member Join</option>
+          <option value="member_leave">Member Leave</option>
+          <option value="message_sent">Message Sent</option>
+          <option value="message_deleted">Message Deleted</option>
+          <option value="role_created">Role Created</option>
+          <option value="role_deleted">Role Deleted</option>
+          <option value="channel_created">Channel Created</option>
+          <option value="channel_deleted">Channel Deleted</option>
+          <option value="moderation_action">Moderation Action</option>
+          <option value="voice_join">Voice Join</option>
+          <option value="voice_leave">Voice Leave</option>
+          <option value="reaction_added">Reaction Added</option>
+          <option value="reaction_removed">Reaction Removed</option>
+        </select>
+      </div>
 
-        <!-- TAB: CUSTOM COMMANDS -->
+      <div class="toggle-group mb-3">
+        <span class="toggle-label">Enabled:</span>
+        <label class="switch"><input type="checkbox" id="rule-enabled" checked><span class="slider round"></span></label>
+      </div>
+
+      <div style="margin-top: 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <h3 style="margin:0;font-size:0.95rem;"><i class="fa-solid fa-filter"></i> Conditions</h3>
+          <button type="button" class="btn btn-secondary btn-small" onclick="addRuleCondition()"><i class="fa-solid fa-plus"></i> Add</button>
+        </div>
+        <div id="rule-conditions-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <div id="rule-conditions-empty" style="font-size:0.75rem;color:var(--text-sub);padding:8px 0;">No conditions — rule fires on every matching trigger.</div>
+      </div>
+
+      <div style="margin-top: 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <h3 style="margin:0;font-size:0.95rem;"><i class="fa-solid fa-bolt"></i> Actions</h3>
+          <button type="button" class="btn btn-secondary btn-small" onclick="addRuleAction()"><i class="fa-solid fa-plus"></i> Add</button>
+        </div>
+        <div id="rule-actions-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+        <div id="rule-actions-empty" style="font-size:0.75rem;color:var(--text-sub);padding:8px 0;color:var(--danger);">At least one action is required.</div>
+      </div>
+
+      <div style="display: flex; gap: 12px; margin-top: 24px;">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('automation-rule-modal')" style="flex:1;">Cancel</button>
+        <button type="button" class="btn btn-primary btn-glow" id="btn-save-rule" onclick="saveAutomationRule()" style="flex:1;"><i class="fa-solid fa-save"></i> Save Rule</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TAB: CUSTOM COMMANDS -->
         <section id="tab-commands" class="tab-pane hidden">
           <div class="grid-layout">
             <!-- Add Command Form -->
@@ -1258,9 +1475,10 @@
                       <!-- Dynamic rows will go here -->
                     </tbody>
                   </table>
-                  <div id="commands-empty" class="text-center py-5">
-                    <i class="fa-solid fa-code-merge big-icon opacity-50"></i>
-                    <p class="mt-2 text-sub">No custom commands registered. Add one using the form on the left!</p>
+                  <div id="commands-empty" class="empty-state">
+                    <i class="fa-solid fa-terminal empty-state-icon"></i>
+                    <div class="empty-state-title">No commands yet</div>
+                    <div class="empty-state-desc">Add your first command using the form on the left.</div>
                   </div>
                 </div>
                 <div class="p-4 border-top text-right flex-between">
@@ -1277,8 +1495,8 @@
         <!-- TAB: SUPPORT TICKETS -->
         <section id="tab-tickets" class="tab-pane hidden">
           <div class="sub-tab-container">
-            <button class="sub-tab-btn active" data-sub-tab="tickets-setup-sub">Ticket Panels Setup</button>
-            <button class="sub-tab-btn" data-sub-tab="tickets-intel-sub">Ticket Intel</button>
+            <button class="sub-tab-btn active" data-sub-tab="tickets-setup-sub"><i class="fa-solid fa-ticket"></i> Ticket Panels Setup</button>
+            <button class="sub-tab-btn" data-sub-tab="tickets-intel-sub"><i class="fa-solid fa-chart-pie"></i> Ticket Intel</button>
           </div>
 
           <div id="tickets-setup-sub" class="sub-tab-pane">
@@ -1332,19 +1550,58 @@
               </div>
             </div>
 
-            <!-- Ticket System Preview Info -->
-            <div class="card glass span-2 flex-center flex-column text-center p-5">
-              <i class="fa-solid fa-ticket-simple ticket-icon-illustration mb-3 animate-pulse"></i>
-              <h2>Interactive Ticketing Panel</h2>
-              <p class="max-width-350 text-sub mt-2 mb-4">Once deployed, the bot creates a permanent embedded message. Users clicking "Create Ticket" get their own channel where they can share private issues, logs, or reports securely.</p>
-              
-              <div class="glass-inner text-left max-width-350 info-box">
-                <h4><i class="fa-solid fa-circle-info"></i> How it works:</h4>
-                <ul class="info-list mt-2">
-                  <li>Creates channels named <code>#ticket-username</code>.</li>
-                  <li>Configures private permissions dynamically (hides from other members).</li>
-                  <li>Adds a "Close Ticket" button in the created channel for staff to delete it when resolved.</li>
-                </ul>
+            <!-- Live ticket stats card -->
+            <div class="card glass span-2">
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-ticket"></i> Ticket System Overview</h2>
+              </div>
+              <div class="card-body">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
+                  <div class="glass-inner p-3 text-center">
+                    <div style="font-size: 1.4rem; font-weight: 700; color: var(--primary);" id="ticket-stat-total">--</div>
+                    <div style="font-size: 0.75rem; color: var(--text-sub);">Total Tickets</div>
+                  </div>
+                  <div class="glass-inner p-3 text-center">
+                    <div style="font-size: 1.4rem; font-weight: 700; color: var(--warning);" id="ticket-stat-open">--</div>
+                    <div style="font-size: 0.75rem; color: var(--text-sub);">Open Now</div>
+                  </div>
+                  <div class="glass-inner p-3 text-center">
+                    <div style="font-size: 1.4rem; font-weight: 700; color: var(--success);" id="ticket-stat-closed">--</div>
+                    <div style="font-size: 0.75rem; color: var(--text-sub);">Closed (7d)</div>
+                  </div>
+                  <div class="glass-inner p-3 text-center">
+                    <div style="font-size: 1.4rem; font-weight: 700; color: var(--primary);" id="ticket-stat-avg">--</div>
+                    <div style="font-size: 0.75rem; color: var(--text-sub);">Avg Response</div>
+                  </div>
+                </div>
+
+                <!-- Compact 3-step how-it-works strip -->
+                <div style="border-top: 1px solid var(--card-border); padding-top: 16px;">
+                  <div style="font-size: 0.75rem; font-weight: 600; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 12px;">How it works</div>
+                  <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <div style="display: flex; align-items: flex-start; gap: 10px;">
+                      <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--nav-active-bg); border: 1px solid var(--nav-active-border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 0.7rem; font-weight: 700; color: var(--nav-active-color);">1</div>
+                      <div>
+                        <div style="font-size: 0.82rem; font-weight: 600; color: var(--text-main);">Deploy the panel</div>
+                        <div style="font-size: 0.75rem; color: var(--text-sub); margin-top: 1px;">Bot posts a persistent button embed to your chosen channel.</div>
+                      </div>
+                    </div>
+                    <div style="display: flex; align-items: flex-start; gap: 10px;">
+                      <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--nav-active-bg); border: 1px solid var(--nav-active-border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 0.7rem; font-weight: 700; color: var(--nav-active-color);">2</div>
+                      <div>
+                        <div style="font-size: 0.82rem; font-weight: 600; color: var(--text-main);">User clicks "Create Ticket"</div>
+                        <div style="font-size: 0.75rem; color: var(--text-sub); margin-top: 1px;">Bot creates a private <code>#ticket-username</code> channel for them.</div>
+                      </div>
+                    </div>
+                    <div style="display: flex; align-items: flex-start; gap: 10px;">
+                      <div style="width: 24px; height: 24px; border-radius: 50%; background: var(--nav-active-bg); border: 1px solid var(--nav-active-border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 0.7rem; font-weight: 700; color: var(--nav-active-color);">3</div>
+                      <div>
+                        <div style="font-size: 0.82rem; font-weight: 600; color: var(--text-main);">Staff close when resolved</div>
+                        <div style="font-size: 0.75rem; color: var(--text-sub); margin-top: 1px;">A "Close Ticket" button in the channel deletes it when done.</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1359,7 +1616,11 @@
                 <h2><i class="fa-solid fa-chart-pie"></i> Ticket Intelligence</h2>
               </div>
               <div class="card-body" id="ticket-intel-content">
-                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+                  <div class="skeleton-card">
+                    <div class="skeleton skeleton-heading"></div>
+                    <div class="skeleton skeleton-text"></div>
+                    <div class="skeleton skeleton-text-sm"></div>
+                  </div>
               </div>
             </div>
           </div>
@@ -1530,9 +1791,9 @@
         <!-- TAB: ROLE STUDIO -->
         <section id="tab-roles" class="tab-pane hidden">
           <div class="sub-tab-container">
-            <button class="sub-tab-btn active" data-sub-tab="role-creator-sub">Role Creator & Hierarchy</button>
-            <button class="sub-tab-btn" data-sub-tab="role-panels-sub">Role Selection Panels</button>
-            <button class="sub-tab-btn" data-sub-tab="cleanup-sub">Cleanup Wizard</button>
+            <button class="sub-tab-btn active" data-sub-tab="role-creator-sub"><i class="fa-solid fa-sitemap"></i> Role Creator & Hierarchy</button>
+            <button class="sub-tab-btn" data-sub-tab="role-panels-sub"><i class="fa-solid fa-table-cells"></i> Role Selection Panels</button>
+            <button class="sub-tab-btn" data-sub-tab="cleanup-sub"><i class="fa-solid fa-wand-magic-sparkles"></i> Cleanup Wizard</button>
           </div>
 
           <div id="role-creator-sub" class="sub-tab-pane">
@@ -1602,7 +1863,11 @@
                 <p>Drag to reorder. Top = highest authority.</p>
               </div>
               <div class="card-body" id="role-hierarchy-container" style="max-height: 350px; overflow-y: auto;">
-                <div id="role-hierarchy-empty" class="text-center py-4" style="color: var(--text-sub);">No roles loaded.</div>
+                <div id="role-hierarchy-empty" class="empty-state">
+                  <i class="fa-solid fa-tag empty-state-icon"></i>
+                  <div class="empty-state-title">No roles yet</div>
+                  <div class="empty-state-desc">Select a server to load its role list.</div>
+                </div>
               </div>
             </div>
 
@@ -1616,6 +1881,7 @@
                   <table class="premium-table" id="table-roles">
                     <thead>
                       <tr>
+                        <th style="width: 40px; text-align: left; padding-left: 16px;"><input type="checkbox" id="roles-bulk-select-all"></th>
                         <th>Role Name</th>
                         <th>Color</th>
                         <th>Members</th>
@@ -1625,9 +1891,10 @@
                     </thead>
                     <tbody id="roles-list-body"></tbody>
                   </table>
-                  <div id="roles-empty" class="text-center py-5">
-                    <i class="fa-solid fa-user-shield big-icon opacity-50"></i>
-                    <p class="mt-2 text-sub">No roles loaded.</p>
+                  <div id="roles-empty" class="empty-state">
+                    <i class="fa-solid fa-tag empty-state-icon"></i>
+                    <div class="empty-state-title">No roles yet</div>
+                    <div class="empty-state-desc">Select a server to load its role list.</div>
                   </div>
                 </div>
               </div>
@@ -1800,7 +2067,11 @@
                 </div>
               </div>
               <div id="compare-results" style="max-height: 300px; overflow-y: auto;">
-                <div class="text-center py-3" style="color: var(--text-sub);">Select two roles to compare.</div>
+                <div class="empty-state">
+                  <i class="fa-solid fa-code-compare empty-state-icon"></i>
+                  <div class="empty-state-title">Select roles to compare</div>
+                  <div class="empty-state-desc">Choose two roles from the list to see a side-by-side diff.</div>
+                </div>
               </div>
               <div style="margin-top: 16px;">
                 <button class="btn btn-secondary w-100" data-close-modal="role-compare-modal">Close</button>
@@ -1966,9 +2237,9 @@
         <div id="cleanup-sub" class="sub-tab-pane hidden">
           <div class="grid-layout">
             <div class="card glass span-4">
-              <div class="card-header border-bottom">
+              <div class="card-header border-bottom flex-header">
                 <h2><i class="fa-solid fa-broom"></i> Cleanup Wizard</h2>
-                <button class="btn btn-primary btn-glow btn-sm" data-action="load-cleanup-preview"><i class="fa-solid fa-magnifying-glass"></i> Scan Server</button>
+                <button class="btn btn-primary btn-glow btn-small" data-action="load-cleanup-preview"><i class="fa-solid fa-magnifying-glass"></i> Scan Server</button>
               </div>
               <div class="card-body">
                 <div id="cleanup-stats" style="display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap;">
@@ -2106,9 +2377,10 @@
                       <!-- Dynamic rows will render here -->
                     </tbody>
                   </table>
-                  <div id="templates-empty" class="text-center py-5">
-                    <i class="fa-solid fa-layer-group big-icon opacity-50"></i>
-                    <p class="mt-2 text-sub">No custom templates saved yet. Use the tool above to save your layout.</p>
+                  <div id="templates-empty" class="empty-state">
+                    <i class="fa-solid fa-layer-group empty-state-icon"></i>
+                    <div class="empty-state-title">No templates saved</div>
+                    <div class="empty-state-desc">Save your current layout as a template to reuse it.</div>
                   </div>
                 </div>
               </div>
@@ -2514,9 +2786,10 @@
                 <div id="active-giveaways-container" class="grid-2-col">
                   <!-- Active giveaways render here -->
                 </div>
-                <div id="active-giveaways-empty" class="text-center py-5">
-                  <i class="fa-solid fa-gift big-icon opacity-50"></i>
-                  <p class="mt-2 text-sub">No active giveaways at the moment.</p>
+                <div id="active-giveaways-empty" class="empty-state">
+                  <i class="fa-solid fa-gift empty-state-icon"></i>
+                  <div class="empty-state-title">No active giveaways</div>
+                  <div class="empty-state-desc">Create one using the form above.</div>
                 </div>
               </div>
             </div>
@@ -2944,12 +3217,12 @@
                 <p>Chronological feed of administrative and moderation actions logged via this optimizer dashboard.</p>
               </div>
               <div class="flex-between mt-2 mt-md-0">
-                <select id="audit-log-scope" class="glass-input mr-2">
+                <select id="audit-log-scope" class="analytics-select mr-2">
                   <option value="GUILD" selected>This Server Only</option>
                   <option value="GLOBAL">System/Global Only</option>
                   <option value="ALL">All Logs</option>
                 </select>
-                <select id="audit-log-filter" class="glass-input mr-2">
+                <select id="audit-log-filter" class="analytics-select mr-2">
                   <option value="ALL">All Categories</option>
                   <option value="BOT_CONTROL">Bot Lifecycle</option>
                   <option value="CONFIG_CHANGE">Configurations</option>
@@ -3019,7 +3292,11 @@
                 <h2><i class="fa-solid fa-gears"></i> Automation Center</h2>
               </div>
               <div class="card-body" id="automation-content">
-                <div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>
+                  <div class="skeleton-card">
+                    <div class="skeleton skeleton-heading"></div>
+                    <div class="skeleton skeleton-text"></div>
+                    <div class="skeleton skeleton-text-sm"></div>
+                  </div>
               </div>
             </div>
           </div>
@@ -3174,15 +3451,13 @@
           <div class="grid-layout">
             <!-- Incident Stats -->
             <div class="card glass span-4">
-              <div class="card-header border-bottom">
+              <div class="card-header border-bottom flex-header">
                 <h2><i class="fa-solid fa-shield-virus"></i> Incident Center</h2>
-                <div style="display:flex;gap:8px;align-items:center;">
-                  <select id="incident-days" class="glass-input" style="width:auto;padding:6px 10px;font-size:0.82rem;" onchange="loadIncidents()">
-                    <option value="7">Last 7 days</option>
-                    <option value="30" selected>Last 30 days</option>
-                    <option value="90">Last 90 days</option>
-                  </select>
-                </div>
+                <select id="incident-days" class="analytics-select" onchange="loadIncidents()">
+                  <option value="7">Last 7 days</option>
+                  <option value="30" selected>Last 30 days</option>
+                  <option value="90">Last 90 days</option>
+                </select>
               </div>
               <div class="card-body">
                 <div style="display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap;">

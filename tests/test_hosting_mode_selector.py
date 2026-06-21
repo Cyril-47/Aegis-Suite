@@ -1034,15 +1034,15 @@ def test_hosting_mode_not_in_secret_store_or_env():
 
 
 def _normalize_feature_item(text: str) -> str:
-    """Strip ``<code>`` tags, backticks, and whitespace from a feature item.
+    """Strip HTML tags, backticks, and whitespace from a feature item.
 
     The README uses Markdown backticks (`` `on_guild_remove` ``) while the
     HTML uses ``<code>`` tags around the same identifiers. The two surfaces
     must contain the same *feature names*, so the comparison normalizes
     both to plain text before set-equality checking.
     """
-    # Drop both halves of the <code> tag.
-    text = re.sub(r"</?code\b[^>]*>", "", text, flags=re.IGNORECASE)
+    # Drop all HTML tags (code, i, span, etc.).
+    text = re.sub(r"<[^>]+>", "", text, flags=re.IGNORECASE)
     # Drop Markdown backticks.
     text = text.replace("`", "")
     # Collapse runs of whitespace and trim.
