@@ -11,18 +11,62 @@ Aegis Server Optimizer is an interactive operations suite featuring a Discord bo
 
 ## 🚀 Features
 
+### Core
 - **Automated Server Health Scan**: Runs an automated audit scanning server verification levels, content filters, and administrator role security.
-- **One-Click Server Layouts**: Choose from professional templates (`Gaming Guild`, `Social Community`, `Developer Hub`) to restructure channels and categories.
+- **One-Click Server Layouts**: Choose from 18+ professional templates (`Gaming Guild`, `Social Community`, `Developer Hub`, `Anime`, `Education`, etc.) to restructure channels and categories.
 - **Safe Channel Archiving**: Move old text/voice channels into an archived category to prevent chat history loss instead of deleting them.
 - **Automated Welcomer & Auto-Roles**: Assign roles (e.g. `Verified Member`) and post welcoming embeds upon new member joins.
 - **Robust Auto-Moderation Suite**: Filters links, prevents mention raid spam, blocks toxic words via custom lists, and logs violations to `#mod-logs`.
-- **Guardian Mode — Automation Engine**: Rule-based automation system with 13 triggers (member join/leave, messages, voice, reactions, moderation events) and 10 safe actions (timeout, kick, ban, role assignment, channel lock, slowmode). Rules are configurable from the dashboard UI with conditions using safe operators (equals, contains, greater/less than).
-- **Sentiment Analysis with Stability Threshold**: Uses VADER-based sentiment scoring with a minimum 20-message learning window to prevent single-message score volatility on the health gauge.
-- **Modular Cog Architecture**: Bot logic split into 10 focused cogs ( moderation, config, events, intelligence, music, automation, tickets, giveaways, leveling, utils ) loaded dynamically via `cog_loader.py`.
+
+### Intelligence Engine
+- **Guardian Mode — Automation Engine**: Rule-based automation with 13 triggers (member join/leave, messages, voice, reactions, moderation events) and 10 safe actions (timeout, kick, ban, role assignment, channel lock, slowmode). Rules configurable from the dashboard UI with conditions.
+- **Adaptive Raid Detection**: Statistical anomaly detection for join/message/mod-action rates. Learns baseline over 24-hour windows and triggers alerts when rates exceed baseline by 2-5 standard deviations.
+- **Fuzzy Spam Detection**: Levenshtein distance-based spam detection with 90% similarity threshold. Detects exact duplicates, fuzzy variations, and cross-user raid spam campaigns.
+- **Sentiment Analysis with Stability Threshold**: VADER-based sentiment scoring with a 20-message learning window to prevent single-message score volatility. Normalizes leetspeak, abbreviations, and slang before scoring.
+- **Activity Intelligence**: Statistical analysis of message activity by hour and day-of-week. Finds peak hours, dead zones, and optimal times for events/giveaways.
+- **Smart Recommendations**: Scans server state against 10+ rule-based checks and returns prioritized recommendations with severity, impact score, and auto-fix availability.
+- **One-Click Auto Fix**: Executes automated fixes (create channels, archive inactive, remove unused roles, enable welcome/raid mode, lock server, etc.) with rollback capability.
+
+### Smart Analyzers (12)
+- **Config Doctor**: Diagnoses server config health across 5 dimensions (security, moderation, growth, automation, reliability) with 0-100 scores.
+- **Permission Doctor**: Scans all roles for dangerous permission combinations (Administrator abuse, escalation paths, public roles with channel management).
+- **Smart Raid Detector**: Analyzes recent member joins for raid patterns (join rate, new accounts, similar usernames) with threat levels.
+- **Smart Growth Advisor**: Analyzes server growth health (retention rate, activity ratio, channel count, welcome config).
+- **Smart Welcome Analyzer**: Evaluates onboarding completeness (welcome message, rules channel, auto-role, verification level).
+- **Smart Role Cleaner**: Detects unused roles, duplicates, and obsolete roles (90+ days old, no permissions, 0 members).
+- **Smart Channel Cleaner**: Identifies dead channels (no messages in 30+ days) and duplicates.
+- **Smart Backup Advisor**: Tracks backup health with staleness thresholds and protection score.
+- **Server Maturity Score**: Comprehensive maturity score across 6 dimensions (security, moderation, growth, automation, reliability, community health).
+
+### Analytics & Monitoring
+- **Channel Heatmap**: 24x7 hour-by-day-of-week activity heatmap.
+- **Ticket SLA Tracking**: Average first response time, resolution time, open rate, per-staff metrics.
+- **Growth Recommendations**: Data-driven advice based on retention, activity trends, and peak times.
+- **Server Benchmarking**: Percentile comparison against all servers in the system.
+- **Trend Forecasting**: Linear regression forecasting of messages/day, active users, and daily joins for 7 days.
+- **Moderator Intelligence**: Mod action leaderboard and response time tracking.
+- **Member Retention**: 1-day, 7-day, and 30-day retention rate calculations.
+- **Permission Heatmap**: Visual matrix of roles mapped against 12 key permissions.
+- **Incident Timeline**: Correlated moderation events grouped within 5-minute windows.
+- **Live Alerts (SSE)**: Real-time push updates for health score changes, notifications, and timeline events.
+
+### Automation & Maintenance
+- **Dynamic Slowmode System**: Tracks per-channel message rates in real-time. Auto-applies slowmode when threshold exceeded, auto-removes after burst window.
+- **Nightly DB Backup**: Automated database backups with configurable schedule and retention.
+- **Auto Role Cleanup**: Daily prune of empty, unmanaged roles.
+- **DB Vacuum**: Weekly SQLite vacuum to reclaim space.
+- **Channel Archive**: Archive inactive channels after configurable days.
+- **Scheduled Messages**: One-time and recurring message scheduling with web UI.
+- **Auto-Responders**: Keyword-triggered automatic replies with CRUD management.
+
+### Bot Features
+- **Modular Cog Architecture**: 10 focused cogs (Moderation, Config, Events, Intelligence, Music, Automation, Tickets, Giveaways, Leveling, Utils) loaded dynamically.
+- **Music Player**: `/play` (YouTube URL or search), `/pause`, `/resume`, `/skip`, `/stop`, `/volume`, queue management.
+- **Leveling & XP System**: `/rank` (rank card), `/leaderboard`, `/set-xp-role` with role-specific XP multipliers.
+- **Giveaway System**: `/giveaway start`, `/giveaway end`, `/giveaway reroll` with duration and winner count.
+- **Ticket System**: Private support ticket channels with staff assignment and close commands.
 - **Observability Stack**: Structured logging with secret redaction, request-ID tracking, metrics collection, and security headers middleware.
-- **Live Terminal Logging Console**: Real-time WebSocket log streaming directly on the dashboard panel.
-- **Music & Inactivity Timers**: Play audio streams with automated voice-client reconnects and 5-minute inactivity timeouts.
-- **Persistent Database Backups**: Multi-version database rotation utilizing SQLite Online Backup API.
+- **Live Terminal Logging Console**: Real-time WebSocket log streaming on the dashboard.
 
 ---
 
@@ -95,7 +139,7 @@ flowchart TD
     Rules -- No --> Skip[No Action]
 ```
 
-### 4. First-Run Onboarding Flow
+### 5. First-Run Onboarding Flow
 Detailed logic executed when the console wizard runs for first-run setups:
 
 ```mermaid
@@ -111,7 +155,7 @@ flowchart TD
     HashPass --> SaveSecrets[Write secrets to encrypted .env.enc]
 ```
 
-### 5. Safe Mode Recovery Flow
+### 6. Safe Mode Recovery Flow
 When startup checks fail (e.g. database corruptions, invalid credentials), Aegis enters Safe Mode to serve an administrative recovery panel.
 
 ```mermaid
@@ -189,6 +233,11 @@ The features below depend on the bot process being continuously connected to Dis
 **Impacted by intermittent uptime:**
 
 - Auto-moderation message handlers
+- Guardian Mode automation triggers
+- Dynamic slowmode enforcement
+- Raid detection and auto-lockdown
+- Fuzzy spam detection
+- Sentiment analysis and scoring
 - Scheduled messages background loop
 - Giveaway end-time scheduler
 - Leveling XP grants on member messages
@@ -197,19 +246,26 @@ The features below depend on the bot process being continuously connected to Dis
 - Periodic audit log roll-ups
 - Welcome embeds and auto-role assignment on member join
 - Auto-responders
+- Live SSE alert stream
 
 **Unaffected by intermittent uptime:**
 
 - Dashboard configuration changes
 - Server health audit scan
 - Server layout optimizer
-- Role creator
-- Role panel deployment
+- Role creator and role panel deployment
 - Custom commands configuration
 - Server template save and apply
 - Embed builder
 - Server backup and restore
 - Audit log viewer
+- Smart analyzers (config doctor, permission doctor, role/channel cleaners)
+- Analytics dashboards (heatmaps, growth, benchmarks, trends)
+- Config history and rollback
+- Ticket intelligence and moderator intelligence
+- Member retention and growth center
+- Permission heatmap
+- Security checks and scoring
 
 The features in the **Impacted** list will not run while the host PC is offline, asleep, or disconnected from Discord. Switch to Cloud mode if any of those features are critical to your community.
 
@@ -271,6 +327,15 @@ Rules are evaluated in real-time on Discord events. Ensure:
 - The **trigger** matches the event type (e.g., `message_sent` for new messages)
 - The bot has the required permissions (kick, ban, timeout, manage channels)
 - Check the **Last Interventions** log in the Automation Center for execution status
+
+### 5. Smart analyzers show "No data"?
+The smart analyzers (role cleaner, channel cleaner, etc.) require the bot to have been running for at least 24 hours to collect baseline data. Some analyzers (channel cleaner) need message history to identify dead channels.
+
+### 6. Music bot won't join voice channel?
+Ensure `FFmpeg` is installed and accessible in your PATH. The launcher checks for FFmpeg at startup. If missing, install it via your package manager or download from https://ffmpeg.org/download.html.
+
+### 7. How do I restore a backup?
+Go to **Dashboard → Backup & Restore**, select a backup from the list, and click **Restore**. The bot will recreate channels and roles from the backup snapshot. Note: message history is not included in backups.
 
 ---
 
