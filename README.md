@@ -16,6 +16,10 @@ Aegis Server Optimizer is an interactive operations suite featuring a Discord bo
 - **Safe Channel Archiving**: Move old text/voice channels into an archived category to prevent chat history loss instead of deleting them.
 - **Automated Welcomer & Auto-Roles**: Assign roles (e.g. `Verified Member`) and post welcoming embeds upon new member joins.
 - **Robust Auto-Moderation Suite**: Filters links, prevents mention raid spam, blocks toxic words via custom lists, and logs violations to `#mod-logs`.
+- **Guardian Mode — Automation Engine**: Rule-based automation system with 13 triggers (member join/leave, messages, voice, reactions, moderation events) and 10 safe actions (timeout, kick, ban, role assignment, channel lock, slowmode). Rules are configurable from the dashboard UI with conditions using safe operators (equals, contains, greater/less than).
+- **Sentiment Analysis with Stability Threshold**: Uses VADER-based sentiment scoring with a minimum 20-message learning window to prevent single-message score volatility on the health gauge.
+- **Modular Cog Architecture**: Bot logic split into 10 focused cogs ( moderation, config, events, intelligence, music, automation, tickets, giveaways, leveling, utils ) loaded dynamically via `cog_loader.py`.
+- **Observability Stack**: Structured logging with secret redaction, request-ID tracking, metrics collection, and security headers middleware.
 - **Live Terminal Logging Console**: Real-time WebSocket log streaming directly on the dashboard panel.
 - **Music & Inactivity Timers**: Play audio streams with automated voice-client reconnects and 5-minute inactivity timeouts.
 - **Persistent Database Backups**: Multi-version database rotation utilizing SQLite Online Backup API.
@@ -71,8 +75,24 @@ graph LR
         Uvicorn[Uvicorn ASGI Web Server] <--> SharedState[AppCore Concurrency State]
         DiscordClient[Discord.py Bot Task] <--> SharedState
         SharedState <--> SQLAlchemy[SQLAlchemy Engine & Locks]
+        SharedState <--> CogLoader[Modular Cog Loader]
     end
     SQLAlchemy <--> SQLite[(SQLite Database)]
+    CogLoader <--> Cogs[10 Cogs: Moderation, Config, Events, Intelligence, Music, Automation, Tickets, Giveaways, Leveling, Utils]
+```
+
+### 4. Automation Engine Flow
+How Guardian Mode processes Discord events through the rule engine.
+
+```mermaid
+flowchart TD
+    DiscordEvent[Discord Gateway Event] --> BotCog[Bot Cog Handler]
+    BotCog --> Context[Build Context: user, channel, guild, message]
+    Context --> Engine[AutomationEngine.evaluate_trigger]
+    Engine --> Rules{Rule Matches?}
+    Rules -- Yes --> Actions[Execute Actions: timeout, kick, ban, role, message, slowmode, lock]
+    Actions --> Log[Log to Execution Log]
+    Rules -- No --> Skip[No Action]
 ```
 
 ### 4. First-Run Onboarding Flow
@@ -242,10 +262,23 @@ Verify that **Privileged Gateway Intents** are toggled **ON** in your [Discord D
 ### 2. "Another instance is already running" error?
 Aegis enforces single-instance execution. Check your system tray for running processes or delete `temp_appdata/aegis.lock` if the application terminated abruptly.
 
+### 3. Health gauge stays at 80% and doesn't move?
+This is by design. The sentiment analyzer requires 20 messages before showing real scores to prevent single-message volatility. The gauge displays "Collecting data..." during this learning phase. After 20 messages, it snaps to the calculated average.
+
+### 4. Guardian Mode rules don't trigger?
+Rules are evaluated in real-time on Discord events. Ensure:
+- The rule is **enabled** (toggle on)
+- The **trigger** matches the event type (e.g., `message_sent` for new messages)
+- The bot has the required permissions (kick, ban, timeout, manage channels)
+- Check the **Last Interventions** log in the Automation Center for execution status
+
 ---
 
 ## ⚠️ Known Technical Debt & Limits
 
+- **In-Memory Global State**: Authentication token caches (`_revoked_tokens`, `_validated_tokens`) and rate-limit counters are stored in-process and lost on restart. Suitable for single-instance local PC mode; needs Redis/DB for multi-process deployments.
+- **Sentiment Learning Window**: The health gauge requires 20 messages before showing real scores (intentional stability feature). During the learning phase, the gauge holds at 80%.
+- **Automation Engine — Reactive Only**: Guardian Mode fires on Discord gateway events only. There is no periodic "sweep" or cron-style scheduling for tasks like daily scans or weekly reports.
 - **JSON Configuration Contention**: The current version uses local JSON files (`config.json`, `giveaways.json`, `audit_log.json`) for mutable configurations. While sufficient for small-scale local deployments, concurrent writes on large multi-tenant servers under high load can cause file corruptions or race conditions.
 - **SQLite Migration Roadmap**: If scaling up for public SaaS usage, it is highly recommended to migrate the configurations, custom commands, leveling stats, backups, and pairings data to a structured SQLite database (using `aiosqlite`) to support transactional integrity and concurrent locks.
 
