@@ -36,6 +36,12 @@ class RealGuild:
         self.me.guild_permissions.manage_channels = can_manage
 
 
+def record_burst(tracker, channel_id, count=50):
+    """Record burst messages with multiple unique users."""
+    for i in range(count):
+        tracker.record_message(str(channel_id), f"user_{i % 10}")
+
+
 def make_settings(**overrides):
     base = {
         "enabled": True,
@@ -73,8 +79,7 @@ async def test_exact_scenario_admin_2hr_bot_auto_remove():
     assert channel.slowmode_delay == 7200
 
     # T+0.1: Raid — 50 messages flood in
-    for _ in range(50):
-        tracker.record_message(str(channel.id))
+    record_burst(tracker, channel.id)
 
     rate = tracker.get_rate(str(channel.id))
     assert rate >= 1.0, "Raid should exceed threshold"
@@ -117,8 +122,7 @@ async def test_bot_fires_then_admin_overrides():
     settings = make_settings(burst_threshold=1.0, slowmode_duration=5, cooldown_seconds=0)
 
     # T+0: Raid — bot applies 5s
-    for _ in range(50):
-        tracker.record_message(str(channel.id))
+    record_burst(tracker, channel.id)
 
     await tracker.check_and_apply(guild, channel, settings)
     assert channel.slowmode_delay == 5
@@ -176,8 +180,7 @@ async def test_full_lifecycle():
 
     # T+1: Raid hits, bot applies 5s
     await asyncio.sleep(0.5)
-    for _ in range(50):
-        tracker.record_message(str(channel.id))
+    record_burst(tracker, channel.id)
 
     await tracker.check_and_apply(guild, channel, settings)
     assert channel.slowmode_delay == 5
@@ -229,8 +232,7 @@ async def test_multi_channel_mixed_states():
 
     # Raid hits all channels
     for ch in channels:
-        for _ in range(50):
-            tracker.record_message(str(ch.id))
+        record_burst(tracker, ch.id)
 
     # Bot processes all
     for ch in channels:
@@ -369,8 +371,7 @@ async def test_rapid_admin_changes_during_raid():
     settings = make_settings(burst_threshold=1.0, slowmode_duration=5, cooldown_seconds=0)
 
     # T+0: First raid
-    for _ in range(50):
-        tracker.record_message(str(channel.id))
+    record_burst(tracker, channel.id)
     await tracker.check_and_apply(guild, channel, settings)
     assert channel.slowmode_delay == 5
 
@@ -391,8 +392,7 @@ async def test_rapid_admin_changes_during_raid():
 
     # T+3: Second raid burst — bot applies again
     await asyncio.sleep(1)
-    for _ in range(50):
-        tracker.record_message(str(channel.id))
+    record_burst(tracker, channel.id)
     await tracker.check_and_apply(guild, channel, settings)
     assert channel.slowmode_delay == 5
 
