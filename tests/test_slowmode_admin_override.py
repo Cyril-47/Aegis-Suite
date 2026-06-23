@@ -42,11 +42,22 @@ def record_burst(tracker, channel_id, count=50):
         tracker.record_message(str(channel_id), f"user_{i % 10}")
 
 
+async def trigger_slowmode(tracker, guild, channel, settings):
+    """Record burst and trigger slowmode (requires 2 calls with 2s gap)."""
+    record_burst(tracker, channel.id)
+    await tracker.check_and_apply(guild, channel, settings)
+    await asyncio.sleep(2.5)
+    await tracker.check_and_apply(guild, channel, settings)
+
+
 def make_settings(**overrides):
     base = {
         "enabled": True,
         "burst_threshold": 3,
+        "burst_window_seconds": 10,
+        "min_trigger_rate": 3.0,
         "slowmode_duration": 5,
+        "max_slowmode_duration": 10,
         "cooldown_seconds": 30,
         "whitelisted_channels": [],
     }
@@ -121,13 +132,11 @@ async def test_bot_fires_then_admin_overrides():
     channel = RealChannel(ch_id=50002, name="general")
     settings = make_settings(burst_threshold=1.0, slowmode_duration=5, cooldown_seconds=0)
 
-    # T+0: Raid — bot applies 5s
-    record_burst(tracker, channel.id)
-
-    await tracker.check_and_apply(guild, channel, settings)
-    assert channel.slowmode_delay == 5
+    # T+0: Raid — bot applies 3s (1st trigger)
+    await trigger_slowmode(tracker, guild, channel, settings)
+    assert channel.slowmode_delay == 3
     assert len(channel.edit_log) == 1
-    assert channel.edit_log[0]["new"] == 5
+    assert channel.edit_log[0]["new"] == 3
 
     # T+2: Admin overrides with 1hr
     await asyncio.sleep(2)
@@ -142,7 +151,7 @@ async def test_bot_fires_then_admin_overrides():
     )
 
     # Verify auto-remove logged a skip
-    bot_edits = [e for e in channel.edit_log if "Dynamic Slowmode" in e.get("reason", "")]
+    bot_edits = [e for e in channel.edit_log if "Adaptive" in e.get("reason", "")]
     admin_edits = [e for e in channel.edit_log if "Admin override" in e.get("reason", "")]
     assert len(bot_edits) == 1, f"Bot should have edited once, got {len(bot_edits)}"
     assert len(admin_edits) == 1, f"Admin should have edited once, got {len(admin_edits)}"
@@ -178,12 +187,10 @@ async def test_full_lifecycle():
     await channel.edit(slowmode_delay=0, reason="Admin: event over")
     assert channel.slowmode_delay == 0
 
-    # T+1: Raid hits, bot applies 5s
+    # T+1: Raid hits, bot applies 3s (1st trigger)
     await asyncio.sleep(0.5)
-    record_burst(tracker, channel.id)
-
-    await tracker.check_and_apply(guild, channel, settings)
-    assert channel.slowmode_delay == 5
+    await trigger_slowmode(tracker, guild, channel, settings)
+    assert channel.slowmode_delay == 3
 
     # T+3: Admin changes to 30min
     await asyncio.sleep(2)
@@ -234,18 +241,25 @@ async def test_multi_channel_mixed_states():
     for ch in channels:
         record_burst(tracker, ch.id)
 
-    # Bot processes all
+    # Bot processes all (first call starts burst timer)
+    for ch in channels:
+        await tracker.check_and_apply(guild, ch, settings)
+
+    # Wait for sustained duration
+    await asyncio.sleep(2.5)
+
+    # Bot processes all again (second call triggers after sustained duration)
     for ch in channels:
         await tracker.check_and_apply(guild, ch, settings)
 
     # Ch1: Bot skipped (admin 7200 active)
     assert ch1.slowmode_delay == 7200
-    # Ch2: Bot applied 5s
-    assert ch2.slowmode_delay == 5
-    # Ch3: Bot applied 5s (admin had removed)
-    assert ch3.slowmode_delay == 5
-    # Ch4: Bot applied 5s
-    assert ch4.slowmode_delay == 5
+    # Ch2: Bot applied 3s (1st trigger)
+    assert ch2.slowmode_delay == 3
+    # Ch3: Bot applied 3s (admin had removed)
+    assert ch3.slowmode_delay == 3
+    # Ch4: Bot applied 3s
+    assert ch4.slowmode_delay == 3
     # Ch5: Bot skipped (admin 3600 active)
     assert ch5.slowmode_delay == 3600
 
@@ -254,16 +268,16 @@ async def test_multi_channel_mixed_states():
     await ch3.edit(slowmode_delay=3600, reason="Admin: need longer on ch3")
     await ch4.edit(slowmode_delay=0, reason="Admin: remove slowmode on ch4")
 
-    # Wait for auto-remove (5*3=15s)
-    await asyncio.sleep(14)
+    # Wait for auto-remove (3*3=9s)
+    await asyncio.sleep(8)
 
     # Ch1: Still admin's 7200
     assert ch1.slowmode_delay == 7200
-    # Ch2: Auto-remove cleared bot's 5s
+    # Ch2: Auto-remove cleared bot's 3s
     assert ch2.slowmode_delay == 0
     # Ch3: Auto-remove preserved admin's 3600
     assert ch3.slowmode_delay == 3600
-    # Ch4: Admin removed it, auto-remove sees 0 ≠ 5, skips
+    # Ch4: Admin removed it, auto-remove sees 0 != 3, skips
     assert ch4.slowmode_delay == 0
     # Ch5: Still admin's 3600
     assert ch5.slowmode_delay == 3600
@@ -371,9 +385,8 @@ async def test_rapid_admin_changes_during_raid():
     settings = make_settings(burst_threshold=1.0, slowmode_duration=5, cooldown_seconds=0)
 
     # T+0: First raid
-    record_burst(tracker, channel.id)
-    await tracker.check_and_apply(guild, channel, settings)
-    assert channel.slowmode_delay == 5
+    await trigger_slowmode(tracker, guild, channel, settings)
+    assert channel.slowmode_delay == 3
 
     # T+0.5: Admin changes to 60s
     await asyncio.sleep(0.5)
@@ -394,15 +407,17 @@ async def test_rapid_admin_changes_during_raid():
     await asyncio.sleep(1)
     record_burst(tracker, channel.id)
     await tracker.check_and_apply(guild, channel, settings)
-    assert channel.slowmode_delay == 5
+    await asyncio.sleep(2.5)
+    await tracker.check_and_apply(guild, channel, settings)
+    assert channel.slowmode_delay == 5  # 2nd trigger = 5s (escalation)
 
     # T+4: Admin changes to 2hr
     await asyncio.sleep(1)
     await channel.edit(slowmode_delay=7200, reason="Admin: 2hr for safety")
     assert channel.slowmode_delay == 7200
 
-    # T+18: Auto-remove fires for the SECOND bot application (5*3=15s from T+3)
-    await asyncio.sleep(15)
+    # T+12: Auto-remove fires for the SECOND bot application (3*3=9s from T+3)
+    await asyncio.sleep(10)
 
     assert channel.slowmode_delay == 7200, (
         f"Auto-remove destroyed admin's 2hr! Got {channel.slowmode_delay}s"
