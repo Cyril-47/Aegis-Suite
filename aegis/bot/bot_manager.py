@@ -862,7 +862,9 @@ class DiscordOptimizerBot(commands.Bot):
                     lockdown_duration = raid_cfg.get("lockdown_duration_seconds", 300)
 
                     # Calculate suspicious score
-                    is_in_raid_window = len(self.anti_raid._joins.get(str(member.guild.id), [])) > 2
+                    join_window = raid_cfg.get("join_rate_window_seconds", 30)
+                    recent_join_count = len(self.anti_raid._joins.get(str(member.guild.id), []))
+                    is_in_raid_window = recent_join_count >= 2
                     score = self.anti_raid.calculate_suspicious_score(
                         member.created_at,
                         is_default_avatar=(str(member.avatar.url) if member.avatar else "") == "",
@@ -900,34 +902,42 @@ class DiscordOptimizerBot(commands.Bot):
                             f"(age: {account_days} days, score: {score})"
                         )
 
-                        # Take action if score exceeds threshold
-                        if score >= score_threshold and response_mode in ("lockdown", "auto_verify"):
-                            if response_mode == "lockdown":
-                                try:
-                                    timeout_duration = min(lockdown_duration, 3600)
-                                    await member.timeout(
-                                        datetime.now(timezone.utc) + __import__('datetime').timedelta(seconds=timeout_duration),
-                                        reason=f"Anti-raid: suspicious account (score {score})"
-                                    )
-                                    logger.info(f"Timed out {member.name} for {timeout_duration}s (score {score})")
-                                except Exception:
-                                    pass
-                            elif response_mode == "auto_verify":
-                                # For auto-verify, DM the user asking to verify
-                                try:
-                                    await member.send(
-                                        f"Welcome to **{member.guild.name}**! Your account is new, so please verify yourself. "
-                                        f"A moderator will review your account shortly."
-                                    )
-                                except Exception:
-                                    pass
+                        # Auto-verify: trigger for any account younger than min_age (no score threshold needed)
+                        if response_mode == "auto_verify":
+                            try:
+                                await member.send(
+                                    f"Welcome to **{member.guild.name}**! Your account is new, so please verify yourself. "
+                                    f"A moderator will review your account shortly."
+                                )
+                                logger.info(f"Auto-verify DM sent to {member.name}")
+                            except Exception:
+                                pass
 
-                        # DM owner about suspicious account
+                        # Lockdown: timeout if score exceeds threshold
+                        elif response_mode == "lockdown" and score >= score_threshold:
+                            try:
+                                timeout_duration = min(lockdown_duration, 3600)
+                                await member.timeout(
+                                    datetime.now(timezone.utc) + __import__('datetime').timedelta(seconds=timeout_duration),
+                                    reason=f"Anti-raid: suspicious account (score {score})"
+                                )
+                                logger.info(f"Timed out {member.name} for {timeout_duration}s (score {score})")
+                            except Exception:
+                                pass
+
+                        # DM owner about suspicious account (all modes when score is high)
                         if dm_owner and score >= score_threshold:
                             self.anti_raid._dm_owner_callback(
                                 str(member.guild.id),
                                 f"Suspicious account joined **{member.guild.name}**: `{member.name}` "
                                 f"(account age: {account_days}d, score: {score}/{score_threshold})"
+                            )
+                        # DM owner about any new account in auto_verify/alert mode
+                        elif dm_owner and response_mode in ("auto_verify", "alert"):
+                            self.anti_raid._dm_owner_callback(
+                                str(member.guild.id),
+                                f"New account joined **{member.guild.name}**: `{member.name}` "
+                                f"(account age: {account_days}d) — auto-verify required"
                             )
         except Exception:
             pass
