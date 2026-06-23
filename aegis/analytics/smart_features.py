@@ -553,7 +553,7 @@ class SmartRaidDetector:
     def analyze(self, guild_id: str, recent_joins: List[Dict]) -> Dict[str, Any]:
         """Analyze recent joins for raid patterns."""
         if not recent_joins:
-            return {"threat_level": "low", "confidence": 0.5, "indicators": []}
+            return {"threat_level": "low", "confidence": 0.5, "indicators": [], "recent_joins_count": 0, "suggested_actions": []}
 
         indicators = []
         threat_score = 0
