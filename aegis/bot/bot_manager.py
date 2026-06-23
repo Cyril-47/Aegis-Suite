@@ -870,9 +870,12 @@ class DiscordOptimizerBot(commands.Bot):
                         is_raid_window=is_in_raid_window,
                     )
 
-                    # Join rate check
+                    # Join rate check — use config values
+                    join_threshold = raid_cfg.get("join_rate_threshold", 5)
+                    join_window = raid_cfg.get("join_rate_window_seconds", 30)
                     raid_event = self.anti_raid.record_join(
-                        str(member.guild.id), str(member.id)
+                        str(member.guild.id), str(member.id),
+                        threshold=join_threshold, window_seconds=join_window,
                     )
                     if raid_event:
                         # Execute the configured response mode

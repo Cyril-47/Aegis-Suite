@@ -22,19 +22,22 @@ class AntiRaidEngine:
         self._verify_callback = None
         self._dm_owner_callback = None
 
-    def record_join(self, guild_id: str, user_id: str, now: float = None) -> Optional[dict]:
+    def record_join(self, guild_id: str, user_id: str, now: float = None, threshold: int = None, window_seconds: int = None) -> Optional[dict]:
         if now is None:
             now = time.time()
+        # Use per-guild overrides from config, fall back to defaults
+        t = threshold if threshold is not None else self._threshold
+        w = window_seconds if window_seconds is not None else self._window_seconds
         guild_joins = self._joins[guild_id]
-        cutoff = now - self._window_seconds
-        guild_joins[:] = [t for t in guild_joins if t > cutoff]
+        cutoff = now - w
+        guild_joins[:] = [j for j in guild_joins if j > cutoff]
         guild_joins.append(now)
-        if len(guild_joins) > self._threshold:
+        if len(guild_joins) > t:
             return {
                 "type": "raid_detected",
                 "guild_id": guild_id,
                 "join_count": len(guild_joins),
-                "window_seconds": self._window_seconds,
+                "window_seconds": w,
                 "timestamp": now,
             }
         return None
