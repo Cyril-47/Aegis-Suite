@@ -292,6 +292,59 @@ class DiscordOptimizerBot(commands.Bot):
         from aegis.bot.anti_raid import AntiRaidEngine
         self.anti_raid = AntiRaidEngine()
 
+        def _raid_alert(guild_id_str, message):
+            """Alert callback: sends alert to configured channel."""
+            try:
+                guild = self.get_guild(int(guild_id_str))
+                if not guild:
+                    return
+                cfg = utils.get_guild_config(guild_id_str)
+                raid_cfg = cfg.get("anti_raid_settings", {})
+                ch_id = raid_cfg.get("raid_alert_channel")
+                if ch_id:
+                    ch = guild.get_channel(int(ch_id))
+                    if ch:
+                        self.loop.create_task(ch.send(f"🚨 {message}"))
+            except Exception:
+                pass
+
+        def _raid_lockdown(guild_id_str, duration):
+            """Lockdown callback: temp-mute new joins by locking text channels."""
+            try:
+                guild = self.get_guild(int(guild_id_str))
+                if not guild:
+                    return
+                self.loop.create_task(self._apply_lockdown(guild, duration))
+            except Exception:
+                pass
+
+        def _raid_verify(guild_id_str):
+            """Auto-verify callback: raise verification level."""
+            try:
+                guild = self.get_guild(int(guild_id_str))
+                if not guild:
+                    return
+                if guild.me.guild_permissions.manage_guild:
+                    self.loop.create_task(guild.edit(verification_level=discord.VerificationLevel.HIGH))
+                    logger.info(f"Auto-verify: raised verification level for guild {guild_id_str}")
+            except Exception:
+                pass
+
+        def _raid_dm_owner(guild_id_str, message):
+            """DM the server owner on raid."""
+            try:
+                guild = self.get_guild(int(guild_id_str))
+                if not guild or not guild.owner:
+                    return
+                self.loop.create_task(guild.owner.send(f"🛡️ **Raid Alert** — {guild.name}\n{message}"))
+            except Exception:
+                pass
+
+        self.anti_raid.set_alert_callback(_raid_alert)
+        self.anti_raid.set_lockdown_callback(_raid_lockdown)
+        self.anti_raid.set_verify_callback(_raid_verify)
+        self.anti_raid.set_dm_owner_callback(_raid_dm_owner)
+
         # Only sync when requested or on dev guild to protect rate limits (Tier 3.14)
         dev_guild_id = self.config.get("dev_guild_id")
         if dev_guild_id:
@@ -311,6 +364,33 @@ class DiscordOptimizerBot(commands.Bot):
                     logger.info("Slash command tree sync skipped (already synced).")
             except Exception as e:
                 logger.error(f"Failed to sync slash commands globally: {e}")
+
+    async def _apply_lockdown(self, guild, duration_seconds):
+        """Lock text channels during raid, then restore after duration."""
+        locked_channels = []
+        for ch in guild.text_channels:
+            if not ch.permissions_for(guild.me).manage_channels:
+                continue
+            # Only lock channels that aren't already locked
+            overwrites = ch.overwrites_for(guild.default_role)
+            if overwrites.send_messages is not True:
+                continue
+            try:
+                await ch.set_permissions(guild.default_role, send_messages=False, reason="Anti-raid lockdown")
+                locked_channels.append(ch)
+            except Exception:
+                pass
+        if locked_channels:
+            logger.info(f"Lockdown: locked {len(locked_channels)} channels in {guild.name} for {duration_seconds}s")
+        # Wait for duration then unlock
+        await asyncio.sleep(duration_seconds)
+        for ch in locked_channels:
+            try:
+                await ch.set_permissions(guild.default_role, send_messages=None, reason="Anti-raid lockdown ended")
+            except Exception:
+                pass
+        if locked_channels:
+            logger.info(f"Lockdown ended: unlocked {len(locked_channels)} channels in {guild.name}")
 
     async def watchdog_loop(self):
         logger.info("Watchdog loop started.")
@@ -774,31 +854,78 @@ class DiscordOptimizerBot(commands.Bot):
                 guild_config = utils.get_guild_config(str(member.guild.id))
                 raid_cfg = guild_config.get("anti_raid_settings", {})
                 if raid_cfg.get("enabled", False):
+                    # Read config at runtime (not cached at init)
+                    response_mode = raid_cfg.get("response_mode", "alert")
+                    min_age = raid_cfg.get("min_account_age_days", 7)
+                    score_threshold = raid_cfg.get("suspicious_score_threshold", 70)
+                    dm_owner = raid_cfg.get("dm_owner_on_raid", True)
+                    lockdown_duration = raid_cfg.get("lockdown_duration_seconds", 300)
+
+                    # Calculate suspicious score
+                    is_in_raid_window = len(self.anti_raid._joins.get(str(member.guild.id), [])) > 2
+                    score = self.anti_raid.calculate_suspicious_score(
+                        member.created_at,
+                        is_default_avatar=(str(member.avatar.url) if member.avatar else "") == "",
+                        username=member.name,
+                        is_raid_window=is_in_raid_window,
+                    )
+
                     # Join rate check
                     raid_event = self.anti_raid.record_join(
                         str(member.guild.id), str(member.id)
                     )
                     if raid_event:
-                        alert_ch_id = raid_cfg.get("raid_alert_channel")
-                        if alert_ch_id:
-                            ch = member.guild.get_channel(int(alert_ch_id))
-                            if ch:
+                        # Execute the configured response mode
+                        context = {
+                            "join_count": raid_event["join_count"],
+                            "duration_seconds": lockdown_duration,
+                        }
+                        self.anti_raid.execute_response(response_mode, str(member.guild.id), context)
+
+                        # DM owner if enabled
+                        if dm_owner:
+                            self.anti_raid._dm_owner_callback(
+                                str(member.guild.id),
+                                f"{raid_event['join_count']} members joined in {raid_event['window_seconds']}s in **{member.guild.name}**."
+                            )
+
+                    # Account age check — take action based on response mode
+                    if self.anti_raid.check_account_age(member.created_at, min_age):
+                        account_days = (datetime.now(timezone.utc) - member.created_at).days
+                        logger.warning(
+                            f"Suspicious account joined: {member.name} "
+                            f"(age: {account_days} days, score: {score})"
+                        )
+
+                        # Take action if score exceeds threshold
+                        if score >= score_threshold and response_mode in ("lockdown", "auto_verify"):
+                            if response_mode == "lockdown":
                                 try:
-                                    asyncio.get_event_loop().create_task(ch.send(
-                                        f"RAID DETECTED: {raid_event['join_count']} members joined in "
-                                        f"{raid_event['window_seconds']}s. Check member list."
-                                    ))
+                                    timeout_duration = min(lockdown_duration, 3600)
+                                    await member.timeout(
+                                        datetime.now(timezone.utc) + __import__('datetime').timedelta(seconds=timeout_duration),
+                                        reason=f"Anti-raid: suspicious account (score {score})"
+                                    )
+                                    logger.info(f"Timed out {member.name} for {timeout_duration}s (score {score})")
+                                except Exception:
+                                    pass
+                            elif response_mode == "auto_verify":
+                                # For auto-verify, DM the user asking to verify
+                                try:
+                                    await member.send(
+                                        f"Welcome to **{member.guild.name}**! Your account is new, so please verify yourself. "
+                                        f"A moderator will review your account shortly."
+                                    )
                                 except Exception:
                                     pass
 
-                    # Account age check
-                    from datetime import datetime, timezone
-                    min_age = raid_cfg.get("min_account_age_days", 7)
-                    if self.anti_raid.check_account_age(member.created_at, min_age):
-                        logger.warning(
-                            f"Suspicious account joined: {member.name} "
-                            f"(account age: {(datetime.now(timezone.utc) - member.created_at).days} days)"
-                        )
+                        # DM owner about suspicious account
+                        if dm_owner and score >= score_threshold:
+                            self.anti_raid._dm_owner_callback(
+                                str(member.guild.id),
+                                f"Suspicious account joined **{member.guild.name}**: `{member.name}` "
+                                f"(account age: {account_days}d, score: {score}/{score_threshold})"
+                            )
         except Exception:
             pass
 

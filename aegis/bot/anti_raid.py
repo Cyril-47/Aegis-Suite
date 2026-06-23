@@ -20,6 +20,7 @@ class AntiRaidEngine:
         self._alert_callback = None
         self._lockdown_callback = None
         self._verify_callback = None
+        self._dm_owner_callback = None
 
     def record_join(self, guild_id: str, user_id: str, now: float = None) -> Optional[dict]:
         if now is None:
@@ -49,6 +50,9 @@ class AntiRaidEngine:
 
     def set_verify_callback(self, callback):
         self._verify_callback = callback
+
+    def set_dm_owner_callback(self, callback):
+        self._dm_owner_callback = callback
 
     def execute_response(self, mode: str, guild_id: str, context: dict):
         if mode == "passive":
