@@ -13,6 +13,7 @@ class LevelingSystem:
         self.dirty = False
         self.engine = None
         self.data_path = None
+        self._stop_event = threading.Event()
         
         # Start periodic background saver thread
         self._save_thread = threading.Thread(target=self._periodic_save, daemon=True)
@@ -96,10 +97,17 @@ class LevelingSystem:
                 print(f"Error saving leveling data to file: {e}")
 
     def _periodic_save(self):
-        while True:
-            time.sleep(30)
+        while not self._stop_event.wait(30):
             if self.dirty:
                 self.save()
+
+    def stop(self):
+        """Stops the periodic save thread gracefully."""
+        self._stop_event.set()
+        if self.dirty:
+            self.save()
+        if self._save_thread.is_alive():
+            self._save_thread.join(timeout=2.0)
 
     def get_level(self, xp: int) -> int:
         """Calculates level based on total XP using the formula: level = floor(sqrt(xp / 100))."""

@@ -228,29 +228,28 @@ async def get_permission_heatmap(guild_id: str):
     if not guild:
         raise HTTPException(status_code=404, detail="Guild not found")
 
-    PERM_BITS = {
-        "Administrator": 0x0000000008000000,
-        "Manage Server": 0x00000020000,
-        "Manage Roles": 0x0000002000,
-        "Manage Channels": 0x0000000400,
-        "Ban Members": 0x0000000004,
-        "Kick Members": 0x0000000002,
-        "Manage Messages": 0x0000000200,
-        "Timeout": 0x000000040000000,
-        "Send Messages": 0x0000000400,
-        "View Channels": 0x0000000008,
-        "Connect": 0x0020000000,
-        "Speak": 0x0040000000,
+    PERM_MAPPING = {
+        "Administrator": "administrator",
+        "Manage Server": "manage_guild",
+        "Manage Roles": "manage_roles",
+        "Manage Channels": "manage_channels",
+        "Ban Members": "ban_members",
+        "Kick Members": "kick_members",
+        "Manage Messages": "manage_messages",
+        "Timeout": "moderate_members",
+        "Send Messages": "send_messages",
+        "View Channels": "view_channel",
+        "Connect": "connect",
+        "Speak": "speak",
     }
 
     roles_data = []
     for role in guild.roles:
         if role.is_default():
             continue
-        perms = role.permissions.value
         perm_flags = {}
-        for name, bit in PERM_BITS.items():
-            perm_flags[name] = bool(perms & bit)
+        for display_name, attr_name in PERM_MAPPING.items():
+            perm_flags[display_name] = getattr(role.permissions, attr_name, False)
         roles_data.append({
             "id": str(role.id),
             "name": role.name,
@@ -258,7 +257,7 @@ async def get_permission_heatmap(guild_id: str):
             "permissions": perm_flags,
         })
 
-    return {"roles": roles_data, "perm_names": list(PERM_BITS.keys())}
+    return {"roles": roles_data, "perm_names": list(PERM_MAPPING.keys())}
 
 
 @router.get("/api/guilds/{guild_id}/mod-response-times")

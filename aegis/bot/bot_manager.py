@@ -62,10 +62,17 @@ async def resolve_embed_variables(text: str, member: discord.Member = None, guil
             text = text.replace("{invite_link}", "No invite available")
     
     if member:
+        # Use display_name (nickname or username) instead of raw mention
+        display_name = getattr(member, "display_name", "") or getattr(member, "name", "")
+        if hasattr(display_name, "_mock_return_value"):
+            display_name = ""
+        text = text.replace("{user}", str(display_name))
+        
+        # Keep mention available as {mention} for admin who want clickable mentions
         mention = getattr(member, "mention", "")
         if hasattr(mention, "_mock_return_value"):
             mention = ""
-        text = text.replace("{user}", str(mention))
+        text = text.replace("{mention}", str(mention))
         
         name = getattr(member, "name", "")
         if hasattr(name, "_mock_return_value"):
@@ -268,6 +275,14 @@ class DiscordOptimizerBot(commands.Bot):
         self.add_view(TicketCloseView())
         self.add_view(GiveawayJoinView())
         
+        # Load cogs for modular architecture
+        from aegis.bot.cog_loader import load_all_cogs
+        loaded_cogs, failed_cogs = await load_all_cogs(self)
+        logger.info(f"Loaded {len(loaded_cogs)} cogs successfully")
+        if failed_cogs:
+            for cog, error in failed_cogs:
+                logger.warning(f"Failed to load cog {cog}: {error}")
+        
         # Start scheduled messages background scheduler and watchdog
         self.scheduler_task = self.loop.create_task(self.scheduler_loop())
         self.giveaway_task = self.loop.create_task(self.giveaway_scheduler_loop())
@@ -337,8 +352,15 @@ class DiscordOptimizerBot(commands.Bot):
         await self.wait_until_ready()
         while not self.is_closed():
             try:
+                config = utils.load_config()
+                backup_cfg = config.get("backup_settings", {})
+                if not backup_cfg.get("enabled", True):
+                    await asyncio.sleep(3600)
+                    continue
+                hour = backup_cfg.get("schedule_hour", 3)
+                minute = backup_cfg.get("schedule_minute", 0)
                 now = datetime.datetime.now(datetime.timezone.utc)
-                target = now.replace(hour=3, minute=0, second=0, microsecond=0)
+                target = now.replace(hour=hour, minute=minute, second=0, microsecond=0)
                 if now >= target:
                     target += datetime.timedelta(days=1)
                 wait_seconds = (target - now).total_seconds()
@@ -355,6 +377,10 @@ class DiscordOptimizerBot(commands.Bot):
     def _run_nightly_backup(self):
         import shutil
         from aegis.core.paths import Paths
+        config = utils.load_config()
+        backup_cfg = config.get("backup_settings", {})
+        retention = backup_cfg.get("retention_days", 7)
+        use_safe = backup_cfg.get("use_safe_backup", True)
         paths = Paths()
         backup_dir = paths.backups_db
         backup_dir.mkdir(parents=True, exist_ok=True)
@@ -364,10 +390,28 @@ class DiscordOptimizerBot(commands.Bot):
             return
         dst = backup_dir / f"aegis_backup_{timestamp}.db"
         try:
-            shutil.copy2(str(src), str(dst))
-            logger.info(f"Nightly backup created: {dst.name}")
+            if use_safe:
+                try:
+                    from aegis.db.maintenance import backup_db
+                    from sqlalchemy import create_engine
+                    engine = create_engine(f"sqlite:///{src}")
+                    with engine.connect() as conn:
+                        dbapi = conn.connection.driver_connection
+                        import sqlite3
+                        dest_conn = sqlite3.connect(str(dst))
+                        dbapi.backup(dest_conn)
+                        dest_conn.close()
+                    engine.dispose()
+                    logger.info(f"Nightly safe backup created: {dst.name}")
+                except Exception:
+                    logger.warning("Safe backup failed, falling back to shutil")
+                    shutil.copy2(str(src), str(dst))
+                    logger.info(f"Nightly backup (shutil) created: {dst.name}")
+            else:
+                shutil.copy2(str(src), str(dst))
+                logger.info(f"Nightly backup created: {dst.name}")
             backups = sorted(backup_dir.glob("aegis_backup_*.db"), key=lambda p: p.stat().st_mtime)
-            while len(backups) > 7:
+            while len(backups) > retention:
                 old = backups.pop(0)
                 old.unlink(missing_ok=True)
                 logger.info(f"Pruned old backup: {old.name}")
@@ -697,6 +741,33 @@ class DiscordOptimizerBot(commands.Bot):
         except Exception:
             pass
 
+        # Wire intelligence features (Critical 1)
+        try:
+            from aegis.intelligence.registry import get_raid_detector, get_automation_engine
+            guild_id_str = str(member.guild.id)
+            member_id_str = str(member.id)
+            
+            get_raid_detector().record_join(guild_id_str)
+            
+            context = {
+                "member": {
+                    "id": member_id_str,
+                    "username": member.name,
+                },
+                "guild": {
+                    "id": guild_id_str,
+                    "name": member.guild.name,
+                }
+            }
+            actions = get_automation_engine().evaluate_trigger(guild_id_str, "member_join", context)
+            if actions:
+                from aegis.intelligence.automation import execute_automation_rule_actions
+                asyncio.create_task(
+                    execute_automation_rule_actions(self, member.guild, actions, context)
+                )
+        except Exception as e:
+            logger.error(f"Error executing intelligence events in on_member_join: {e}")
+
         # Anti-raid detection (best-effort)
         try:
             if self.anti_raid:
@@ -713,7 +784,6 @@ class DiscordOptimizerBot(commands.Bot):
                             ch = member.guild.get_channel(int(alert_ch_id))
                             if ch:
                                 try:
-                                    import asyncio
                                     asyncio.get_event_loop().create_task(ch.send(
                                         f"RAID DETECTED: {raid_event['join_count']} members joined in "
                                         f"{raid_event['window_seconds']}s. Check member list."
@@ -895,6 +965,57 @@ class DiscordOptimizerBot(commands.Bot):
         except Exception:
             pass
 
+        # Wire intelligence features (Critical 1)
+        try:
+            from aegis.intelligence.registry import get_automation_engine
+            guild_id_str = str(member.guild.id)
+            member_id_str = str(member.id)
+            
+            context = {
+                "member": {
+                    "id": member_id_str,
+                    "username": member.name,
+                },
+                "guild": {
+                    "id": guild_id_str,
+                    "name": member.guild.name,
+                }
+            }
+            actions = get_automation_engine().evaluate_trigger(guild_id_str, "member_leave", context)
+            if actions:
+                from aegis.intelligence.automation import execute_automation_rule_actions
+                asyncio.create_task(
+                    execute_automation_rule_actions(self, member.guild, actions, context)
+                )
+        except Exception as e:
+            logger.error(f"Error executing intelligence events in on_member_remove: {e}")
+
+    async def on_member_ban(self, guild: discord.Guild, user: discord.User):
+        logger.info(f"Member banned: {user.name} in guild '{guild.name}'")
+        try:
+            from aegis.intelligence.registry import get_raid_detector, get_automation_engine
+            get_raid_detector().record_mod_action(str(guild.id))
+            
+            context = {
+                "target": {
+                    "id": str(user.id),
+                    "username": user.name,
+                },
+                "guild": {
+                    "id": str(guild.id),
+                    "name": guild.name,
+                },
+                "action": "ban"
+            }
+            actions = get_automation_engine().evaluate_trigger(str(guild.id), "moderation_action", context)
+            if actions:
+                from aegis.intelligence.automation import execute_automation_rule_actions
+                asyncio.create_task(
+                    execute_automation_rule_actions(self, guild, actions, context)
+                )
+        except Exception as e:
+            logger.error(f"Error in on_member_ban: {e}")
+
     async def on_guild_remove(self, guild: discord.Guild):
         logger.info(f"Bot was removed from guild: {guild.name} (ID: {guild.id})")
         # Revoke sessions
@@ -1059,6 +1180,62 @@ class DiscordOptimizerBot(commands.Bot):
         if message.author.bot or not message.guild:
             return
 
+        # Wire intelligence features (Critical 1)
+        try:
+            from aegis.intelligence.registry import (
+                get_raid_detector,
+                get_sentiment_analyzer,
+                get_spam_detector,
+                get_activity_intelligence,
+                get_automation_engine
+            )
+            guild_id_str = str(message.guild.id)
+            user_id_str = str(message.author.id)
+            channel_id_str = str(message.channel.id)
+            
+            # Record join/message rates in raid detector
+            get_raid_detector().record_message(guild_id_str)
+            
+            # Analyze sentiment
+            get_sentiment_analyzer().analyze_message(user_id_str, channel_id_str, message.content, guild_id_str)
+            
+            # Record & analyze spam
+            get_spam_detector().record_message(user_id_str, channel_id_str, message.content)
+            
+            # Record activity
+            now_dt = datetime.datetime.now(datetime.timezone.utc)
+            get_activity_intelligence().record_activity(guild_id_str, now_dt.hour, now_dt.weekday(), "message")
+            
+            # Evaluate and run automation trigger "message_sent"
+            context = {
+                "message": {
+                    "content": message.content,
+                    "length": len(message.content),
+                    "author_id": user_id_str,
+                    "id": str(getattr(message, "id", 0)),
+                },
+                "author": {
+                    "id": user_id_str,
+                    "username": message.author.name,
+                },
+                "channel": {
+                    "id": channel_id_str,
+                    "name": message.channel.name,
+                },
+                "guild": {
+                    "id": guild_id_str,
+                    "name": message.guild.name,
+                }
+            }
+            actions = get_automation_engine().evaluate_trigger(guild_id_str, "message_sent", context)
+            if actions:
+                from aegis.intelligence.automation import execute_automation_rule_actions
+                asyncio.create_task(
+                    execute_automation_rule_actions(self, message.guild, actions, context)
+                )
+        except Exception as e:
+            logger.error(f"Error executing intelligence events in on_message: {e}")
+
         # Record analytics (best-effort)
         try:
             from aegis.analytics.engine import get_analytics_engine
@@ -1072,6 +1249,41 @@ class DiscordOptimizerBot(commands.Bot):
                 )
         except Exception:
             pass
+
+        # Use cached in-memory config instead of reading file (Tier 3.3)
+        config = self.config
+
+        # Dynamic Slowmode Policy
+        try:
+            from aegis.bot.slowmode_tracker import slowmode_tracker
+            # Reload config to pick up dashboard changes
+            try:
+                self.config = utils.load_config()
+            except Exception:
+                pass
+
+            # Raid detector hook — check threat level and set on tracker
+            try:
+                from aegis.intelligence.registry import get_raid_detector
+                raid_detector = get_raid_detector()
+                if raid_detector:
+                    result = raid_detector.analyze(str(message.guild.id))
+                    threat = result.get("threat_level", "normal")
+                    if threat in ["high", "critical"]:
+                        slowmode_tracker.set_raid_threat(threat, str(message.guild.id))
+            except Exception:
+                pass
+
+            slowmode_settings = utils.get_guild_slowmode_settings(self.config, message.guild.id)
+            if slowmode_settings.get("enabled", False):
+                slowmode_tracker.record_message(str(message.channel.id), str(message.author.id))
+                asyncio.create_task(
+                    slowmode_tracker.check_and_apply(message.guild, message.channel, slowmode_settings)
+                )
+            else:
+                logger.debug(f"Slowmode disabled for guild {message.guild.id}")
+        except Exception as e:
+            logger.error(f"Slowmode error: {e}")
 
         # Process commands (Tier 3.4)
         await self.process_commands(message)
@@ -1110,9 +1322,6 @@ class DiscordOptimizerBot(commands.Bot):
         except Exception:
             pass
 
-        # Use cached in-memory config instead of reading file (Tier 3.3)
-        config = self.config
-        
         # Check auto-responders first (supports advanced conditions and regex)
         auto_resp = config.get("auto_responders", [])
         g_id = str(message.guild.id)
@@ -1152,6 +1361,11 @@ class DiscordOptimizerBot(commands.Bot):
                 # Check channel constraints
                 allowed_channels = resp.get("channels", [])
                 if allowed_channels and str(message.channel.id) not in allowed_channels:
+                    continue
+                
+                allowed_roles = resp.get("roles", [])
+                author_roles_str = [str(r.id) for r in getattr(message.author, "roles", [])]
+                if allowed_roles and not any(r in allowed_roles for r in author_roles_str):
                     continue
                     
                 response_text = resp.get("response", "")
@@ -1196,7 +1410,7 @@ class DiscordOptimizerBot(commands.Bot):
 
         # Process Leveling XP reward
         leveling_cfg = utils.get_guild_leveling_settings(config, message.guild.id)
-        if leveling_cfg.get("enabled", False):
+        if leveling_cfg and leveling_cfg.get("enabled", False):
             ignored_ch = leveling_cfg.get("ignored_channels", [])
             ignored_rl = leveling_cfg.get("ignored_roles", [])
             
@@ -1553,6 +1767,12 @@ async def stop_bot_service():
         return False
         
     logger.info("Closing bot instance gracefully...")
+    try:
+        from aegis.bot.leveling import leveling_system
+        leveling_system.stop()
+    except Exception as e:
+        logger.error(f"Error stopping leveling system: {e}")
+        
     await bot_instance.close()
     
     # Wait for the task to finish

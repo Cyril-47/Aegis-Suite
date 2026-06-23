@@ -74,6 +74,13 @@ class DiscordOptimizerBot(LegacyDiscordOptimizerBot):
         # Point bot config to ConfigStore model dict
         if core.config:
             self.config = core.config.as_dict()
+        if core.db:
+            from sqlalchemy.orm import sessionmaker
+            class BotDatabaseWrapper:
+                def __init__(self, engine):
+                    self.session_factory = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+            self.db = BotDatabaseWrapper(core.db)
+        self.analytics_engine = getattr(core, "analytics_engine", None)
 
 async def start_bot_task(core, token: str) -> None:
     """Supervised bot task. Registers relocated commands, instantiates the bot,

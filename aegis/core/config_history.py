@@ -31,6 +31,8 @@ def create_snapshot(guild_id: str, config_data: dict, changed_keys: List[str] = 
         session.add(snapshot)
         session.commit()
 
+        snapshot_id = snapshot.id
+
         # Prune old snapshots (keep last 50 per guild)
         from sqlalchemy import func
         count = session.query(func.count(ConfigSnapshot.id)).filter(
@@ -43,9 +45,11 @@ def create_snapshot(guild_id: str, config_data: dict, changed_keys: List[str] = 
             for s in oldest:
                 session.delete(s)
             session.commit()
+        return snapshot_id
     except Exception:
         session.rollback()
         logger.exception("Failed to create config snapshot")
+        return None
     finally:
         session.close()
 

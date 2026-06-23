@@ -130,57 +130,67 @@ def load_env_file():
         env_data["JWT_SECRET"] = jwt_sec
         os.environ["JWT_SECRET"] = jwt_sec
         
-        # We need to save the new JWT_SECRET back to .env
+        # Save the new JWT_SECRET
         try:
-            with open(env_path, "w", encoding="utf-8") as f:
-                for k, v in env_data.items():
-                    f.write(f"{k}={v}\n")
-            print("[+] Successfully initialized JWT_SECRET in .env!")
+            from aegis.core.secret_store import is_dpapi_available, _dpapi_encrypt
+            import base64
             
-            # Persist to .env.enc using DPAPI if available
-            from pathlib import Path
-            from aegis.core.secret_store import is_dpapi_available, encrypt_env_file
+            env_content = "".join(f"{k}={v}\n" for k, v in env_data.items())
+            
             if is_dpapi_available():
                 try:
-                    encrypt_env_file(Path(env_path), Path(enc_path))
-                    print("[+] Successfully persisted generated JWT_SECRET to .env.enc via DPAPI!")
-                    if sys.platform == "win32":
-                        try:
-                            os.remove(env_path)
-                            print("[+] Plaintext .env removed after successful encryption.")
-                        except Exception as e:
-                            print(f"[-] Failed to delete plaintext .env: {e}")
+                    ciphertext = _dpapi_encrypt(env_content.encode("utf-8"))
+                    payload = {
+                        "magic": "AEGIS_DPAPI_V1",
+                        "ciphertext_b64": base64.b64encode(ciphertext).decode("ascii"),
+                    }
+                    with open(enc_path, "w", encoding="utf-8") as f:
+                        json.dump(payload, f, indent=2)
+                    print("[+] Successfully persisted generated JWT_SECRET to .env.enc via DPAPI (in-memory)!")
                 except Exception as e:
                     print(f"[-] Failed to encrypt generated env file via DPAPI: {e}")
+                    # Fallback to plaintext if encryption fails
+                    with open(env_path, "w", encoding="utf-8") as f:
+                        f.write(env_content)
+                    print("[+] Successfully initialized JWT_SECRET in .env (plaintext fallback)!")
+            else:
+                with open(env_path, "w", encoding="utf-8") as f:
+                    f.write(env_content)
+                print("[+] Successfully initialized JWT_SECRET in .env!")
         except Exception as e:
-            print(f"Error saving JWT_SECRET to .env: {e}")
+            print(f"Error saving JWT_SECRET: {e}")
             
     # 4. Save config.json if updated (secrets removed)
     if config_updated:
         try:
             with open(config_path, "w", encoding="utf-8") as f:
                 json.dump(config, f, indent=2)
-            # Re-write all env values to .env to make sure everything is saved
-            with open(env_path, "w", encoding="utf-8") as f:
-                for k, v in env_data.items():
-                    f.write(f"{k}={v}\n")
-            print("[+] Successfully migrated secrets from config.json to .env!")
             
-            # Persist to .env.enc using DPAPI if available
-            from pathlib import Path
-            from aegis.core.secret_store import is_dpapi_available, encrypt_env_file
+            from aegis.core.secret_store import is_dpapi_available, _dpapi_encrypt
+            import base64
+            
+            env_content = "".join(f"{k}={v}\n" for k, v in env_data.items())
+            
             if is_dpapi_available():
                 try:
-                    encrypt_env_file(Path(env_path), Path(enc_path))
-                    print("[+] Successfully persisted migrated secrets to .env.enc via DPAPI!")
-                    if sys.platform == "win32":
-                        try:
-                            os.remove(env_path)
-                            print("[+] Plaintext .env removed after successful encryption.")
-                        except Exception as e:
-                            print(f"[-] Failed to delete plaintext .env: {e}")
+                    ciphertext = _dpapi_encrypt(env_content.encode("utf-8"))
+                    payload = {
+                        "magic": "AEGIS_DPAPI_V1",
+                        "ciphertext_b64": base64.b64encode(ciphertext).decode("ascii"),
+                    }
+                    with open(enc_path, "w", encoding="utf-8") as f:
+                        json.dump(payload, f, indent=2)
+                    print("[+] Successfully persisted migrated secrets to .env.enc via DPAPI (in-memory)!")
                 except Exception as e:
                     print(f"[-] Failed to encrypt migrated env file via DPAPI: {e}")
+                    # Fallback to plaintext if encryption fails
+                    with open(env_path, "w", encoding="utf-8") as f:
+                        f.write(env_content)
+                    print("[+] Successfully migrated secrets from config.json to .env (plaintext fallback)!")
+            else:
+                with open(env_path, "w", encoding="utf-8") as f:
+                    f.write(env_content)
+                print("[+] Successfully migrated secrets from config.json to .env!")
         except Exception as e:
             print(f"Error saving config.json after secret migration: {e}")
 
@@ -245,6 +255,30 @@ DEFAULT_CONFIG = {
             "badword1",
             "badword2"
         ]
+    },
+    "slowmode_settings": {
+        "enabled": False,
+        "burst_window_seconds": 10,
+        "min_trigger_rate": 3.0,
+        "slowmode_duration": 3,
+        "max_slowmode_duration": 10,
+        "cooldown_seconds": 30,
+        "whitelisted_channels": []
+    },
+    "backup_settings": {
+        "enabled": True,
+        "schedule_hour": 3,
+        "schedule_minute": 0,
+        "retention_days": 7,
+        "use_safe_backup": True,
+    },
+    "maintenance_settings": {
+        "role_cleanup_enabled": True,
+        "role_cleanup_hour": 4,
+        "channel_archive_enabled": False,
+        "inactive_days": 30,
+        "db_vacuum_enabled": True,
+        "db_vacuum_hour": 5,
     },
     "custom_commands": {
         "!website": "Visit our official website at https://example.com!",
@@ -542,7 +576,7 @@ def get_guild_config(guild_id: str) -> dict:
         guild_conf = guild_configs.setdefault(gid_str, {})
     
     # Fill defaults if missing
-    for key in ["welcome_settings", "automod_settings", "ticket_settings", "leveling_settings"]:
+    for key in ["welcome_settings", "automod_settings", "ticket_settings", "leveling_settings", "slowmode_settings", "backup_settings", "maintenance_settings"]:
         if key not in guild_conf:
             guild_conf[key] = DEFAULT_CONFIG[key].copy()
     if "custom_commands" not in guild_conf:
@@ -590,6 +624,11 @@ def get_guild_automod_settings(config, guild_id: str) -> dict:
     guild_configs = config.get("guild_configs", {})
     guild_conf = guild_configs.get(str(guild_id), {})
     return guild_conf.get("automod_settings", config.get("automod_settings", {}))
+
+def get_guild_slowmode_settings(config, guild_id: str) -> dict:
+    guild_configs = config.get("guild_configs", {})
+    guild_conf = guild_configs.get(str(guild_id), {})
+    return guild_conf.get("slowmode_settings", config.get("slowmode_settings", {}))
 
 def get_guild_ticket_settings(config, guild_id: str) -> dict:
     guild_configs = config.get("guild_configs", {})
@@ -705,24 +744,23 @@ def _load_giveaways_from_db():
 
 
 def _save_giveaways_to_db(giveaways):
-    """Save giveaways dict to the database (full-replace semantics)."""
+    """Save giveaways dict to the database using atomic transaction-wrapped merges."""
     session = _get_db_session()
     if session:
         try:
             from aegis.db.models import Giveaway
-            existing = {r.message_id: r for r in session.query(Giveaway).all()}
-            seen_ids = set()
-            for msg_id, gw_dict in giveaways.items():
-                seen_ids.add(msg_id)
-                fields = _dict_to_giveaway_model(msg_id, gw_dict)
-                if msg_id in existing:
-                    for k, v in fields.items():
-                        setattr(existing[msg_id], k, v)
-                else:
-                    session.add(Giveaway(message_id=msg_id, **fields))
-            for msg_id, row in existing.items():
-                if msg_id not in seen_ids:
-                    session.delete(row)
+            if giveaways:
+                existing = {
+                    r.message_id: r for r in session.query(Giveaway)
+                    .filter(Giveaway.message_id.in_(giveaways.keys())).all()
+                }
+                for msg_id, gw_dict in giveaways.items():
+                    fields = _dict_to_giveaway_model(msg_id, gw_dict)
+                    if msg_id in existing:
+                        for k, v in fields.items():
+                            setattr(existing[msg_id], k, v)
+                    else:
+                        session.add(Giveaway(message_id=msg_id, **fields))
             session.commit()
             return
         except Exception:

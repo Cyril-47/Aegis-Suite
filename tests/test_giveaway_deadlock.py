@@ -67,11 +67,13 @@ async def test_giveaway_audit_logging(paths_tmp, monkeypatch):
         logged_actions.append((actor, category, action, target, details))
     monkeypatch.setattr(audit_log, "log_action", mock_log_action)
     
-    # Get the registered giveaway command
-    giveaway_cmd = registered_cmds["giveaway"]
+    # Instantiate the GiveawayCog and use its giveaway_command callback
+    from aegis.bot.cogs.giveaway import GiveawayCog
+    giveaway_cog = GiveawayCog(bot)
+    giveaway_cmd = giveaway_cog.giveaway_command.callback
     
     # Run the "start" action
-    await giveaway_cmd(ctx, action="start", target="10m", winners=2, prize="Beta Key", channel=None)
+    await giveaway_cmd(giveaway_cog, ctx, action="start", target="10m", winners=2, prize="Beta Key", channel=None)
     
     # Verify audit log was written
     assert len(logged_actions) == 1
@@ -106,7 +108,7 @@ async def test_giveaway_audit_logging(paths_tmp, monkeypatch):
     
     # Run the "end" action
     logged_actions.clear()
-    await giveaway_cmd(ctx, action="end", target="999999")
+    await giveaway_cmd(giveaway_cog, ctx, action="end", target="999999")
     
     # Verify audit log was written for "end" action
     assert len(logged_actions) == 1

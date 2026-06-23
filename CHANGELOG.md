@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.3.0] - 2026-06-23
+
+### Added
+- **Adaptive Slowmode System**: 6-layer intelligence replacing static burst threshold. Raid hook (guild-scoped), catastrophic flood detection (30+ msg/s), baseline-aware flood (15+ msg/s + senders + baseline), dynamic threshold with member scaling, progressive escalation (3s/5s/10s/15s), admin protection with auto-remove ownership tracking.
+- **Baseline Drift Protection**: Dual-window baseline (`min(5min, 60min)`) prevents attackers from training the detector.
+- **Scaled Unique Sender Requirement**: `>= max(3, rate/10)` makes raid spoofing harder at scale.
+- **Maturity Index Dashboard**: 6-dimension server health scoring (Security, Moderation, Automation, Growth, Reliability, Community) with animated gauge and progress bars.
+- **Chronological Incident Timeline**: 24-hour rolling incident log with automated mitigation action tracking.
+- **Config Snapshot History**: Config change tracking and rollback capability.
+- **Server Health Gauge Animation**: Animated SVG circle fill with number counter on both Command Center and Smart Features.
+- **Welcome Message Variables**: `{user}` now shows display name (username/nickname), `{mention}` for clickable mentions.
+- **Sentiment Evasion Normalization**: Abbreviation expansion, leetspeak mapping, repeated char collapse, apostrophe normalization before VADER analysis.
+- **Maintenance Cog**: Scheduled role cleanup (daily), DB vacuum (weekly), channel archive (daily).
+- **AutoFixEngine Expanded**: 18 action mappings covering all raid detector and spam detector actions.
+
+### Fixed
+- Welcome message showing raw `<@ID>` instead of username.
+- Server Health gauge stuck on "Loading Auditor..." due to duplicate element IDs.
+- Config Snapshot History stuck loading due to duplicate `id="cc-config-history"`.
+- Skeleton loaders degrading to infinite loading on API failure.
+- Emergency slowmode trigger bypassing unique sender checks.
+- Raid threat not guild-scoped (applied to all guilds).
+- Server Health gauge missing circle animation.
+
+### Changed
+- Bot config reloads on every `on_message` for live dashboard changes.
+- Dashboard slowmode UI shows adaptive values ("3 msg/s (adaptive)", "3-10s (tiered)").
+- 22 development summary files moved to `docs/changelog-archive/`.
+- `pyproject.toml` now includes `vaderSentiment` dependency.
+- `AegisOptimizer.spec` uses dynamic Discord path resolution instead of hardcoded user path.
+
+---
+
 ## [2.2.5] - 2026-06-13
 
 ### Added

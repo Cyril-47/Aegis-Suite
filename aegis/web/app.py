@@ -21,7 +21,10 @@ from aegis.web.routes.automation import router as automation_router
 from aegis.web.routes.enhanced import router as enhanced_router
 from aegis.web.routes.analytics_extra import router as analytics_extra_router
 from aegis.web.routes.smart_features import router as smart_features_router
+from aegis.web.routes.intelligence_engine import router as intelligence_engine_router
+from aegis.web.routes.live_alerts import router as live_alerts_router
 from fastapi.middleware.cors import CORSMiddleware
+from aegis.web.middleware import RequestIDMiddleware, MetricsMiddleware, SecurityHeadersMiddleware
 
 def build_app(core) -> FastAPI:
     """Builds and returns the FastAPI application with all routers registered."""
@@ -43,6 +46,11 @@ def build_app(core) -> FastAPI:
         allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
+
+    # 2.6. Observability middleware
+    app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(MetricsMiddleware)
+    app.add_middleware(RequestIDMiddleware)
 
     # 3. Register authentication and authorization middleware (Req 22.1)
     @app.middleware("http")
@@ -119,6 +127,8 @@ def build_app(core) -> FastAPI:
         token = None
         if auth_header and auth_header.startswith("Bearer "):
             token = auth_header.split(" ")[1]
+        elif path == "/api/alerts/stream":
+            token = request.query_params.get("token")
             
         if not token or not auth.validate_session(token):
             return JSONResponse(status_code=401, content={"detail": "Unauthorized: Invalid or missing token"})
@@ -173,5 +183,7 @@ def build_app(core) -> FastAPI:
     app.include_router(enhanced_router)
     app.include_router(analytics_extra_router)
     app.include_router(smart_features_router)
+    app.include_router(intelligence_engine_router)
+    app.include_router(live_alerts_router)
 
     return app

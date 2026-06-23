@@ -570,6 +570,9 @@ async def get_config(request: Request, guild_id: Optional[str] = None):
         guild_cmds = guild_conf.get("custom_commands")
         config["custom_commands"] = guild_cmds if guild_cmds else config.get("custom_commands", {})
         config["leveling_settings"] = guild_conf.get("leveling_settings", config.get("leveling_settings", {}))
+        config["slowmode_settings"] = guild_conf.get("slowmode_settings", config.get("slowmode_settings", {}))
+        config["backup_settings"] = config.get("backup_settings", {})
+        config["maintenance_settings"] = config.get("maintenance_settings", {})
         
     return config
 
@@ -603,6 +606,8 @@ async def save_config(config_data: ConfigModel, request: Request, guild_id: Opti
             guild_conf["custom_commands"] = new_data["custom_commands"]
         if new_data.get("leveling_settings"):
             guild_conf["leveling_settings"] = new_data["leveling_settings"]
+        if new_data.get("slowmode_settings"):
+            guild_conf["slowmode_settings"] = new_data["slowmode_settings"]
             
         utils.save_guild_config(target_guild_id, guild_conf)
 

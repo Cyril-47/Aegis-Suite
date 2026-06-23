@@ -20,6 +20,18 @@ class TicketCloseView(discord.ui.View):
         channel = interaction.channel
         await channel.send("🔒 *This ticket is being closed and deleted in 5 seconds...*")
         
+        # Record analytics
+        bot = get_bot()
+        if bot and hasattr(bot, 'analytics_engine') and bot.analytics_engine:
+            bot.analytics_engine.record_mod_action(
+                guild_id=str(channel.guild.id),
+                user_id=str(interaction.user.id),
+                moderator_id=str(interaction.user.id),
+                event_type="ticket_closed",
+                reason="Button close",
+                automod_category="ticket",
+            )
+        
         async def delete_channel():
             await asyncio.sleep(5)
             try:
@@ -37,13 +49,21 @@ class TicketPanelView(discord.ui.View):
     async def create_ticket_button(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(ephemeral=True)
         bot = get_bot()
+        
+        # Check if ticket system is enabled
+        config = utils.load_config()
+        guild_config = config.get("guild_configs", {}).get(str(interaction.guild_id), {})
+        ticket_config = guild_config.get("ticket_settings", {})
+        if not ticket_config.get("enabled", False):
+            await interaction.followup.send("❌ Ticket system is not enabled for this server.", ephemeral=True)
+            return
+        
         if bot:
             bot.check_stats_reset()
             bot.stats["tickets_today"] = bot.stats.get("tickets_today", 0) + 1
         guild = interaction.guild
         member = interaction.user
         
-        config = utils.load_config()
         ticket_cfg = utils.get_guild_ticket_settings(config, guild.id)
         
         category_name = ticket_cfg.get("category_name", "🎟️ SUPPORT TICKETS")
@@ -93,6 +113,17 @@ class TicketPanelView(discord.ui.View):
             await ticket_channel.send(content=f"{member.mention} | Support Staff", embed=embed, view=TicketCloseView())
             await interaction.followup.send(f"✅ Ticket created! Head over to {ticket_channel.mention} to speak with staff.", ephemeral=True)
             logger.info(f"Ticket channel #{channel_name} created for {member.name}")
+            
+            # Record analytics
+            if bot and hasattr(bot, 'analytics_engine') and bot.analytics_engine:
+                bot.analytics_engine.record_mod_action(
+                    guild_id=str(guild.id),
+                    user_id=str(member.id),
+                    moderator_id=str(member.id),
+                    event_type="ticket_opened",
+                    reason="Button panel",
+                    automod_category="ticket",
+                )
         except Exception as e:
             logger.error(f"Failed to create support ticket channel: {e}")
             await interaction.followup.send("❌ Failed to create support ticket. Please check bot permissions.", ephemeral=True)
@@ -149,17 +180,37 @@ async def check_ticket_sla(bot):
                 if not channel.name.startswith("ticket-"):
                     continue
                 try:
-                    first_message = None
-                    async for msg in channel.history(limit=1, oldest_first=True):
-                        first_message = msg
-                    if not first_message:
+                    # Get the most recent message to check if warning was already sent
+                    last_msg = None
+                    async for msg in channel.history(limit=1):
+                        last_msg = msg
+                    if not last_msg:
                         continue
-                    age_hours = (discord.utils.utcnow() - first_message.created_at).total_seconds() / 3600
-                    if age_hours >= sla_hours:
-                        await channel.send(
-                            f"⏰ **SLA Warning**: This ticket has been open for {int(age_hours)} hours "
-                            f"(SLA: {sla_hours}h). Auto-closing in 5 minutes if no response."
-                        )
+                        
+                    # If the last message is our SLA warning, check if 5 minutes have elapsed
+                    if last_msg.author == bot.user and "⏰ **SLA Warning**" in last_msg.content:
+                        time_since_warning = (discord.utils.utcnow() - last_msg.created_at).total_seconds()
+                        if time_since_warning >= 300:  # 5 minutes
+                            await channel.send("🔒 *Auto-closing ticket due to SLA breach and inactivity...*")
+                            await asyncio.sleep(5)
+                            try:
+                                await channel.delete(reason="Ticket SLA auto-close")
+                                logger.info(f"Auto-closed ticket channel #{channel.name} due to SLA.")
+                            except Exception as e:
+                                logger.error(f"Failed to auto-delete ticket channel: {e}")
+                    else:
+                        # Otherwise, check first message age to see if we should warn
+                        first_message = None
+                        async for msg in channel.history(limit=1, oldest_first=True):
+                            first_message = msg
+                        if not first_message:
+                            continue
+                        age_hours = (discord.utils.utcnow() - first_message.created_at).total_seconds() / 3600
+                        if age_hours >= sla_hours:
+                            await channel.send(
+                                f"⏰ **SLA Warning**: This ticket has been open for {int(age_hours)} hours "
+                                f"(SLA: {sla_hours}h). Auto-closing in 5 minutes if no response."
+                            )
                 except Exception:
                     continue
     except Exception:

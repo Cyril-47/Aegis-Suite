@@ -167,8 +167,51 @@ class AnalyticsEngine:
                 DailySnapshot.guild_id == guild_id,
                 DailySnapshot.date >= cutoff.date(),
             ).order_by(DailySnapshot.date).all()
+            # Query today's live stats
+            today_start = datetime.datetime.combine(
+                datetime.datetime.now(datetime.timezone.utc).date(),
+                datetime.time.min
+            )
+            from sqlalchemy import func
+            msgs_today = session.query(MessageEvent).filter(
+                MessageEvent.guild_id == guild_id,
+                MessageEvent.timestamp >= today_start
+            ).count()
+            
+            unique_users_today = session.query(func.count(func.distinct(MessageEvent.user_id))).filter(
+                MessageEvent.guild_id == guild_id,
+                MessageEvent.timestamp >= today_start
+            ).scalar() or 0
+            
+            from aegis.db.analytics_models import MemberEvent
+            new_members_today = session.query(MemberEvent).filter(
+                MemberEvent.guild_id == guild_id,
+                MemberEvent.timestamp >= today_start,
+                MemberEvent.event_type == "join"
+            ).count()
+            
+            left_members_today = session.query(MemberEvent).filter(
+                MemberEvent.guild_id == guild_id,
+                MemberEvent.timestamp >= today_start,
+                MemberEvent.event_type == "leave"
+            ).count()
+            
+            from aegis.db.analytics_models import VoiceSession
+            voice_minutes_today = session.query(func.sum(VoiceSession.duration_seconds)).filter(
+                VoiceSession.guild_id == guild_id,
+                VoiceSession.joined_at >= today_start
+            ).scalar() or 0
+            voice_minutes_today = int(voice_minutes_today / 60)
+            
+            from aegis.db.analytics_models import ModerationEvent
+            commands_today = session.query(ModerationEvent).filter(
+                ModerationEvent.guild_id == guild_id,
+                ModerationEvent.timestamp >= today_start,
+                ModerationEvent.event_type == "command_used"
+            ).count()
+
             if snapshots:
-                return [
+                result = [
                     {
                         "date": s.date.isoformat(),
                         "total_messages": s.total_messages,
@@ -180,6 +223,19 @@ class AnalyticsEngine:
                     }
                     for s in snapshots
                 ]
+                
+                today_str = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+                if not any(s["date"] == today_str for s in result):
+                    result.append({
+                        "date": today_str,
+                        "total_messages": msgs_today,
+                        "unique_active_users": unique_users_today,
+                        "voice_minutes": voice_minutes_today,
+                        "new_members": new_members_today,
+                        "left_members": left_members_today,
+                        "commands_used": commands_today,
+                    })
+                return result
             raw = session.query(MessageEvent).filter(
                 MessageEvent.guild_id == guild_id,
                 MessageEvent.timestamp >= cutoff,
@@ -321,18 +377,120 @@ class AnalyticsEngine:
                 DailySnapshot.guild_id == guild_id,
                 DailySnapshot.date >= cutoff.date(),
             ).order_by(DailySnapshot.date).all()
-            return [
-                {
-                    "date": s.date.isoformat(),
-                    "total_messages": s.total_messages,
-                    "unique_active_users": s.unique_active_users,
-                    "voice_minutes": s.voice_minutes,
-                    "new_members": s.new_members,
-                    "left_members": s.left_members,
-                    "mod_actions": s.mod_actions,
-                }
-                for s in snapshots
-            ]
+            
+            if snapshots:
+                return [
+                    {
+                        "date": s.date.isoformat(),
+                        "total_messages": s.total_messages,
+                        "unique_active_users": s.unique_active_users,
+                        "voice_minutes": s.voice_minutes,
+                        "new_members": s.new_members,
+                        "left_members": s.left_members,
+                        "mod_actions": s.mod_actions,
+                    }
+                    for s in snapshots
+                ]
+            else:
+                # Fallback: Query raw events and group them by date
+                from aegis.db.analytics_models import MessageEvent, ModerationEvent, MemberEvent, VoiceSession
+                from sqlalchemy import func
+                
+                # Query messages per day
+                msg_rows = session.query(
+                    func.date(MessageEvent.timestamp).label("d"),
+                    func.count(MessageEvent.id).label("cnt"),
+                    func.count(func.distinct(MessageEvent.user_id)).label("uniq")
+                ).filter(
+                    MessageEvent.guild_id == guild_id,
+                    MessageEvent.timestamp >= cutoff
+                ).group_by(func.date(MessageEvent.timestamp)).all()
+                
+                # Query mod actions per day
+                mod_rows = session.query(
+                    func.date(ModerationEvent.timestamp).label("d"),
+                    func.count(ModerationEvent.id).label("cnt")
+                ).filter(
+                    ModerationEvent.guild_id == guild_id,
+                    ModerationEvent.timestamp >= cutoff
+                ).group_by(func.date(ModerationEvent.timestamp)).all()
+
+                # Query member joins/leaves
+                join_rows = session.query(
+                    func.date(MemberEvent.timestamp).label("d"),
+                    func.count(MemberEvent.id).label("cnt")
+                ).filter(
+                    MemberEvent.guild_id == guild_id,
+                    MemberEvent.event_type == "join",
+                    MemberEvent.timestamp >= cutoff
+                ).group_by(func.date(MemberEvent.timestamp)).all()
+
+                leave_rows = session.query(
+                    func.date(MemberEvent.timestamp).label("d"),
+                    func.count(MemberEvent.id).label("cnt")
+                ).filter(
+                    MemberEvent.guild_id == guild_id,
+                    MemberEvent.event_type == "leave",
+                    MemberEvent.timestamp >= cutoff
+                ).group_by(func.date(MemberEvent.timestamp)).all()
+
+                # Query voice minutes
+                voice_rows = session.query(
+                    func.date(VoiceSession.joined_at).label("d"),
+                    func.sum(VoiceSession.duration_seconds).label("dur")
+                ).filter(
+                    VoiceSession.guild_id == guild_id,
+                    VoiceSession.joined_at >= cutoff,
+                    VoiceSession.duration_seconds.isnot(None)
+                ).group_by(func.date(VoiceSession.joined_at)).all()
+
+                # Build dictionary by date
+                stats_by_date = {}
+                now_date = datetime.datetime.now(datetime.timezone.utc).date()
+                for i in range(days):
+                    d = (now_date - datetime.timedelta(days=i))
+                    stats_by_date[d] = {
+                        "date": d.isoformat(),
+                        "total_messages": 0,
+                        "unique_active_users": 0,
+                        "voice_minutes": 0,
+                        "new_members": 0,
+                        "left_members": 0,
+                        "mod_actions": 0
+                    }
+                
+                def to_date(val):
+                    if isinstance(val, str):
+                        try:
+                            return datetime.date.fromisoformat(val)
+                        except Exception:
+                            return None
+                    return val
+
+                for r in msg_rows:
+                    dt = to_date(r.d)
+                    if dt in stats_by_date:
+                        stats_by_date[dt]["total_messages"] = r.cnt
+                        stats_by_date[dt]["unique_active_users"] = r.uniq
+                for r in mod_rows:
+                    dt = to_date(r.d)
+                    if dt in stats_by_date:
+                        stats_by_date[dt]["mod_actions"] = r.cnt
+                for r in join_rows:
+                    dt = to_date(r.d)
+                    if dt in stats_by_date:
+                        stats_by_date[dt]["new_members"] = r.cnt
+                for r in leave_rows:
+                    dt = to_date(r.d)
+                    if dt in stats_by_date:
+                        stats_by_date[dt]["left_members"] = r.cnt
+                for r in voice_rows:
+                    dt = to_date(r.d)
+                    if dt in stats_by_date:
+                        stats_by_date[dt]["voice_minutes"] = (r.dur or 0) // 60
+
+                timeline = [stats_by_date[d] for d in sorted(stats_by_date.keys())]
+                return timeline
         finally:
             session.close()
 

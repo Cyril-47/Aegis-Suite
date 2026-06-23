@@ -8,6 +8,7 @@ yt-dlp==2026.3.17
 PyNaCl==1.5.0
 pydantic==2.10.3
 httpx==0.28.1
+vaderSentiment==3.3.2
 
 # Build-only (Windows EXE packaging). Listed here so CI test job has a complete env;
 # Non-Windows environments will install them but they are inert at runtime.

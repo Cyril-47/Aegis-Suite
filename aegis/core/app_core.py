@@ -17,6 +17,14 @@ class AppCore:
 
     def __init__(self, paths: Optional[Paths] = None) -> None:
         self.paths = paths if paths is not None else Paths()
+        
+        # Set config path in unified ConfigManager
+        try:
+            from aegis.core.config_manager import get_config_manager
+            get_config_manager().set_config_path(str(self.paths.config_file))
+        except Exception as e:
+            logger.warning(f"Failed to set ConfigManager path in AppCore: {e}")
+
         self._start_time = time.time()
         self.health = HealthRegistry()
         # Initialize LifecycleStateMachine with a transition callback hook to update health
