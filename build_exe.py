@@ -71,11 +71,7 @@ def main():
     logo_ico = "logo.ico"
     convert_png_to_ico(logo_png, logo_ico)
 
-    # 2. Key generation for encryption (to prevent decompiling pyc)
-    enc_key = secrets.token_hex(8)  # 16-char hex key for AES-256 bytecode encryption
-    print(f"[+] Generated unique bytecode encryption key: {enc_key}")
-
-    # 3. Clean previous build folders
+    # 2. Clean previous build folders
     for folder in ["build", "dist"]:
         if os.path.exists(folder):
             print(f"[+] Cleaning previous '{folder}' folder...")
@@ -134,6 +130,37 @@ def main():
         "--hidden-import", "aegis.diagnostics.packager",
         "--hidden-import", "aegis.bot.bot_manager",
         "--hidden-import", "aegis.bot.anti_raid",
+        "--hidden-import", "aegis.bot.auditor",
+        "--hidden-import", "aegis.web.routes.auditor",
+        "--hidden-import", "aegis.bot.permission_analyzer",
+        "--hidden-import", "aegis.bot.config_doctor",
+        "--hidden-import", "aegis.bot.security_center",
+        "--hidden-import", "aegis.bot.slowmode_tracker",
+        "--hidden-import", "aegis.bot.cog_loader",
+        "--hidden-import", "aegis.bot.cogs.moderation",
+        "--hidden-import", "aegis.bot.cogs.raid",
+        "--hidden-import", "aegis.bot.cogs.welcome",
+        "--hidden-import", "aegis.bot.cogs.ticket",
+        "--hidden-import", "aegis.bot.cogs.giveaway",
+        "--hidden-import", "aegis.bot.cogs.leveling",
+        "--hidden-import", "aegis.bot.cogs.music",
+        "--hidden-import", "aegis.bot.cogs.scheduler",
+        "--hidden-import", "aegis.bot.cogs.maintenance",
+        "--hidden-import", "aegis.core.config_manager",
+        "--hidden-import", "aegis.core.config_migration",
+        "--hidden-import", "aegis.analytics.smart_features",
+        "--hidden-import", "aegis.intelligence.registry",
+        "--hidden-import", "aegis.db.analytics_models",
+        "--hidden-import", "aegis.web.routes.smart_features",
+        "--hidden-import", "aegis.web.routes.intelligence_engine",
+        "--hidden-import", "aegis.web.routes.slowmode",
+        "--hidden-import", "aegis.web.routes.security",
+        "--hidden-import", "aegis.web.routes.command_center",
+        "--hidden-import", "aegis.web.routes.incidents",
+        "--hidden-import", "aegis.web.routes.intelligence_extra",
+        "--hidden-import", "aegis.web.routes.automation",
+        "--hidden-import", "aegis.web.routes.enhanced",
+        "--hidden-import", "aegis.web.routes.analytics_extra",
         "--hidden-import", "aegis.core.auth",
         "--hidden-import", "aegis.core.utils",
         "--hidden-import", "aegis.core.audit_log",

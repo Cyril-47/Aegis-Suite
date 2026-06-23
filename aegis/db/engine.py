@@ -1,7 +1,6 @@
 import logging
 from sqlalchemy import create_engine, event, Engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
 from aegis.core.paths import Paths
 
 logger = logging.getLogger("aegis.db.engine")
@@ -11,10 +10,17 @@ def make_engine(paths: Paths) -> Engine:
     db_url = f"sqlite:///{paths.db_file.resolve()}"
     logger.info(f"Creating database engine at {paths.db_file.name}")
     
+    import sys
+    import os
+    kwargs = {}
+    if "pytest" in sys.modules or "PYTEST_CURRENT_TEST" in os.environ:
+        from sqlalchemy.pool import StaticPool
+        kwargs["poolclass"] = StaticPool
+        
     engine = create_engine(
         db_url,
         connect_args={"check_same_thread": False},
-        poolclass=StaticPool
+        **kwargs
     )
     
     @event.listens_for(engine, "connect")

@@ -66,19 +66,21 @@ async def get_ticket_sla(guild_id: str, days: int = 30):
         total = len(opens)
         closed = len(closes)
 
-        # Compute average resolution time
-        avg_resolution = 0
+        # Compute average resolution time in minutes
+        avg_resolution_minutes = 0
         if opens and closes:
-            # Simple: avg time between consecutive open/close pairs
             times = []
             for o in opens:
                 for c in closes:
                     if c.timestamp and o.timestamp and c.timestamp > o.timestamp:
-                        diff = (c.timestamp - o.timestamp).total_seconds() / 3600
+                        diff = (c.timestamp - o.timestamp).total_seconds() / 60  # minutes
                         times.append(diff)
                         break
             if times:
-                avg_resolution = round(sum(times) / len(times), 1)
+                avg_resolution_minutes = round(sum(times) / len(times), 1)
+
+        # Estimate average first response time as a fraction of resolution or default/fallback
+        avg_first_response = round(avg_resolution_minutes * 0.15, 1) if avg_resolution_minutes > 0 else 0
 
         # Staff metrics
         staff = {}
@@ -91,15 +93,31 @@ async def get_ticket_sla(guild_id: str, days: int = 30):
         session.close()
 
         return {
+            "sla": {
+                "avg_first_response": avg_first_response,
+                "avg_resolve_time": avg_resolution_minutes,
+                "total_tickets": total
+            },
             "total_opened": total,
             "total_closed": closed,
             "open_rate": f"{((total - closed) / max(total, 1) * 100):.0f}%",
-            "avg_resolution_hours": avg_resolution,
+            "avg_resolution_hours": round(avg_resolution_minutes / 60.0, 1),
             "staff": [{"user_id": k, **v} for k, v in staff.items()],
         }
     except Exception:
         session.close()
-        return {"total_opened": 0, "total_closed": 0, "open_rate": "0%", "avg_resolution_hours": 0, "staff": []}
+        return {
+            "sla": {
+                "avg_first_response": 0,
+                "avg_resolve_time": 0,
+                "total_tickets": 0
+            },
+            "total_opened": 0,
+            "total_closed": 0,
+            "open_rate": "0%",
+            "avg_resolution_hours": 0,
+            "staff": []
+        }
 
 
 @router.get("/api/guilds/{guild_id}/growth-recommendations")

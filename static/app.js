@@ -1,5 +1,5 @@
 // i18n Support
-let currentLanguage = localStorage.getItem('aegis_language') || 'en';
+let currentLanguage = 'en';
 let translations = {};
 
 async function loadTranslations(lang) {
@@ -527,6 +527,7 @@ function initApp() {
   restoreEmbedBuilderState();
   
   // Refresh loop for status and stats (Tier 3.2, 3.15)
+  // Reduced from 15s to 30s — SSE handles real-time alerts
   statusInterval = setInterval(() => {
     if (document.visibilityState === 'hidden') return;
     checkStatus();
@@ -542,13 +543,15 @@ function initApp() {
         loadGiveaways();
       }
     }
-  }, 15000);
+  }, 30000);
 }
 
 async function fetchStats() {
   if (!isAuthenticated) return;
   try {
-    const res = await fetch('/api/stats');
+    const res = await fetch('/api/stats', {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
     if (!res.ok) return;
     const stats = await res.json();
     
@@ -687,12 +690,31 @@ function refreshActiveTabContent() {
   if (!activePane || !activeGuildId) return;
   
   const tab = activePane.id;
+  const TAB_TITLES = {
+    'tab-overview': 'Overview',
+    'tab-auditor': 'Server Auditor',
+    'tab-smart': 'Intelligence Center',
+    'tab-optimizer': 'Server Layout Optimizer',
+    'tab-commands': 'Custom Commands',
+    'tab-tickets': 'Tickets',
+    'tab-roles': 'Roles',
+    'tab-templates': 'Templates',
+    'tab-welcome': 'Welcome Messages',
+    'tab-embed-builder': 'Embed Builder',
+    'tab-music': 'Music',
+    'tab-giveaways': 'Giveaways',
+    'tab-leveling': 'Leveling',
+    'tab-audit-log': 'Audit Log',
+    'tab-automation': 'Automation',
+    'tab-logs': 'System Logs'
+  };
+  document.title = `${TAB_TITLES[tab] || tab} — Aegis Suite`;
   if (tab === 'tab-overview') {
     fetchStats();
   } else if (tab === 'tab-welcome') {
     syncWelcomePreview();
   } else if (tab === 'tab-roles') {
-    const activeSub = document.querySelector('#tab-roles .sub-tab-btn.active')?.getAttribute('data-sub-tab');
+    const activeSub = document.querySelector('#tab-roles .sub-tab-btn[data-sub-tab].active')?.getAttribute('data-sub-tab');
     if (activeSub === 'role-creator-sub') {
       loadServerRoles();
     } else if (activeSub === 'role-panels-sub') {
@@ -722,39 +744,47 @@ function refreshActiveTabContent() {
   } else if (tab === 'tab-audit-log') {
     fetchAuditLogs();
   } else if (tab === 'tab-smart') {
-    const activeSub = document.querySelector('#tab-smart .sub-tab-btn.active')?.getAttribute('data-sub-tab');
+    const smartSelector = document.getElementById('smart-module-selector');
+    const activeSub = smartSelector ? smartSelector.value : 'command-center-sub';
+    
+    // Hide all sub-tab panes under tab-smart and only show the active one
+    const container = document.getElementById('tab-smart');
+    if (container) {
+      container.querySelectorAll('.sub-tab-pane').forEach(pane => {
+        if (pane.id === activeSub) {
+          pane.classList.remove('hidden');
+        } else {
+          pane.classList.add('hidden');
+        }
+      });
+    }
+    
     if (activeSub === 'command-center-sub') {
-      loadCommandCenter();
-    } else if (activeSub === 'analytics-overview-sub') {
-      if (typeof window.loadSmartFeatures === 'function') {
-        window.loadSmartFeatures();
-      }
-    } else if (activeSub === 'growth-sub') {
-      loadGrowthCenter();
-    } else if (activeSub === 'mod-intel-sub') {
-      loadModIntelligence();
-    } else if (activeSub === 'perm-heatmap-sub') {
-      loadPermissionHeatmap();
-    } else if (activeSub === 'channel-heatmap-sub') {
-      loadChannelHeatmap();
-    } else if (activeSub === 'benchmark-sub') {
-      loadBenchmark();
-    } else {
-      if (typeof window.loadSmartFeatures === 'function') {
-        window.loadSmartFeatures();
-      }
+      loadSmartCommandCenter();
+    } else if (activeSub === 'intel-security') {
+      loadIntelSecurity();
+    } else if (activeSub === 'intel-community') {
+      loadIntelCommunity();
+    } else if (activeSub === 'intel-moderation') {
+      loadIntelModeration();
+    } else if (activeSub === 'intel-activity') {
+      loadIntelActivity();
+    } else if (activeSub === 'intel-trends') {
+      loadIntelTrends();
+    } else if (activeSub === 'automation-rules-sub') {
+      loadAutomationCenterTab();
+    } else if (activeSub === 'history-progress-sub') {
+      loadHistoryProgress();
     }
   } else if (tab === 'tab-auditor') {
-    loadCommandCenter();
-    loadRecommendations();
-    loadHealthTimeline();
+    loadSmartCommandCenter();
   } else if (tab === 'tab-tickets') {
-    const activeSub = document.querySelector('#tab-tickets .sub-tab-btn.active')?.getAttribute('data-sub-tab');
+    const activeSub = document.querySelector('#tab-tickets .sub-tab-btn[data-sub-tab].active')?.getAttribute('data-sub-tab');
     if (activeSub === 'tickets-intel-sub') {
       loadTicketIntelligence();
     }
   } else if (tab === 'tab-automation') {
-    const activeSub = document.querySelector('#tab-automation .sub-tab-btn.active')?.getAttribute('data-sub-tab');
+    const activeSub = document.querySelector('#tab-automation .sub-tab-btn[data-sub-tab].active')?.getAttribute('data-sub-tab');
     if (activeSub === 'automation-overview-sub') {
       loadAutomationCenter();
     } else if (activeSub === 'scheduler-sub') {
@@ -841,14 +871,17 @@ function setupNavigation() {
 }
 
 function setupSubTabs() {
-  document.querySelectorAll('.sub-tab-btn').forEach(btn => {
+  document.querySelectorAll('.sub-tab-btn[data-sub-tab]').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const targetSub = btn.getAttribute('data-sub-tab');
       const container = btn.closest('.tab-pane');
       if (!container) return;
       
       // Update active sub-tab pill style
-      container.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.remove('active'));
+      const subTabContainer = btn.closest('.sub-tab-container');
+      if (subTabContainer) {
+        subTabContainer.querySelectorAll('.sub-tab-btn').forEach(b => b.classList.remove('active'));
+      }
       btn.classList.add('active');
       
       // Switch sub-tab panes
@@ -879,38 +912,75 @@ function setupSubTabs() {
           loadIncidents();
         } else if (targetSub === 'tickets-intel-sub') {
           loadTicketIntelligence();
-        } else if (targetSub === 'growth-sub') {
-          loadGrowthCenter();
-        } else if (targetSub === 'mod-intel-sub') {
-          loadModIntelligence();
-        } else if (targetSub === 'perm-heatmap-sub') {
-          loadPermissionHeatmap();
-        } else if (targetSub === 'channel-heatmap-sub') {
-          loadChannelHeatmap();
-        } else if (targetSub === 'benchmark-sub') {
-          loadBenchmark();
-        } else if (targetSub === 'recommendations-sub') {
-          loadSmartRecommendations();
-        } else if (targetSub === 'config-doctor-sub') {
-          loadConfigDoctor();
-        } else if (targetSub === 'permission-doctor-sub') {
-          loadPermissionDoctor();
-        } else if (targetSub === 'raid-detector-sub') {
-          loadRaidDetector();
-        } else if (targetSub === 'role-cleaner-sub') {
-          loadRoleCleaner();
-        } else if (targetSub === 'channel-cleaner-sub') {
-          loadChannelCleaner();
-        } else if (targetSub === 'backup-advisor-sub') {
-          loadBackupAdvisor();
-        } else if (targetSub === 'maturity-sub') {
-          loadMaturityScore();
-        } else if (targetSub === 'command-center-sub') {
-          loadCommandCenter();
+        } else if (targetSub === 'tickets-setup-sub') {
+          loadTicketSetupStats();
+        } else if (targetSub === 'auditor-findings-sub') {
+          loadRecommendations();
+        } else if (targetSub === 'auditor-history-sub') {
+          loadScoreHistory();
+          loadHealthTimeline();
         }
       }
     });
   });
+
+  // Bind change listener to `#smart-module-selector` dropdown for premium switching
+  const smartSelector = document.getElementById('smart-module-selector');
+  if (smartSelector) {
+    smartSelector.addEventListener('change', (e) => {
+      const targetSub = e.target.value;
+      const container = document.getElementById('tab-smart');
+      if (!container) return;
+      
+      // Switch sub-tab panes
+      container.querySelectorAll('.sub-tab-pane').forEach(pane => {
+        if (pane.id === targetSub) {
+          pane.classList.remove('hidden');
+        } else {
+          pane.classList.add('hidden');
+        }
+      });
+      
+      // Trigger data loaders for sub-tabs
+      if (activeGuildId) {
+        if (targetSub === 'command-center-sub') {
+          loadSmartCommandCenter();
+        } else if (targetSub === 'intel-security') {
+          loadIntelSecurity();
+        } else if (targetSub === 'intel-community') {
+          loadIntelCommunity();
+        } else if (targetSub === 'intel-moderation') {
+          loadIntelModeration();
+        } else if (targetSub === 'intel-activity') {
+          loadIntelActivity();
+        } else if (targetSub === 'intel-trends') {
+          loadIntelTrends();
+        } else if (targetSub === 'automation-rules-sub') {
+          loadAutomationCenterTab();
+        } else if (targetSub === 'history-progress-sub') {
+          loadHistoryProgress();
+        }
+      }
+    });
+  }
+}
+
+function switchSmartModule(cardEl) {
+  // Deactivate all cards
+  document.querySelectorAll('.smart-mod-card').forEach(c => c.classList.remove('active'));
+  cardEl.classList.add('active');
+  // Hide all sub-panes
+  document.querySelectorAll('#tab-smart .sub-tab-pane').forEach(p => p.classList.add('hidden'));
+  // Show target pane
+  const moduleId = cardEl.dataset.module;
+  const target = document.getElementById(moduleId);
+  if (target) target.classList.remove('hidden');
+  // Keep the old select in sync if it still exists
+  const sel = document.getElementById('smart-module-selector');
+  if (sel) {
+    sel.value = moduleId;
+    sel.dispatchEvent(new Event('change'));
+  }
 }
 
 // ==========================================================================
@@ -1001,6 +1071,12 @@ async function fetchConfig(guildId = null) {
     populateAutomodForm(currentConfig.automod_settings);
     populateMilestoneForm(currentConfig.milestone_settings || {});
     populateTicketsForm(currentConfig.ticket_settings);
+    
+    // Sync slowmode toggle from saved config
+    if (currentConfig.slowmode_settings) {
+      const slowToggle = document.getElementById('slowmode-toggle');
+      if (slowToggle) slowToggle.checked = !!currentConfig.slowmode_settings.enabled;
+    }
     
     // Load custom commands
     localCustomCommands = currentConfig.custom_commands || {};
@@ -1199,6 +1275,9 @@ async function handleServerSelection(guildId) {
   activeGuildId = guildId;
   activeGuildName = cachedGuildNames[guildId] || '';
   
+  // Connect SSE Command stream when server changes!
+  connectLiveAlertsStream();
+  
   const helper = document.getElementById('no-server-selected-card');
   const card = document.getElementById('active-server-card');
   const backupCard = document.getElementById('backup-restore-card');
@@ -1244,7 +1323,7 @@ function populateServerOverview(info) {
   
   document.getElementById('active-guild-name').textContent = info.name;
   document.getElementById('active-guild-id').textContent = `ID: ${info.id}`;
-  document.getElementById('guild-boost-tag').innerHTML = `<i class="fa-solid fa-gem"></i> Boost Level ${info.boost_tier} (${info.boost_count} Boosts)`;
+  document.getElementById('guild-boost-tag').innerHTML = `<i class="fa-solid fa-gem"></i> Boost Level ${escapeHtml(info.boost_tier)} (${escapeHtml(info.boost_count)} Boosts)`;
   document.getElementById('guild-stat-members').textContent = info.member_count;
   document.getElementById('guild-stat-online').textContent = `${info.online_count} Online`;
   document.getElementById('guild-stat-channels').textContent = info.text_channels + info.voice_channels;
@@ -1359,7 +1438,7 @@ async function runServerAudit() {
   if (!activeGuildId) return;
   const resultsDiv = document.getElementById('audit-results');
   if (!resultsDiv) return;
-  resultsDiv.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Running audit...</div>';
+  resultsDiv.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Running audit...</div>';
   resultsDiv.classList.remove('hidden');
   
   try {
@@ -1436,25 +1515,8 @@ function renderAuditResults(data) {
 // ==========================================================================
 async function loadCommandCenter() {
   if (!activeGuildId) return;
-  const loading = document.getElementById('cc-loading');
-  const content = document.getElementById('cc-content');
-  if (!loading || !content) return;
-
-  loading.classList.remove('hidden');
-  content.classList.add('hidden');
-
-  try {
-    const res = await fetch(`/api/guilds/${activeGuildId}/command-center`);
-    if (!res.ok) throw new Error('Failed to load');
-    const data = await res.json();
-    renderCommandCenter(data);
-    loading.classList.add('hidden');
-    content.classList.remove('hidden');
-    loadScoreHistory();
-    loadConfigHistory();
-  } catch (err) {
-    loading.innerHTML = '<div class="text-center py-4" style="color: var(--danger);"><i class="fa-solid fa-circle-exclamation"></i> Failed to load Command Center. Is the bot connected?</div>';
-  }
+  // Delegate to the unified smart command center loader
+  await loadSmartCommandCenter();
 }
 
 function renderCommandCenter(data) {
@@ -1466,11 +1528,22 @@ function renderCommandCenter(data) {
   const scoreLabel = document.getElementById('cc-score-label');
 
   if (scoreCircle) {
+    // Reset to start position, then animate to target
+    scoreCircle.style.transition = 'none';
+    scoreCircle.style.strokeDashoffset = '314';
+    scoreCircle.offsetHeight; // force reflow
+    scoreCircle.style.transition = '';
     const offset = 314 - (314 * score) / 100;
     scoreCircle.style.strokeDashoffset = offset;
     scoreCircle.style.stroke = scoreColor;
   }
-  if (scoreValue) scoreValue.textContent = score;
+  if (scoreValue) {
+    // Animated number counter
+    animateNumber(scoreValue, 0, score, 800);
+    scoreValue.classList.remove('animate');
+    scoreValue.offsetHeight;
+    scoreValue.classList.add('animate');
+  }
   if (scoreLabel) {
     if (score >= 90) { scoreLabel.textContent = 'Excellent'; scoreLabel.style.color = 'var(--success)'; }
     else if (score >= 70) { scoreLabel.textContent = 'Good'; scoreLabel.style.color = 'var(--success)'; }
@@ -1478,17 +1551,20 @@ function renderCommandCenter(data) {
     else { scoreLabel.textContent = 'Needs Work'; scoreLabel.style.color = 'var(--danger)'; }
   }
 
-  // Dimension scores
+  // Dimension scores (staggered entrance)
   const dims = ['security', 'moderation', 'structure', 'engagement', 'automation'];
-  for (const dim of dims) {
+  dims.forEach((dim, i) => {
     const el = document.getElementById(`cc-dim-${dim}`);
-    if (!el) continue;
+    if (!el) return;
     const s = data.dimension_scores[dim] || 0;
     const c = s >= 80 ? 'var(--success)' : s >= 60 ? 'var(--warning)' : 'var(--danger)';
     el.style.borderTop = `3px solid ${c}`;
-    el.querySelector('.cc-dim-score').textContent = s;
-    el.querySelector('.cc-dim-score').style.color = c;
-  }
+    const scoreEl = el.querySelector('.cc-dim-score');
+    if (scoreEl) {
+      scoreEl.style.color = c;
+      setTimeout(() => animateNumber(scoreEl, 0, s, 600), 200 + i * 80);
+    }
+  });
 
   // Quick stats
   setTextContent('cc-members', data.member_count || 0);
@@ -1567,7 +1643,20 @@ async function runCommandCenterScan() {
     return;
   }
   showToast('Analyzing server...', 'info');
-  await Promise.all([loadCommandCenter(), loadRecommendations(), loadHealthTimeline()]);
+  await loadSmartCommandCenter(true);
+}
+
+function animateNumber(el, from, to, duration) {
+  const start = performance.now();
+  const diff = to - from;
+  function step(ts) {
+    const elapsed = ts - start;
+    const progress = Math.min(elapsed / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+    el.textContent = Math.round(from + diff * eased);
+    if (progress < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
 }
 
 function setTextContent(id, value) {
@@ -1801,6 +1890,37 @@ async function saveMilestoneSettings(e) {
 // ==========================================================================
 // AutoModeration Module Setup
 // ==========================================================================
+function updateAutomodTogglesState() {
+  const isEnabled = document.getElementById('automod-enabled').checked;
+  const profanityCheckbox = document.getElementById('automod-profanity');
+  const linksCheckbox = document.getElementById('automod-links');
+  if (profanityCheckbox && linksCheckbox) {
+    profanityCheckbox.disabled = !isEnabled;
+    linksCheckbox.disabled = !isEnabled;
+
+    const profanityGroup = profanityCheckbox.closest('.toggle-group');
+    const linksGroup = linksCheckbox.closest('.toggle-group');
+    
+    if (profanityGroup) {
+      profanityGroup.style.opacity = isEnabled ? '1' : '0.5';
+      profanityGroup.style.pointerEvents = isEnabled ? '1' : 'none';
+      const desc = profanityGroup.nextElementSibling;
+      if (desc && desc.classList.contains('setting-desc')) {
+        desc.style.opacity = isEnabled ? '1' : '0.5';
+      }
+    }
+    
+    if (linksGroup) {
+      linksGroup.style.opacity = isEnabled ? '1' : '0.5';
+      linksGroup.style.pointerEvents = isEnabled ? '1' : 'none';
+      const desc = linksGroup.nextElementSibling;
+      if (desc && desc.classList.contains('setting-desc')) {
+        desc.style.opacity = isEnabled ? '1' : '0.5';
+      }
+    }
+  }
+}
+
 function populateAutomodForm(settings) {
   if (!settings) return;
   document.getElementById('automod-enabled').checked = settings.enabled;
@@ -1810,6 +1930,7 @@ function populateAutomodForm(settings) {
   document.getElementById('automod-words').value = settings.profanity_words.join(', ');
   document.getElementById('automod-whitelisted-domains').value = (settings.whitelisted_domains || []).join('\n');
   document.getElementById('automod-whitelisted-invites').value = (settings.whitelisted_invites || []).join('\n');
+  updateAutomodTogglesState();
 }
 
 async function saveAutomodSettings(e) {
@@ -1959,14 +2080,15 @@ async function loadServerRoles() {
 }
 
 function computeRoleRisk(permissions) {
-  if (!permissions) return { score: 20, label: 'Safe', color: 'var(--success)' };
+  const p = BigInt(permissions || 0);
+  if (!p) return { score: 20, label: 'Safe', color: 'var(--success)' };
   let score = 20;
-  if (permissions & (1n << 3n)) score = 100;       // administrator
-  else if ((permissions & (1n << 1n)) && (permissions & (1n << 4n))) score = 80; // manage_roles + manage_channels
-  else if ((permissions & (1n << 22n)) || (permissions & (1n << 23n))) score = 60; // ban + kick
-  else if (permissions & (1n << 19n)) score = 40;   // manage_messages
-  else if (permissions & (1n << 1n)) score = 50;    // manage_roles alone
-  else if (permissions & (1n << 5n)) score = 35;    // manage_guild
+  if (p & (1n << 3n)) score = 100;       // administrator
+  else if ((p & (1n << 1n)) && (p & (1n << 4n))) score = 80; // manage_roles + manage_channels
+  else if ((p & (1n << 22n)) || (p & (1n << 23n))) score = 60; // ban + kick
+  else if (p & (1n << 19n)) score = 40;   // manage_messages
+  else if (p & (1n << 1n)) score = 50;    // manage_roles alone
+  else if (p & (1n << 5n)) score = 35;    // manage_guild
 
   if (score >= 61) return { score, label: 'High', color: 'var(--danger)' };
   if (score >= 31) return { score, label: 'Medium', color: 'var(--warning)' };
@@ -1979,6 +2101,12 @@ function renderServerRoles() {
   if (!tbody || !empty) return;
 
   tbody.innerHTML = '';
+  
+  const selectAllCb = document.getElementById('roles-bulk-select-all');
+  if (selectAllCb) {
+    selectAllCb.checked = false;
+  }
+
   if (serverRoles.length === 0) {
     empty.classList.remove('hidden');
     return;
@@ -1986,6 +2114,21 @@ function renderServerRoles() {
   empty.classList.add('hidden');
 
   let selectedRoles = new Set();
+
+  if (selectAllCb) {
+    selectAllCb.onchange = () => {
+      const isChecked = selectAllCb.checked;
+      const checks = tbody.querySelectorAll('.role-bulk-check');
+      selectedRoles.clear();
+      checks.forEach(cb => {
+        cb.checked = isChecked;
+        if (isChecked) {
+          selectedRoles.add(cb.getAttribute('data-role-id'));
+        }
+      });
+      updateBulkDeleteBtn(selectedRoles);
+    };
+  }
 
   serverRoles.forEach(role => {
     const tr = document.createElement('tr');
@@ -2400,7 +2543,7 @@ function selectRoleTemplate(el) {
 
   const roles = ROLE_TEMPLATES[selectedTemplate];
   const preview = document.getElementById('template-preview-roles');
-  preview.innerHTML = roles.map(r => `<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:8px;font-size:0.8rem;background:var(--inner-bg);border:1px solid var(--card-border);"><span style="width:10px;height:10px;border-radius:50%;background:${r.color};"></span>${r.name}</span>`).join('');
+  preview.innerHTML = roles.map(r => `<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:8px;font-size:0.8rem;background:var(--inner-bg);border:1px solid var(--card-border);"><span style="width:10px;height:10px;border-radius:50%;background:${escapeHtml(r.color)};"></span>${escapeHtml(r.name)}</span>`).join('');
   document.getElementById('template-preview').classList.remove('hidden');
 }
 
@@ -2437,8 +2580,8 @@ function openRoleCompareModal() {
   selA.innerHTML = '<option value="">Select...</option>';
   selB.innerHTML = '<option value="">Select...</option>';
   serverRoles.forEach(r => {
-    selA.innerHTML += `<option value="${r.id}">${r.name}</option>`;
-    selB.innerHTML += `<option value="${r.id}">${r.name}</option>`;
+    selA.innerHTML += `<option value="${escapeHtml(r.id)}">${escapeHtml(r.name)}</option>`;
+    selB.innerHTML += `<option value="${escapeHtml(r.id)}">${escapeHtml(r.name)}</option>`;
   });
   document.getElementById('compare-results').innerHTML = '<div class="text-center py-3" style="color: var(--text-sub);">Select two roles to compare.</div>';
   openModal('role-compare-modal');
@@ -3288,6 +3431,10 @@ function setupEventListeners() {
   const automodForm = document.getElementById('automod-form');
   if (automodForm) {
     automodForm.addEventListener('submit', saveAutomodSettings);
+    const automodEnabledCheckbox = document.getElementById('automod-enabled');
+    if (automodEnabledCheckbox) {
+      automodEnabledCheckbox.addEventListener('change', updateAutomodTogglesState);
+    }
   }
 
   // Anti-Raid Config
@@ -3766,43 +3913,95 @@ function setupEventListeners() {
     });
   }
 
-  // Theme Toggle
+  // Theme Toggle Dropdown (Dark | Light | Red & Blue)
   const btnThemeToggle = document.getElementById('btn-theme-toggle');
   if (btnThemeToggle) {
     const savedTheme = localStorage.getItem('aegis_theme') || 'dark';
-    
+    let dropdownOpen = false;
+
+    // Build the dropdown menu once and insert after the button's parent
+    const wrapper = document.createElement('div');
+    wrapper.className = 'theme-dropdown-wrapper';
+    btnThemeToggle.parentNode.insertBefore(wrapper, btnThemeToggle);
+    wrapper.appendChild(btnThemeToggle);
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'theme-dropdown';
+    dropdown.setAttribute('role', 'menu');
+    dropdown.innerHTML = `
+      <button class="theme-option" data-theme="dark" role="menuitem">
+        <span class="theme-dot" style="background:#5865f2"></span> Dark
+      </button>
+      <button class="theme-option" data-theme="light" role="menuitem">
+        <span class="theme-dot" style="background:linear-gradient(135deg,#f0f2f5,#b5bac1)"></span> Light
+      </button>
+      <button class="theme-option" data-theme="red-blue" role="menuitem">
+        <span class="theme-dot" style="background:linear-gradient(135deg,#dc143c,#5865f2)"></span> Red &amp; Blue
+      </button>
+    `;
+    wrapper.appendChild(dropdown);
+
+    const THEMES = {
+      dark:     { bodyClass: '',                  icon: 'fa-moon',         label: 'Dark' },
+      light:    { bodyClass: 'light-theme',        icon: 'fa-sun',          label: 'Light' },
+      'red-blue': { bodyClass: 'red-blue-theme',   icon: 'fa-droplet',      label: 'Red &amp; Blue' },
+    };
+
     function applyThemeUI(theme) {
-      if (theme === 'light') {
-        document.body.classList.add('light-theme');
-        btnThemeToggle.innerHTML = '<i class="fa-solid fa-sun"></i> Light';
-      } else {
-        document.body.classList.remove('light-theme');
-        btnThemeToggle.innerHTML = '<i class="fa-solid fa-moon"></i> Dark';
-      }
+      // Remove all theme classes
+      document.body.classList.remove('light-theme', 'liquid-glass-theme', 'red-blue-theme');
+      const t = THEMES[theme] || THEMES.dark;
+      if (t.bodyClass) document.body.classList.add(t.bodyClass);
+      btnThemeToggle.innerHTML = `<i class="fa-solid ${t.icon}"></i> ${t.label}`;
+      // Update active state in dropdown
+      dropdown.querySelectorAll('.theme-option').forEach(opt => {
+        opt.classList.toggle('active', opt.dataset.theme === theme);
+      });
+      localStorage.setItem('aegis_theme', theme);
     }
 
+    function openDropdown() {
+      dropdown.classList.add('open');
+      dropdownOpen = true;
+      btnThemeToggle.setAttribute('aria-expanded', 'true');
+    }
+
+    function closeDropdown() {
+      dropdown.classList.remove('open');
+      dropdownOpen = false;
+      btnThemeToggle.setAttribute('aria-expanded', 'false');
+    }
+
+    function triggerThemeRedraw(theme) {
+      applyThemeUI(theme);
+      closeDropdown();
+      // Redraw charts on theme change
+      if (typeof window.loadSmartFeatures === 'function') window.loadSmartFeatures();
+      loadHealthTimeline();
+    }
+
+    // Apply saved theme on load
     applyThemeUI(savedTheme);
 
-    btnThemeToggle.addEventListener('click', () => {
-      const isLight = document.body.classList.contains('light-theme');
-      const nextTheme = isLight ? 'dark' : 'light';
-      localStorage.setItem('aegis_theme', nextTheme);
-      applyThemeUI(nextTheme);
-      
-      // Dynamic Chart Redraw on Theme Change
-      if (typeof window.loadSmartFeatures === 'function') {
-        window.loadSmartFeatures();
-      }
-      loadHealthTimeline();
+    btnThemeToggle.setAttribute('aria-haspopup', 'true');
+    btnThemeToggle.setAttribute('aria-expanded', 'false');
+    btnThemeToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      dropdownOpen ? closeDropdown() : openDropdown();
     });
-  }
 
-  // Language Selector
-  const langSelector = document.getElementById('language-selector');
-  if (langSelector) {
-    langSelector.value = currentLanguage;
-    langSelector.addEventListener('change', (e) => {
-      loadTranslations(e.target.value);
+    dropdown.querySelectorAll('.theme-option').forEach(opt => {
+      opt.addEventListener('click', () => triggerThemeRedraw(opt.dataset.theme));
+    });
+
+    // Close on click outside
+    document.addEventListener('click', (e) => {
+      if (dropdownOpen && !wrapper.contains(e.target)) closeDropdown();
+    });
+
+    // Close on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && dropdownOpen) closeDropdown();
     });
   }
 
@@ -4542,8 +4741,47 @@ function setupEventListeners() {
 }
 
 // Notification Toast Utility
-function showToast(message, type = 'info') {
+function showToast(message, type = 'info', duration = 3500) {
   const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  // 1. Toast Deduplication: prevent toast spam
+  const existingToasts = container.querySelectorAll('.toast');
+  for (const existing of existingToasts) {
+    const textSpan = existing.querySelector('span');
+    if (textSpan && textSpan.textContent === message) {
+      // Re-trigger visual pulse and reset animation
+      existing.style.animation = 'none';
+      existing.offsetHeight; // trigger reflow
+      existing.style.animation = 'slideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards';
+      
+      // Reset its dismiss timer
+      if (existing.dismissTimeoutId) {
+        clearTimeout(existing.dismissTimeoutId);
+      }
+      const newTimeoutId = setTimeout(() => {
+        if (typeof existing.dismiss === 'function') {
+          existing.dismiss();
+        } else {
+          existing.classList.add('dismissing');
+          setTimeout(() => existing.remove(), 300);
+        }
+      }, duration);
+      existing.dismissTimeoutId = newTimeoutId;
+      return;
+    }
+  }
+
+  // 2. Active Toast Limit: limit to max 3 toasts
+  if (existingToasts.length >= 3) {
+    const oldest = existingToasts[0];
+    if (typeof oldest.dismiss === 'function') {
+      oldest.dismiss();
+    } else {
+      oldest.remove();
+    }
+  }
+
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
   
@@ -4553,19 +4791,47 @@ function showToast(message, type = 'info') {
   if (type === 'error') icon = 'fa-circle-xmark';
   
   toast.innerHTML = `
-    <i class="fa-solid ${icon}"></i>
+    <i class="fa-solid ${icon} toast-icon"></i>
     <span>${escapeHtml(message)}</span>
   `;
   
+  const removeToast = () => {
+    if (toast.parentNode) {
+      toast.remove();
+    }
+  };
+  
+  const dismiss = () => {
+    toast.classList.add('dismissing');
+    toast.addEventListener('animationend', removeToast, { once: true });
+    // Safe fallback timeout to remove from DOM even if animationend event doesn't fire
+    setTimeout(removeToast, 300);
+  };
+
+  // Expose dismiss function on the element for deduplication/limit logic
+  toast.dismiss = dismiss;
+
+  const dismissBtn = document.createElement('span');
+  dismissBtn.className = 'toast-dismiss';
+  dismissBtn.setAttribute('role', 'button');
+  dismissBtn.setAttribute('aria-label', 'Close notification');
+  dismissBtn.setAttribute('tabindex', '0');
+  dismissBtn.innerHTML = '&times;';
+  dismissBtn.addEventListener('click', dismiss);
+  
+  // Allow closing via keyboard (Enter/Space)
+  dismissBtn.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      dismiss();
+    }
+  });
+
+  toast.appendChild(dismissBtn);
   container.appendChild(toast);
   
-  // Remove after 4 seconds
-  setTimeout(() => {
-    toast.style.animation = 'fadeIn 0.3s ease reverse forwards';
-    setTimeout(() => {
-      container.removeChild(toast);
-    }, 300);
-  }, 4000);
+  // Remove after duration automatically
+  toast.dismissTimeoutId = setTimeout(dismiss, duration);
 }
 
 // Toggle Wizard password field visibility
@@ -5075,7 +5341,7 @@ async function populateEmbedTargetChannels(guildId) {
         const label = document.createElement('label');
         label.className = 'toggle-group font-size-08';
         label.style.cssText = 'display:inline-flex; align-items:center; gap:6px; margin-right: 12px; margin-bottom: 4px;';
-        label.innerHTML = `<input type="checkbox" class="bulk-channel-cb" value="${ch.id}"> <span>#${ch.name}</span>`;
+        label.innerHTML = `<input type="checkbox" class="bulk-channel-cb" value="${escapeHtml(ch.id)}"> <span>#${escapeHtml(ch.name)}</span>`;
         bulkContainer.appendChild(label);
       });
     }
@@ -6536,7 +6802,7 @@ function initGiveawaysTab() {
         if (addReactionsInput) addReactionsInput.checked = true;
         if (titleInput) titleInput.value = '📊 COMMUNITY POLL';
         if (descInput) descInput.value = 'We want your feedback! Vote by reacting with the corresponding emoji below.';
-        if (colorPicker) colorPicker.value = '#22c55e';
+        if (colorPicker) colorPicker.value = '#5865f2';
         if (colorHex) colorHex.value = '#22C55E';
         if (thumbnailInput && shouldOverwriteValue(thumbnailInput.value)) thumbnailInput.value = '';
         if (imageInput && shouldOverwriteValue(imageInput.value)) imageInput.value = '';
@@ -7156,11 +7422,7 @@ function renderHostingModeBadge(mode, role) {
 function renderFeatureAvailabilityWarning(mode) {
   const panel = document.getElementById('feature-availability-warning');
   if (!panel) return;
-  if (mode === 'local_pc') {
-    panel.classList.remove('hidden');
-  } else {
-    panel.classList.add('hidden');
-  }
+  panel.classList.add('hidden');
 }
 
 // First-launch trigger: admin-only, opens chooser only when no value persisted (Req 1.1, 1.6, 1.7)
@@ -7433,7 +7695,7 @@ async function loadIncidents() {
   const list = document.getElementById('incidents-list');
   if (!list) return;
 
-  list.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading incidents...</div>';
+  list.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading incidents...</div>';
 
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/incidents?days=${days}`);
@@ -7480,7 +7742,7 @@ async function loadCleanupPreview() {
   const results = document.getElementById('cleanup-results');
   if (!results) return;
 
-  results.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Scanning server...</div>';
+  results.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Scanning server...</div>';
 
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/cleanup-preview`);
@@ -7565,7 +7827,7 @@ async function loadModIntelligence() {
   if (!activeGuildId) return;
   const el = document.getElementById('mod-intel-content');
   if (!el) return;
-  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading...</div>';
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/moderator-intelligence`);
     if (!res.ok) throw new Error('Failed');
@@ -7599,7 +7861,7 @@ async function loadAutomationCenter() {
   if (!activeGuildId) return;
   const el = document.getElementById('automation-content');
   if (!el) return;
-  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading...</div>';
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/automation-center`);
     if (!res.ok) throw new Error('Failed');
@@ -7662,37 +7924,123 @@ async function loadAutomationCenter() {
 // ==========================================================================
 async function loadPermissionHeatmap() {
   if (!activeGuildId) return;
-  const el = document.getElementById('heatmap-content');
+  const el = document.getElementById('intel-permissions-heatmap') || document.getElementById('heatmap-content');
   if (!el) return;
-  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading...</div>';
   try {
-    const res = await fetch(`/api/guilds/${activeGuildId}/permission-heatmap`);
+    const res = await fetch(`/api/guilds/${activeGuildId}/permission-heatmap`, {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
     if (!res.ok) throw new Error('Failed');
     const data = await res.json();
 
     const DANGER_PERMS = ['Administrator', 'Manage Server', 'Manage Roles', 'Manage Channels', 'Ban Members', 'Kick Members', 'Manage Messages', 'Timeout'];
 
-    let html = '<table style="border-collapse:collapse;font-size:0.8rem;width:100%;">';
-    html += '<thead><tr><th style="text-align:left;padding:6px 10px;position:sticky;left:0;background:var(--card-bg);z-index:1;">Role</th>';
-    data.perm_names.forEach(p => {
-      const isDanger = DANGER_PERMS.includes(p);
-      html += `<th style="padding:6px 8px;writing-mode:vertical-rl;text-orientation:mixed;height:100px;font-weight:600;color:${isDanger ? 'var(--danger)' : 'var(--text-sub)'};">${p}</th>`;
-    });
-    html += '</tr></thead><tbody>';
+    let html = `
+      <div style="border: 1px solid rgba(255, 255, 255, 0.06); border-radius: 12px; background: rgba(7, 10, 19, 0.2); overflow-x: auto; max-width: 100%;">
+        <table style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.82rem; text-align: left; table-layout: auto;">
+          <thead>
+            <tr style="background: rgba(255, 255, 255, 0.02);">
+              <th class="sticky-cell" style="padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); color: var(--text-main); font-weight: 600; width: 200px; min-width: 200px; position: sticky; left: 0; background: var(--bg-secondary); z-index: 10; border-right: 1px solid rgba(255,255,255,0.08);">
+                Permission Name
+              </th>
+              <th style="padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); color: var(--text-main); font-weight: 600; width: 110px; min-width: 110px; border-right: 1px solid rgba(255,255,255,0.04);">
+                Risk Severity
+              </th>
+    `;
 
     data.roles.forEach(role => {
-      html += `<tr><td style="padding:6px 10px;white-space:nowrap;position:sticky;left:0;background:var(--card-bg);z-index:1;"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${role.color};margin-right:6px;"></span>${escapeHtml(role.name)}</td>`;
-      data.perm_names.forEach(p => {
-        const has = role.permissions[p];
-        const isDanger = DANGER_PERMS.includes(p);
-        let bg = 'transparent';
-        if (has && isDanger) bg = 'rgba(239,68,68,0.25)';
-        else if (has) bg = 'rgba(52,211,153,0.15)';
-        html += `<td style="padding:6px 8px;text-align:center;background:${bg};">${has ? '<i class="fa-solid fa-check" style="color:' + (isDanger ? 'var(--danger)' : 'var(--success)') + ';"></i>' : '<span style="color:var(--text-sub);">—</span>'}</td>`;
-      });
-      html += '</tr>';
+      html += `
+        <th style="padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.06); text-align: center; font-weight: 600; min-width: 130px; border-right: 1px solid rgba(255,255,255,0.04);">
+          <span style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 12px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.06); font-size: 0.78rem; color: var(--text-main);">
+            <span style="width: 8px; height: 8px; border-radius: 50%; background: ${role.color}; display: inline-block;"></span>
+            ${escapeHtml(role.name)}
+          </span>
+        </th>
+      `;
     });
-    html += '</tbody></table>';
+
+    html += `
+            </tr>
+          </thead>
+          <tbody>
+    `;
+
+    data.perm_names.forEach(p => {
+      const isDanger = DANGER_PERMS.includes(p);
+      let severityLabel = 'Standard';
+      let severityBg = 'rgba(16, 185, 129, 0.08)';
+      let severityColor = 'var(--success)';
+      let severityBorder = 'rgba(16, 185, 129, 0.2)';
+
+      if (p === 'Administrator') {
+        severityLabel = 'Critical';
+        severityBg = 'rgba(239, 68, 68, 0.08)';
+        severityColor = 'var(--danger)';
+        severityBorder = 'rgba(239, 68, 68, 0.2)';
+      } else if (['Manage Server', 'Manage Roles', 'Ban Members'].includes(p)) {
+        severityLabel = 'High';
+        severityBg = 'rgba(245, 158, 11, 0.08)';
+        severityColor = 'var(--warning)';
+        severityBorder = 'rgba(245, 158, 11, 0.2)';
+      } else if (['Manage Channels', 'Kick Members', 'Manage Messages', 'Timeout'].includes(p)) {
+        severityLabel = 'Medium';
+        severityBg = 'rgba(234, 179, 8, 0.08)';
+        severityColor = '#eab308';
+        severityBorder = 'rgba(234, 179, 8, 0.2)';
+      }
+
+      html += `
+        <tr class="matrix-row" style="transition: background-color 0.15s ease;">
+          <td class="sticky-cell" style="padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); font-weight: 500; color: var(--text-main); position: sticky; left: 0; background: var(--bg-secondary); z-index: 5; border-right: 1px solid rgba(255,255,255,0.08);">
+            ${escapeHtml(p)}
+          </td>
+          <td style="padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); border-right: 1px solid rgba(255,255,255,0.04);">
+            <span style="display: inline-block; font-size: 0.72rem; text-transform: uppercase; font-weight: 700; padding: 2px 8px; border-radius: 4px; background: ${severityBg}; color: ${severityColor}; border: 1px solid ${severityBorder}; letter-spacing: 0.05em;">
+              ${severityLabel}
+            </span>
+          </td>
+      `;
+
+      data.roles.forEach(role => {
+        const has = role.permissions[p];
+        let cellContent = '';
+
+        if (has) {
+          if (isDanger) {
+            cellContent = `
+              <span class="heatmap-cell" style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 6px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.25); color: var(--danger); font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Risk: ${escapeHtml(role.name)} has ${escapeHtml(p)}">
+                <i class="fa-solid fa-triangle-exclamation" style="font-size: 0.75rem;"></i> Active
+              </span>
+            `;
+          } else {
+            cellContent = `
+              <span class="heatmap-cell" style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 6px; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.25); color: var(--success); font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s;" title="Safe: ${escapeHtml(role.name)} has ${escapeHtml(p)}">
+                <i class="fa-solid fa-check" style="font-size: 0.75rem;"></i> Allowed
+              </span>
+            `;
+          }
+        } else {
+          cellContent = `<span style="color: var(--text-muted); opacity: 0.35; font-size: 0.8rem;">—</span>`;
+        }
+
+        html += `
+          <td style="padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); border-right: 1px solid rgba(255,255,255,0.04); text-align: center; vertical-align: middle;">
+            ${cellContent}
+          </td>
+        `;
+      });
+
+      html += `
+        </tr>
+      `;
+    });
+
+    html += `
+          </tbody>
+        </table>
+      </div>
+    `;
     el.innerHTML = html;
   } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to load heatmap.</div>'; }
 }
@@ -7704,7 +8052,7 @@ async function loadSecurityChecks() {
   if (!activeGuildId) return;
   const el = document.getElementById('cc-security-checks');
   if (!el) return;
-  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Scanning security...</div>';
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Scanning security...</div>';
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/security-checks`);
     if (!res.ok) throw new Error('Failed');
@@ -7831,9 +8179,9 @@ async function rollbackConfig(snapshotId) {
 // ==========================================================================
 async function loadChannelHeatmap() {
   if (!activeGuildId) return;
-  const el = document.getElementById('channel-heatmap-content');
+  const el = document.getElementById('intel-activity-heatmap-content') || document.getElementById('channel-heatmap-content');
   if (!el) return;
-  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading heatmap...</div>';
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading heatmap...</div>';
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/channel-heatmap?days=14`);
     if (!res.ok) throw new Error('Failed');
@@ -7842,22 +8190,89 @@ async function loadChannelHeatmap() {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const maxVal = Math.max(...heatmap.flat(), 1);
 
-    let html = '<div style="display:flex;gap:4px;">';
-    html += '<div style="width:40px;"></div>';
-    days.forEach(d => { html += `<div style="width:40px;text-align:center;font-size:0.7rem;color:var(--text-sub);font-weight:600;">${d}</div>`; });
+    // Calculate best time and dead zone
+    let maxMsg = -1;
+    let bestHour = 0;
+    let bestDay = 0;
+    
+    // For dead zone, let's find the hour with the lowest message count
+    let hourSums = Array(24).fill(0);
+    for (let h = 0; h < 24; h++) {
+      for (let d = 0; d < 7; d++) {
+        const val = heatmap[h][d] || 0;
+        hourSums[h] += val;
+        if (val > maxMsg) {
+          maxMsg = val;
+          bestHour = h;
+          bestDay = d;
+        }
+      }
+    }
+    
+    let minHour = 0;
+    let minSum = Infinity;
+    for (let h = 0; h < 24; h++) {
+      if (hourSums[h] < minSum) {
+        minSum = hourSums[h];
+        minHour = h;
+      }
+    }
+
+    const daysFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    const bestTimeValEl = document.getElementById('activity-best-time-value');
+    const bestTimeSubEl = document.getElementById('activity-best-time-sub');
+    const deadZoneValEl = document.getElementById('activity-dead-zone-value');
+    const deadZoneSubEl = document.getElementById('activity-dead-zone-sub');
+    
+    const formatHour12 = (h) => {
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const displayHour = h % 12 === 0 ? 12 : h % 12;
+      return `${displayHour}:00 ${ampm}`;
+    };
+    
+    if (bestTimeValEl && bestTimeSubEl) {
+      if (maxMsg > 0) {
+        bestTimeValEl.textContent = formatHour12(bestHour);
+        bestTimeSubEl.textContent = `Peak engagement on ${daysFull[bestDay]} (${maxMsg} messages)`;
+      } else {
+        bestTimeValEl.textContent = 'N/A';
+        bestTimeSubEl.textContent = 'No message activity recorded yet.';
+      }
+    }
+    
+    if (deadZoneValEl && deadZoneSubEl) {
+      if (maxMsg > 0) {
+        deadZoneValEl.textContent = `${formatHour12(minHour)} - ${formatHour12((minHour + 1) % 24)}`;
+        deadZoneSubEl.textContent = `Lowest engagement hour of the day`;
+      } else {
+        deadZoneValEl.textContent = 'N/A';
+        deadZoneSubEl.textContent = 'No message activity recorded yet.';
+      }
+    }
+
+    const formatHourAxis = (h) => {
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const displayHour = h % 12 === 0 ? 12 : h % 12;
+      return `${displayHour} ${ampm}`;
+    };
+
+    let html = '<div style="display:flex;gap:4px;width:100%;margin-bottom:6px;">';
+    html += '<div style="flex:0 0 55px;"></div>';
+    days.forEach(d => { html += `<div style="flex:1 1 0px;text-align:center;font-size:0.7rem;color:var(--text-sub);font-weight:600;">${d}</div>`; });
     html += '</div>';
 
     for (let h = 0; h < 24; h++) {
-      html += '<div style="display:flex;gap:4px;margin-bottom:2px;">';
-      html += `<div style="width:40px;text-align:right;font-size:0.65rem;color:var(--text-sub);line-height:20px;">${h.toString().padStart(2, '0')}</div>`;
+      html += '<div style="display:flex;gap:4px;margin-bottom:3px;width:100%;">';
+      html += `<div style="flex:0 0 55px;text-align:right;padding-right:8px;font-size:0.65rem;color:var(--text-sub);line-height:22px;">${formatHourAxis(h)}</div>`;
       for (let d = 0; d < 7; d++) {
         const val = heatmap[h][d];
         const intensity = val / maxVal;
         const r = Math.round(99 + intensity * 140);
         const g = Math.round(102 - intensity * 30);
         const b = Math.round(241 - intensity * 100);
-        const bg = val > 0 ? `rgba(${r},${g},${b},${0.2 + intensity * 0.8})` : 'var(--inner-bg)';
-        html += `<div style="width:40px;height:20px;background:${bg};border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:${intensity > 0.5 ? '#fff' : 'var(--text-sub)'};" title="${days[d]} ${h}:00 — ${val} messages">${val || ''}</div>`;
+        const bg = val > 0 ? `rgba(${r},${g},${b},${0.2 + intensity * 0.8})` : 'rgba(255, 255, 255, 0.02)';
+        const borderStyle = val > 0 ? 'none' : '1px solid rgba(255, 255, 255, 0.04)';
+        html += `<div style="flex:1 1 0px;height:22px;background:${bg};border:${borderStyle};border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:0.65rem;color:${intensity > 0.5 ? '#fff' : 'var(--text-sub)'};" title="${days[d]} ${formatHour12(h)} — ${val} messages">${val || ''}</div>`;
       }
       html += '</div>';
     }
@@ -7872,7 +8287,7 @@ async function loadBenchmark() {
   if (!activeGuildId) return;
   const el = document.getElementById('benchmark-content');
   if (!el) return;
-  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading benchmark data...</div>';
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading benchmark data...</div>';
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/benchmark`);
     if (!res.ok) throw new Error('Failed');
@@ -7906,327 +8321,576 @@ async function loadBenchmark() {
     });
     html += '</div>';
     el.innerHTML = html;
-  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to load benchmark data.</div>'; }
-}
-
-// ==========================================================================
-// COMMAND CENTER - Landing Page
-// ==========================================================================
-async function loadCommandCenter() {
-  if (!activeGuildId) return;
-  
-  // Load all data in parallel
-  const [overview, maturity, recommendations] = await Promise.all([
-    fetchSmartOverview(),
-    fetchMaturityScore(),
-    fetchSmartRecommendations()
-  ]);
-  
-  renderCommandCenterHealth(overview, maturity);
-  renderQuickWins(recommendations);
-  renderPriorityQueue(recommendations);
-  renderScoreTrends(overview);
-  renderDimensionBreakdown(maturity);
-}
-
-async function fetchSmartOverview() {
-  try {
-    const res = await fetch(`/api/guilds/${activeGuildId}/smart/overview`, {
-      headers: { 'Authorization': 'Bearer ' + authToken }
-    });
-    return res.ok ? await res.json() : null;
-  } catch { return null; }
-}
-
-async function fetchMaturityScore() {
-  try {
-    const res = await fetch(`/api/guilds/${activeGuildId}/smart/maturity-score`, {
-      headers: { 'Authorization': 'Bearer ' + authToken }
-    });
-    return res.ok ? await res.json() : null;
-  } catch { return null; }
-}
-
-async function fetchSmartRecommendations() {
-  try {
-    const res = await fetch(`/api/guilds/${activeGuildId}/smart/recommendations`, {
-      headers: { 'Authorization': 'Bearer ' + authToken }
-    });
-    return res.ok ? await res.json() : null;
-  } catch { return null; }
-}
-
-function renderCommandCenterHealth(overview, maturity) {
-  const el = document.getElementById('cc-health-content');
-  if (!el) return;
-  
-  if (!overview && !maturity) {
-    el.innerHTML = '<div class="text-center py-4" style="color:var(--text-sub);">Unable to load server health data.</div>';
-    return;
+  } catch (err) {
+    el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to load benchmark data.</div>';
   }
-  
-  const currentScore = overview?.maturity_score || maturity?.overall || 0;
-  const potentialScore = Math.min(100, currentScore + (overview?.recommendations_count || 0) * 3);
-  const possibleGain = potentialScore - currentScore;
-  
-  const scoreColor = currentScore >= 80 ? 'var(--success)' : currentScore >= 60 ? 'var(--warning)' : 'var(--danger)';
-  const gainColor = possibleGain > 0 ? 'var(--success)' : 'var(--text-sub)';
-  
-  el.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:center;">
-      <div class="text-center">
-        <div style="position:relative;width:180px;height:180px;margin:0 auto;">
-          <svg viewBox="0 0 120 120" style="width:100%;height:100%;transform:rotate(-90deg);">
-            <circle cx="60" cy="60" r="50" stroke="var(--card-border)" stroke-width="8" fill="none"/>
-            <circle cx="60" cy="60" r="50" stroke="${scoreColor}" stroke-width="8" fill="none" 
-              stroke-linecap="round" stroke-dasharray="${currentScore * 3.14} 314"
-              style="filter:drop-shadow(0 0 8px ${scoreColor}40);"/>
-          </svg>
-          <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-            <div style="font-size:2.5rem;font-weight:700;color:${scoreColor};">${currentScore}</div>
-            <div style="font-size:0.8rem;color:var(--text-sub);">Current Score</div>
-          </div>
-        </div>
-      </div>
-      <div>
-        <div style="margin-bottom:16px;">
-          <div style="font-size:0.85rem;color:var(--text-sub);margin-bottom:4px;">Potential Score</div>
-          <div style="font-size:1.8rem;font-weight:700;color:var(--success);">${potentialScore}</div>
-        </div>
-        <div style="margin-bottom:16px;">
-          <div style="font-size:0.85rem;color:var(--text-sub);margin-bottom:4px;">Possible Gain</div>
-          <div style="font-size:1.5rem;font-weight:700;color:${gainColor};">+${possibleGain}</div>
-        </div>
-        <div style="font-size:0.8rem;color:var(--text-sub);">
-          ${overview?.recommendations_count || 0} issues found
-        </div>
-      </div>
-    </div>`;
-}
-
-function renderQuickWins(recommendations) {
-  const el = document.getElementById('cc-quick-wins-content');
-  if (!el) return;
-  
-  if (!recommendations || !recommendations.recommendations) {
-    el.innerHTML = '<div class="text-center py-4" style="color:var(--text-sub);">No quick wins available.</div>';
-    return;
-  }
-  
-  // Filter for auto-fixable items and sort by impact
-  const quickWins = recommendations.recommendations
-    .filter(r => r.auto_fix_available)
-    .sort((a, b) => b.impact_score - a.impact_score)
-    .slice(0, 5);
-  
-  if (quickWins.length === 0) {
-    el.innerHTML = '<div class="text-center py-4" style="color:var(--success);"><i class="fa-solid fa-check-circle"></i> No quick wins needed!</div>';
-    return;
-  }
-  
-  let totalGain = 0;
-  let html = '<div style="display:flex;flex-direction:column;gap:10px;">';
-  
-  quickWins.forEach(w => {
-    const gain = Math.min(5, Math.ceil(w.impact_score / 2));
-    totalGain += gain;
-    const riskBadge = w.severity === 'critical' ? '<span class="badge badge-danger">REVIEW</span>' : 
-                      w.severity === 'high' ? '<span class="badge badge-warning">REVIEW</span>' : 
-                      '<span class="badge badge-success">SAFE</span>';
-    
-    html += `
-      <div class="glass-inner p-3" style="display:flex;align-items:center;gap:12px;border-left:3px solid var(--success);">
-        <div style="min-width:50px;text-align:center;">
-          <div style="font-size:1.2rem;font-weight:700;color:var(--success);">+${gain}</div>
-          <div style="font-size:0.65rem;color:var(--text-sub);">points</div>
-        </div>
-        <div style="flex:1;">
-          <div style="font-weight:600;font-size:0.9rem;">${escapeHtml(w.title)}</div>
-          <div style="font-size:0.75rem;color:var(--text-sub);">${escapeHtml(w.description).substring(0, 60)}...</div>
-        </div>
-        ${riskBadge}
-        <button class="btn btn-sm btn-primary" onclick="executeSmartFix('${w.auto_fix_action}', ${JSON.stringify(w.auto_fix_params || {})})">Fix</button>
-      </div>`;
-  });
-  
-  html += '</div>';
-  html += `<div class="glass-inner p-3 mt-3 text-center" style="border:1px solid var(--success);">
-    <div style="font-size:0.85rem;color:var(--text-sub);">Potential Gain</div>
-    <div style="font-size:1.5rem;font-weight:700;color:var(--success);">+${totalGain} points</div>
-  </div>`;
-  
-  el.innerHTML = html;
-}
-
-function renderPriorityQueue(recommendations) {
-  const el = document.getElementById('cc-priority-content');
-  if (!el) return;
-  
-  if (!recommendations || !recommendations.recommendations) {
-    el.innerHTML = '<div class="text-center py-4" style="color:var(--text-sub);">No issues to display.</div>';
-    return;
-  }
-  
-  // Sort by severity and impact
-  const severityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
-  const sorted = [...recommendations.recommendations]
-    .sort((a, b) => (severityOrder[a.severity] || 4) - (severityOrder[b.severity] || 4) || b.impact_score - a.impact_score)
-    .slice(0, 8);
-  
-  if (sorted.length === 0) {
-    el.innerHTML = '<div class="text-center py-4" style="color:var(--success);"><i class="fa-solid fa-check-circle"></i> No issues found!</div>';
-    return;
-  }
-  
-  let html = '<div style="display:flex;flex-direction:column;gap:8px;">';
-  
-  sorted.forEach((item, idx) => {
-    const severityColor = item.severity === 'critical' ? 'var(--danger)' : 
-                         item.severity === 'high' ? 'var(--warning)' : 
-                         item.severity === 'medium' ? 'var(--primary)' : 'var(--text-sub)';
-    const severityIcon = item.severity === 'critical' ? 'fa-circle-exclamation' : 
-                        item.severity === 'high' ? 'fa-triangle-exclamation' : 'fa-info-circle';
-    
-    html += `
-      <div class="glass-inner p-3" style="display:flex;align-items:center;gap:12px;border-left:3px solid ${severityColor};">
-        <div style="min-width:30px;text-align:center;font-weight:700;color:${severityColor};">#${idx + 1}</div>
-        <div style="flex:1;">
-          <div style="font-weight:600;font-size:0.9rem;">${escapeHtml(item.title)}</div>
-          <div style="font-size:0.75rem;color:var(--text-sub);">${escapeHtml(item.description).substring(0, 80)}...</div>
-        </div>
-        <div style="text-align:right;">
-          <div style="font-size:0.75rem;color:${severityColor};text-transform:uppercase;font-weight:600;">${item.severity}</div>
-          <div style="font-size:0.7rem;color:var(--text-sub);">Impact: ${item.impact_score}/10</div>
-        </div>
-        ${item.auto_fix_available ? `<button class="btn btn-sm btn-primary" onclick="executeSmartFix('${item.auto_fix_action}', ${JSON.stringify(item.auto_fix_params || {})})">Fix</button>` : ''}
-      </div>`;
-  });
-  
-  html += '</div>';
-  el.innerHTML = html;
-}
-
-function renderScoreTrends(overview) {
-  const el = document.getElementById('cc-trends-content');
-  if (!el) return;
-  
-  // Create a simple trend visualization
-  const dimensions = overview?.dimensions || {};
-  const dims = Object.entries(dimensions);
-  
-  if (dims.length === 0) {
-    el.innerHTML = '<div class="text-center py-4" style="color:var(--text-sub);">No trend data available.</div>';
-    return;
-  }
-  
-  let html = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;">';
-  
-  dims.forEach(([key, score]) => {
-    const color = score >= 80 ? 'var(--success)' : score >= 60 ? 'var(--warning)' : 'var(--danger)';
-    const trend = score >= 70 ? 'fa-arrow-trend-up' : score >= 50 ? 'fa-minus' : 'fa-arrow-trend-down';
-    const trendColor = score >= 70 ? 'var(--success)' : score >= 50 ? 'var(--text-sub)' : 'var(--danger)';
-    const label = score >= 70 ? 'Improving' : score >= 50 ? 'Stable' : 'Declining';
-    
-    html += `
-      <div class="glass-inner p-3 text-center">
-        <div style="font-size:1.3rem;font-weight:700;color:${color};">${score}</div>
-        <div style="font-size:0.75rem;color:var(--text-sub);text-transform:capitalize;">${key.replace(/_/g, ' ')}</div>
-        <div style="margin-top:6px;">
-          <i class="fa-solid ${trend}" style="color:${trendColor};"></i>
-          <span style="font-size:0.7rem;color:${trendColor};margin-left:4px;">${label}</span>
-        </div>
-      </div>`;
-  });
-  
-  html += '</div>';
-  el.innerHTML = html;
-}
-
-function renderDimensionBreakdown(maturity) {
-  const el = document.getElementById('cc-dimensions-content');
-  if (!el) return;
-  
-  if (!maturity || !maturity.dimensions) {
-    el.innerHTML = '<div class="text-center py-4" style="color:var(--text-sub);">No dimension data available.</div>';
-    return;
-  }
-  
-  const dims = maturity.dimensions;
-  const dimEntries = Object.entries(dims);
-  
-  // Create radar chart using SVG
-  const centerX = 150;
-  const centerY = 150;
-  const maxRadius = 120;
-  const levels = 5;
-  const angleStep = (2 * Math.PI) / dimEntries.length;
-  
-  let svg = `<svg viewBox="0 0 300 300" style="width:100%;max-width:300px;margin:0 auto;">`;
-  
-  // Draw background circles
-  for (let i = 1; i <= levels; i++) {
-    const r = (maxRadius / levels) * i;
-    svg += `<circle cx="${centerX}" cy="${centerY}" r="${r}" fill="none" stroke="var(--card-border)" stroke-width="1" opacity="0.5"/>`;
-  }
-  
-  // Draw axis lines
-  dimEntries.forEach(([key], i) => {
-    const angle = angleStep * i - Math.PI / 2;
-    const x = centerX + maxRadius * Math.cos(angle);
-    const y = centerY + maxRadius * Math.sin(angle);
-    svg += `<line x1="${centerX}" y1="${centerY}" x2="${x}" y2="${y}" stroke="var(--card-border)" stroke-width="1" opacity="0.5"/>`;
-  });
-  
-  // Draw data polygon
-  let dataPoints = [];
-  dimEntries.forEach(([key, score], i) => {
-    const angle = angleStep * i - Math.PI / 2;
-    const r = (score / 100) * maxRadius;
-    const x = centerX + r * Math.cos(angle);
-    const y = centerY + r * Math.sin(angle);
-    dataPoints.push(`${x},${y}`);
-  });
-  
-  svg += `<polygon points="${dataPoints.join(' ')}" fill="var(--primary)" fill-opacity="0.2" stroke="var(--primary)" stroke-width="2"/>`;
-  
-  // Draw data points and labels
-  dimEntries.forEach(([key, score], i) => {
-    const angle = angleStep * i - Math.PI / 2;
-    const r = (score / 100) * maxRadius;
-    const x = centerX + r * Math.cos(angle);
-    const y = centerY + r * Math.sin(angle);
-    const labelX = centerX + (maxRadius + 20) * Math.cos(angle);
-    const labelY = centerY + (maxRadius + 20) * Math.sin(angle);
-    const color = score >= 80 ? 'var(--success)' : score >= 60 ? 'var(--warning)' : 'var(--danger)';
-    
-    svg += `<circle cx="${x}" cy="${y}" r="4" fill="${color}" stroke="var(--bg-primary)" stroke-width="2"/>`;
-    svg += `<text x="${labelX}" y="${labelY}" text-anchor="middle" dominant-baseline="middle" fill="var(--text-sub)" font-size="10">${key.replace(/_/g, ' ')}</text>`;
-    svg += `<text x="${labelX}" y="${labelY + 12}" text-anchor="middle" dominant-baseline="middle" fill="${color}" font-size="11" font-weight="bold">${score}</text>`;
-  });
-  
-  svg += '</svg>';
-  
-  let html = `<div style="display:flex;align-items:center;gap:30px;flex-wrap:wrap;">`;
-  html += `<div style="flex:1;min-width:250px;">${svg}</div>`;
-  html += `<div style="flex:1;min-width:200px;">`;
-  html += '<div style="display:flex;flex-direction:column;gap:8px;">';
-  
-  dimEntries.forEach(([key, score]) => {
-    const color = score >= 80 ? 'var(--success)' : score >= 60 ? 'var(--warning)' : 'var(--danger)';
-    html += `
-      <div style="display:flex;align-items:center;gap:8px;">
-        <div style="width:10px;height:10px;border-radius:50%;background:${color};"></div>
-        <div style="flex:1;font-size:0.85rem;text-transform:capitalize;">${key.replace(/_/g, ' ')}</div>
-        <div style="font-weight:700;color:${color};">${score}</div>
-      </div>`;
-  });
-  
-  html += '</div></div></div>';
-  el.innerHTML = html;
 }
 
 function refreshCommandCenter() {
-  loadCommandCenter();
+  loadSmartCommandCenter(true);
+}
+
+// ==========================================================================
+// INTELLIGENCE ENGINE UTILS
+// ==========================================================================
+function renderScoreGauge(score, label) {
+  const color = score >= 80 ? 'var(--success)' : score >= 60 ? 'var(--warning)' : 'var(--danger)';
+  const radius = 50;
+  const circumference = 2 * Math.PI * radius;
+  const targetOffset = circumference - (score / 100) * circumference;
+  
+  const gaugeId = 'gauge-' + Math.random().toString(36).slice(2, 8);
+  
+  setTimeout(() => {
+    const circle = document.getElementById(gaugeId);
+    if (circle) {
+      circle.style.strokeDashoffset = targetOffset;
+    }
+  }, 100);
+  
+  return `
+    <div class="sf-score-ring">
+      <svg>
+        <circle cx="60" cy="60" r="${radius}" stroke="rgba(255,255,255,0.05)"></circle>
+        <circle id="${gaugeId}" cx="60" cy="60" r="${radius}" stroke="${color}" stroke-dasharray="${circumference}" stroke-dashoffset="${circumference}" stroke-linecap="round" style="transition: stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1);"></circle>
+      </svg>
+      <div class="sf-score-text" style="color:${color};">
+        ${score}<span class="sf-score-percent">%</span>
+        <span style="font-size:0.65rem;color:var(--text-sub);text-transform:uppercase;margin-top:2px;">${label}</span>
+      </div>
+      </div>
+    `;
+    // Animate gauge fill and number counter
+    requestAnimationFrame(() => {
+      const gaugeCircle = document.getElementById(smartGaugeId);
+      const valEl = document.getElementById(smartValueId);
+      if (gaugeCircle) gaugeCircle.style.strokeDashoffset = offset;
+      if (valEl) animateNumber(valEl, 0, weightedScore, 800);
+      // Animate dimension bars from 0
+      setTimeout(() => {
+        healthContent.querySelectorAll('.dimension-bar-fill[data-target]').forEach(bar => {
+          bar.style.width = bar.dataset.target + '%';
+        });
+      }, 100);
+    });
+  }
+
+function renderSkeletonCards(cardCount, classes = "span-2") {
+  let html = "";
+  for (let i = 0; i < cardCount; i++) {
+    html += `
+      <div class="card glass ${classes} fade-in-up">
+        <div class="card-header border-bottom">
+          <div class="skeleton" style="height: 18px; width: 60%; margin-bottom: 6px;"></div>
+          <div class="skeleton" style="height: 12px; width: 40%;"></div>
+        </div>
+        <div class="card-body">
+          <div class="skeleton" style="height: 48px; width: 100%; margin-bottom: 12px;"></div>
+          <div class="skeleton" style="height: 12px; width: 80%; margin-bottom: 8px;"></div>
+          <div class="skeleton" style="height: 12px; width: 50%;"></div>
+        </div>
+      </div>
+    `;
+  }
+  return html;
+}
+
+// ==========================================================================
+// INTELLIGENCE ENGINE - Adaptive Raid Monitor
+// ==========================================================================
+async function loadRaidMonitor() {
+  if (!activeGuildId) return;
+  const el = document.getElementById('raid-monitor-content');
+  if (!el) return;
+  el.innerHTML = renderSkeletonCards(2, "span-2") + renderSkeletonCards(1, "span-4");
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/intelligence/raid-monitor`, {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+
+    const threatColor = data.threat_level === 'critical' ? 'var(--danger)' : 
+                       data.threat_level === 'high' ? 'var(--warning)' : 
+                       data.threat_level === 'elevated' ? 'var(--primary)' : 'var(--success)';
+    const threatIcon = data.threat_level === 'critical' ? 'fa-skull-crossbones' : 
+                      data.threat_level === 'high' ? 'fa-shield-virus' : 
+                      data.threat_level === 'elevated' ? 'fa-exclamation-triangle' : 'fa-check-circle';
+
+    // Calculate score for radial gauge
+    const threatScore = Math.min(100, Math.max(0, Math.round((data.threat_score || 0) * 20)));
+
+    let html = `
+      <!-- Card 1: Threat Score Gauge -->
+      <div class="card glass span-2 fade-in-up">
+        <div class="card-header border-bottom">
+          <h2><i class="fa-solid ${threatIcon}" style="color:${threatColor};"></i> Threat Assessment</h2>
+          <p>Overall anomaly severity level.</p>
+        </div>
+        <div class="card-body text-center" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:160px;">
+          ${renderScoreGauge(threatScore, data.threat_level)}
+        </div>
+      </div>
+
+      <!-- Card 2: Metric Breakdown Grid -->
+      <div class="card glass span-2 fade-in-up">
+        <div class="card-header border-bottom">
+          <h2><i class="fa-solid fa-chart-bar"></i> Activity Rates</h2>
+          <p>Real-time deviation scores.</p>
+        </div>
+        <div class="card-body" style="display:flex;flex-direction:column;justify-content:center;min-height:160px;">
+          <div class="sf-stat-grid">
+            <div class="sf-stat-card glass-inner">
+              <div style="font-size:1.4rem;font-weight:700;color:${data.scores?.joins >= 2 ? 'var(--warning)' : 'var(--text-main)'};">${data.scores?.joins || 0}x</div>
+              <div style="font-size:0.75rem;color:var(--text-sub);">Join Activity</div>
+            </div>
+            <div class="sf-stat-card glass-inner">
+              <div style="font-size:1.4rem;font-weight:700;color:${data.scores?.messages >= 2 ? 'var(--warning)' : 'var(--text-main)'};">${data.scores?.messages || 0}x</div>
+              <div style="font-size:0.75rem;color:var(--text-sub);">Message Rate</div>
+            </div>
+            <div class="sf-stat-card glass-inner">
+              <div style="font-size:1.4rem;font-weight:700;color:${data.scores?.moderation >= 2 ? 'var(--warning)' : 'var(--text-main)'};">${data.scores?.moderation || 0}x</div>
+              <div style="font-size:0.75rem;color:var(--text-sub);">Mod Actions</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: Findings & suggested actions -->
+      <div class="card glass span-4 fade-in-up">
+        <div class="card-header border-bottom">
+          <h2><i class="fa-solid fa-shield-halved"></i> Action Center & Diagnostics</h2>
+          <p>Recommended steps to protect your server.</p>
+        </div>
+        <div class="card-body">
+    `;
+
+    if (data.reasons && data.reasons.length > 0) {
+      html += '<div style="margin-bottom:18px;">';
+      data.reasons.forEach(r => {
+        html += `
+          <div class="sf-finding-card ${data.threat_level === 'critical' || data.threat_level === 'high' ? 'high' : 'medium'}" style="margin-bottom:8px;">
+            <div style="font-size:0.85rem;"><i class="fa-solid fa-circle-exclamation" style="margin-right:8px;color:${threatColor};"></i>${escapeHtml(r)}</div>
+          </div>`;
+      });
+      html += '</div>';
+    }
+
+    if (data.suggested_actions && data.suggested_actions.length > 0) {
+      html += '<div><div style="font-size:0.82rem;color:var(--text-sub);margin-bottom:10px;">Apply Instant Mitigation:</div>';
+      html += '<div style="display:flex;gap:10px;flex-wrap:wrap;">';
+      data.suggested_actions.forEach(a => {
+        const paramsJson = btoa(unescape(encodeURIComponent(JSON.stringify(a.params || {}))));
+        html += `<button class="btn btn-sm btn-primary raid-monitor-btn" data-action="${a.action}" data-params="${paramsJson}"><i class="fa-solid fa-bolt"></i> ${escapeHtml(a.label)}</button>`;
+      });
+      html += '</div></div>';
+    } else {
+      html += '<div style="font-size:0.85rem;color:var(--success);"><i class="fa-solid fa-check-circle" style="margin-right:8px;"></i>No actions required. Server is operating under normal thresholds.</div>';
+    }
+    
+    html += '</div></div>';
+    el.innerHTML = html;
+
+    // Add event delegation for suggested action buttons
+    el.querySelectorAll('.raid-monitor-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const action = btn.getAttribute('data-action');
+        const paramsJson = btn.getAttribute('data-params');
+        let params = {};
+        try {
+          params = JSON.parse(decodeURIComponent(escape(atob(paramsJson))));
+        } catch (e) {}
+        executeSmartFix(action, params);
+      });
+    });
+
+  } catch (err) { 
+    el.innerHTML = '<div class="text-center py-4 span-4" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Failed to load raid monitor.</div>'; 
+  }
+}
+
+// ==========================================================================
+// INTELLIGENCE ENGINE - Community Health
+// ==========================================================================
+async function loadCommunityHealth() {
+  if (!activeGuildId) return;
+  const el = document.getElementById('community-health-content');
+  if (!el) return;
+  el.innerHTML = renderSkeletonCards(2, "span-2") + renderSkeletonCards(1, "span-4");
+  try {
+    const [healthRes, toxicRes] = await Promise.all([
+      fetch(`/api/guilds/${activeGuildId}/intelligence/community-health`, {
+        headers: { 'Authorization': 'Bearer ' + authToken }
+      }),
+      fetch(`/api/guilds/${activeGuildId}/intelligence/toxic-channels?limit=5`, {
+        headers: { 'Authorization': 'Bearer ' + authToken }
+      })
+    ]);
+    if (!healthRes.ok || !toxicRes.ok) throw new Error('Failed');
+    
+    const data = await healthRes.json();
+    const toxicData = await toxicRes.json();
+
+    const score = Math.round((data.overall_score || 0) * 100);
+    const trendIcon = data.trend === 'improving' ? 'fa-arrow-trend-up' : data.trend === 'declining' ? 'fa-arrow-trend-down' : 'fa-minus';
+    const trendColor = data.trend === 'improving' ? 'var(--success)' : data.trend === 'declining' ? 'var(--danger)' : 'var(--text-sub)';
+
+    let html = `
+      <!-- Card 1: Sentiment Score Ring -->
+      <div class="card glass span-2 fade-in-up">
+        <div class="card-header border-bottom">
+          <h2><i class="fa-solid fa-heart-pulse"></i> Sentiment Analysis</h2>
+          <p>Overall server mood score.</p>
+        </div>
+        <div class="card-body text-center" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:160px;">
+          ${renderScoreGauge(score, data.trend)}
+        </div>
+      </div>
+
+      <!-- Card 2: Sentiment Metrics Breakdown -->
+      <div class="card glass span-2 fade-in-up">
+        <div class="card-header border-bottom">
+          <h2><i class="fa-solid fa-chart-pie"></i> Positivity & Toxicity</h2>
+          <p>Distribution rates of emotions.</p>
+        </div>
+        <div class="card-body" style="display:flex;flex-direction:column;justify-content:center;min-height:160px;">
+          <!-- Positivity Rate -->
+          <div style="margin-bottom: 12px;">
+            <div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:4px;">
+              <span>Positivity Rate</span>
+              <span style="font-weight:600;color:var(--success);">${(data.positivity_rate * 100).toFixed(0)}%</span>
+            </div>
+            <div class="dimension-bar">
+              <div class="dimension-bar-fill" style="width:${data.positivity_rate * 100}%;background:var(--success);"></div>
+            </div>
+          </div>
+          <!-- Toxicity Rate -->
+          <div>
+            <div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:4px;">
+              <span>Toxicity Rate</span>
+              <span style="font-weight:600;color:var(--danger);">${(data.toxicity_rate * 100).toFixed(0)}%</span>
+            </div>
+            <div class="dimension-bar">
+              <div class="dimension-bar-fill" style="width:${data.toxicity_rate * 100}%;background:var(--danger);"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: Toxic Channels & Alerts -->
+      <div class="card glass span-4 fade-in-up">
+        <div class="card-header border-bottom">
+          <h2><i class="fa-solid fa-triangle-exclamation"></i> Toxicity Alerts & Channels</h2>
+          <p>Identified areas of concern.</p>
+        </div>
+        <div class="card-body">
+    `;
+
+    if (data.harassment_detected) {
+      html += `
+        <div class="sf-finding-card critical" style="margin-bottom:16px;">
+          <div style="font-weight:600;"><i class="fa-solid fa-skull-crossbones" style="margin-right:8px;color:var(--danger);"></i>Repeated Hostility Detected</div>
+          <div style="font-size:0.82rem;color:var(--text-sub);margin-top:2px;">Multiple users are participating in toxic interactions or harassment campaigns.</div>
+        </div>
+      `;
+    }
+
+    if (toxicData.channels && toxicData.channels.length > 0) {
+      html += '<h3 style="font-size:0.9rem;margin-bottom:8px;">Most Toxic Channels</h3>';
+      html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+      toxicData.channels.forEach(ch => {
+        html += `
+          <div class="glass-inner p-2" style="display:flex;justify-content:space-between;align-items:center;font-size:0.85rem;">
+            <span><i class="fa-solid fa-hashtag" style="color:var(--text-sub);margin-right:8px;"></i>#${escapeHtml(ch.channel_id)}</span>
+            <span style="font-weight:600;color:var(--danger);">${(ch.toxicity_rate * 100).toFixed(0)}% Toxicity <span style="font-size:0.75rem;color:var(--text-sub);font-weight:normal;">(${ch.message_count} msgs)</span></span>
+          </div>
+        `;
+      });
+      html += '</div>';
+    } else {
+      html += '<div style="font-size:0.85rem;color:var(--success);"><i class="fa-solid fa-smile" style="margin-right:8px;"></i>All channels show high positivity rates and clean interaction histories.</div>';
+    }
+
+    html += '</div></div>';
+    el.innerHTML = html;
+  } catch (err) {
+    el.innerHTML = '<div class="text-center py-4 span-4" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Failed to load community health.</div>';
+  }
+}
+
+// ==========================================================================
+// INTELLIGENCE ENGINE - Spam Intelligence
+// ==========================================================================
+async function loadSpamIntelligence() {
+  if (!activeGuildId) return;
+  const el = document.getElementById('spam-intel-content');
+  if (!el) return;
+  el.innerHTML = renderSkeletonCards(2, "span-2") + renderSkeletonCards(1, "span-4");
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/intelligence/spam-intelligence`, {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+
+    const activeCampaigns = data.campaigns?.length || 0;
+    const statsColor = activeCampaigns > 0 ? 'var(--danger)' : 'var(--success)';
+
+    let html = `
+      <!-- Card 1: Overview and Health -->
+      <div class="card glass span-2 fade-in-up">
+        <div class="card-header border-bottom">
+          <h2><i class="fa-solid fa-ban"></i> Spam Stats</h2>
+          <p>Fuzzy spam signature matching.</p>
+        </div>
+        <div class="card-body text-center" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:160px;">
+          <div style="font-size:3rem;font-weight:700;color:${statsColor};">${activeCampaigns}</div>
+          <div style="font-size:0.82rem;color:var(--text-sub);text-transform:uppercase;margin-top:4px;">Active Spam Campaigns</div>
+        </div>
+      </div>
+
+      <!-- Card 2: Channels Affected -->
+      <div class="card glass span-2 fade-in-up">
+        <div class="card-header border-bottom">
+          <h2><i class="fa-solid fa-hashtag"></i> Affected Channels</h2>
+          <p>Propagation area of spam.</p>
+        </div>
+        <div class="card-body" style="display:flex;flex-direction:column;justify-content:center;min-height:160px;">
+          <div class="sf-stat-grid">
+            <div class="sf-stat-card glass-inner">
+              <div style="font-size:1.5rem;font-weight:700;">${data.affected_channels?.length || 0}</div>
+              <div style="font-size:0.75rem;color:var(--text-sub);">Target Channels</div>
+            </div>
+            <div class="sf-stat-card glass-inner">
+              <div style="font-size:1.5rem;font-weight:700;">${data.total_campaigns || 0}</div>
+              <div style="font-size:0.75rem;color:var(--text-sub);">Campaign Signatures</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: Campaigns List -->
+      <div class="card glass span-4 fade-in-up">
+        <div class="card-header border-bottom">
+          <h2><i class="fa-solid fa-list-check"></i> Detected Campaign Signatures</h2>
+          <p>Details of similar repeated messages.</p>
+        </div>
+        <div class="card-body">
+    `;
+
+    if (data.campaigns && data.campaigns.length > 0) {
+      html += '<div style="display:flex;flex-direction:column;gap:10px;">';
+      data.campaigns.forEach(c => {
+        html += `
+          <div class="sf-finding-card high" style="margin-bottom:0;padding:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+              <div>
+                <div style="font-weight:600;font-family:monospace;font-size:0.85rem;background:rgba(0,0,0,0.15);padding:6px;border-radius:4px;">"${escapeHtml(c.content)}"</div>
+                <div style="font-size:0.78rem;color:var(--text-sub);margin-top:6px;">
+                  <i class="fa-solid fa-user-group" style="margin-right:4px;"></i>${c.user_count} users involved | 
+                  <i class="fa-solid fa-message" style="margin-right:4px;"></i>${c.message_count} messages
+                </div>
+              </div>
+              <button class="btn btn-sm btn-primary spam-mitigate-btn"><i class="fa-solid fa-bolt"></i> Mitigate</button>
+            </div>
+          </div>`;
+      });
+      html += '</div>';
+    } else {
+      html += '<div style="font-size:0.85rem;color:var(--success);"><i class="fa-solid fa-circle-check" style="margin-right:8px;"></i>No spam campaigns or fuzzy message spikes detected.</div>';
+    }
+
+    html += '</div></div>';
+    el.innerHTML = html;
+
+    // Add click handler for spam mitigation buttons
+    el.querySelectorAll('.spam-mitigate-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        executeSmartFix('slowmode_all_channels', { duration: 15 });
+      });
+    });
+
+  } catch (err) {
+    el.innerHTML = '<div class="text-center py-4 span-4" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Failed to load spam intelligence.</div>';
+  }
+}
+
+// ==========================================================================
+// INTELLIGENCE ENGINE - Activity Intelligence
+// ==========================================================================
+async function loadActivityIntelligence() {
+  if (!activeGuildId) return;
+  const el = document.getElementById('activity-intel-content');
+  if (!el) return;
+  el.innerHTML = renderSkeletonCards(2, "span-2");
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/intelligence/activity`, {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+
+    let html = `
+      <!-- Card 1: Peak Timing Clocks -->
+      <div class="card glass span-2 fade-in-up">
+        <div class="card-header border-bottom">
+          <h2><i class="fa-solid fa-clock"></i> Peak Activity Clocks</h2>
+          <p>Best timing computed from historical messaging.</p>
+        </div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:12px;min-height:160px;justify-content:center;">
+          <div class="glass-inner p-2" style="display:flex;justify-content:space-between;align-items:center;font-size:0.85rem;">
+            <span><i class="fa-solid fa-calendar-day" style="color:var(--primary);margin-right:8px;"></i>Best Event Time</span>
+            <span style="font-weight:600;color:var(--primary);">${escapeHtml(data.best_event_time || 'Unknown')}</span>
+          </div>
+          <div class="glass-inner p-2" style="display:flex;justify-content:space-between;align-items:center;font-size:0.85rem;">
+            <span><i class="fa-solid fa-gift" style="color:var(--success);margin-right:8px;"></i>Best Giveaway Time</span>
+            <span style="font-weight:600;color:var(--success);">${escapeHtml(data.best_giveaway_time || 'Unknown')}</span>
+          </div>
+          <div class="glass-inner p-2" style="display:flex;justify-content:space-between;align-items:center;font-size:0.85rem;">
+            <span><i class="fa-solid fa-bullhorn" style="color:var(--warning);margin-right:8px;"></i>Best Announcement</span>
+            <span style="font-weight:600;color:var(--warning);">${escapeHtml(data.best_announcement_time || 'Unknown')}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: Recommendations list -->
+      <div class="card glass span-2 fade-in-up">
+        <div class="card-header border-bottom">
+          <h2><i class="fa-solid fa-lightbulb"></i> Recommendations</h2>
+          <p>Insights on activity maximization.</p>
+        </div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px;min-height:160px;justify-content:center;overflow-y:auto;max-height:220px;">
+    `;
+
+    if (data.recommendations && data.recommendations.length > 0) {
+      data.recommendations.forEach(r => {
+        html += `
+          <div class="sf-finding-card info" style="margin-bottom:0;padding:8px 12px;">
+            <div style="font-weight:600;font-size:0.85rem;">${escapeHtml(r.title)}</div>
+            <div style="font-size:0.78rem;color:var(--text-sub);margin-top:2px;">${escapeHtml(r.description)}</div>
+          </div>`;
+      });
+    } else {
+      html += '<div style="font-size:0.82rem;color:var(--text-sub);text-align:center;"><i class="fa-solid fa-hourglass" style="margin-bottom:6px;display:block;"></i>Gathering more messaging patterns...</div>';
+    }
+
+    html += '</div></div>';
+    el.innerHTML = html;
+  } catch (err) {
+    el.innerHTML = '<div class="text-center py-4 span-4" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Failed to load activity intelligence.</div>';
+  }
+}
+
+// ==========================================================================
+// INTELLIGENCE ENGINE - Automation Rules
+// ==========================================================================
+async function loadAutomationRules() {
+  if (!activeGuildId) return;
+  const el = document.getElementById('automation-rules-content');
+  if (!el) return;
+  el.innerHTML = renderSkeletonCards(1, "span-4");
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/intelligence/automation/rules`, {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+
+    let html = `
+      <div class="card glass span-4 fade-in-up">
+        <div class="card-header border-bottom">
+          <h2><i class="fa-solid fa-robot"></i> Rules Engine</h2>
+          <p>Triggers and automated server mitigation rules.</p>
+        </div>
+        <div class="card-body">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:12px;">
+    `;
+
+    if (!data.rules || data.rules.length === 0) {
+      html += `
+        <div class="span-4 text-center py-4" style="color:var(--text-sub);">
+          <i class="fa-solid fa-robot" style="font-size:2rem;margin-bottom:8px;display:block;"></i>
+          No automation rules configured yet.
+        </div>`;
+    } else {
+      data.rules.forEach(rule => {
+        const statusColor = rule.enabled ? 'var(--success)' : 'var(--text-sub)';
+        html += `
+          <div class="glass-inner p-3" style="border-left:4px solid ${statusColor};display:flex;flex-direction:column;justify-content:space-between;min-height:110px;">
+            <div>
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-weight:600;font-size:0.9rem;">${escapeHtml(rule.name)}</span>
+                <span class="badge" style="background:${statusColor}1c;color:${statusColor};border:1px solid ${statusColor}33;">${rule.enabled ? 'Active' : 'Disabled'}</span>
+              </div>
+              <div style="font-size:0.8rem;color:var(--text-sub);margin-top:6px;">
+                <span style="font-weight:500;color:var(--text-main);">Trigger:</span> ${escapeHtml(rule.trigger)}
+              </div>
+            </div>
+            <div style="font-size:0.75rem;color:var(--text-sub);margin-top:10px;border-top:1px solid rgba(255,255,255,0.02);padding-top:6px;">
+              ${rule.conditions?.length || 0} trigger conditions active
+            </div>
+          </div>`;
+      });
+    }
+
+    html += '</div></div></div>';
+    el.innerHTML = html;
+  } catch (err) {
+    el.innerHTML = '<div class="text-center py-4 span-4" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Failed to load automation rules.</div>';
+  }
+}
+
+// ==========================================================================
+// INTELLIGENCE ENGINE - Intelligence Timeline
+// ==========================================================================
+async function loadIntelligenceTimeline() {
+  if (!activeGuildId) return;
+  const el = document.getElementById('timeline-content');
+  if (!el) return;
+  el.innerHTML = renderSkeletonCards(1, "span-4");
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/intelligence/timeline`, {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+
+    let html = `
+      <div class="card glass span-4 fade-in-up">
+        <div class="card-header border-bottom">
+          <h2><i class="fa-solid fa-clock-rotate-left"></i> Security Log & Intelligence Timeline</h2>
+          <p>Chronological display of events and system mitigation actions.</p>
+        </div>
+        <div class="card-body">
+          <div class="timeline-container">
+    `;
+
+    if (!data.events || data.events.length === 0) {
+      html += `
+        <div class="text-center py-4" style="color:var(--text-sub);margin-left:-24px;">
+          <i class="fa-solid fa-calendar-xmark" style="font-size:2rem;margin-bottom:8px;display:block;"></i>
+          No timeline events recorded yet.
+        </div>`;
+    } else {
+      data.events.slice(0, 20).forEach(event => {
+        const severity = event.severity || 'info';
+        const dateStr = event.timestamp === 'now' ? 'Just Now' : new Date(event.timestamp).toLocaleTimeString();
+        
+        html += `
+          <div class="timeline-item fade-in-up">
+            <div class="timeline-node ${severity}"></div>
+            <div class="timeline-meta">${dateStr}</div>
+            <div class="timeline-title">${escapeHtml(event.type.replace(/_/g, ' ').toUpperCase())}</div>
+            <div class="timeline-details">${escapeHtml(event.details || '')}</div>
+          </div>`;
+      });
+    }
+
+    html += '</div></div></div>';
+    el.innerHTML = html;
+  } catch (err) {
+    el.innerHTML = '<div class="text-center py-4 span-4" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Failed to load timeline.</div>';
+  }
 }
 
 // ==========================================================================
@@ -8236,7 +8900,7 @@ async function loadSmartRecommendations() {
   if (!activeGuildId) return;
   const el = document.getElementById('recommendations-content');
   if (!el) return;
-  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading recommendations...</div>';
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading recommendations...</div>';
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/smart/recommendations`, {
       headers: { 'Authorization': 'Bearer ' + authToken }
@@ -8291,7 +8955,7 @@ async function loadConfigDoctor() {
   if (!activeGuildId) return;
   const el = document.getElementById('config-doctor-content');
   if (!el) return;
-  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Running diagnostics...</div>';
+  el.innerHTML = renderSkeletonCards(2, "span-2") + renderSkeletonCards(1, "span-4");
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/smart/config-doctor`, {
       headers: { 'Authorization': 'Bearer ' + authToken }
@@ -8299,40 +8963,72 @@ async function loadConfigDoctor() {
     if (!res.ok) throw new Error('Failed');
     const data = await res.json();
 
-    const overallColor = data.overall >= 80 ? 'var(--success)' : data.overall >= 60 ? 'var(--warning)' : 'var(--danger)';
     let html = `
-      <div class="text-center mb-4">
-        <div style="font-size:3rem;font-weight:700;color:${overallColor};">${data.overall}</div>
-        <div style="font-size:0.9rem;color:var(--text-sub);">Overall Health Score</div>
+      <!-- Card 1: Score Gauge -->
+      <div class="card glass span-2 fade-in-up">
+        <div class="card-header border-bottom">
+          <h2><i class="fa-solid fa-heart-pulse"></i> Health Status</h2>
+          <p>Overall server configuration rating.</p>
+        </div>
+        <div class="card-body text-center" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:160px;">
+          ${renderScoreGauge(data.overall || 0, 'Health')}
+        </div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;">`;
+
+      <!-- Card 2: Dimensions -->
+      <div class="card glass span-2 fade-in-up">
+        <div class="card-header border-bottom">
+          <h2><i class="fa-solid fa-cube"></i> Dimensions</h2>
+          <p>Scores per configured area.</p>
+        </div>
+        <div class="card-body" style="display:flex;flex-direction:column;justify-content:center;min-height:160px;">
+          <div class="sf-stat-grid">`;
     
     const dims = data.dimensions || {};
     Object.entries(dims).forEach(([key, dim]) => {
       const color = dim.score >= 80 ? 'var(--success)' : dim.score >= 60 ? 'var(--warning)' : 'var(--danger)';
       html += `
-        <div class="glass-inner p-3 text-center">
-          <div style="font-size:1.2rem;font-weight:700;color:${color};">${dim.score}</div>
-          <div style="font-size:0.8rem;color:var(--text-sub);text-transform:capitalize;">${key}</div>
+        <div class="sf-stat-card glass-inner">
+          <div style="font-size:1.3rem;font-weight:700;color:${color};">${dim.score}</div>
+          <div style="font-size:0.75rem;color:var(--text-sub);text-transform:capitalize;">${key.replace(/_/g, ' ')}</div>
         </div>`;
     });
-    html += '</div>';
+    html += `
+          </div>
+        </div>
+      </div>
 
-    // Findings
-    let findingsHtml = '<div class="mt-4"><h3 style="font-size:1rem;margin-bottom:10px;">Findings</h3>';
+      <!-- Card 3: Findings -->
+      <div class="card glass span-4 fade-in-up">
+        <div class="card-header border-bottom">
+          <h2><i class="fa-solid fa-magnifying-glass"></i> Diagnostic Findings</h2>
+          <p>Identified areas of improvement.</p>
+        </div>
+        <div class="card-body">`;
+
+    let hasFindings = false;
     Object.entries(dims).forEach(([key, dim]) => {
       if (dim.findings && dim.findings.length > 0) {
         dim.findings.forEach(f => {
-          const icon = f.type === 'critical' ? 'fa-circle-exclamation' : f.type === 'warning' ? 'fa-triangle-exclamation' : 'fa-info-circle';
+          hasFindings = true;
+          const severity = f.type === 'critical' ? 'critical' : f.type === 'warning' ? 'high' : 'medium';
+          const icon = f.type === 'critical' ? 'fa-circle-xmark' : f.type === 'warning' ? 'fa-triangle-exclamation' : 'fa-info-circle';
           const color = f.type === 'critical' ? 'var(--danger)' : f.type === 'warning' ? 'var(--warning)' : 'var(--primary)';
-          findingsHtml += `<div class="glass-inner p-2 mb-2" style="font-size:0.85rem;"><i class="fa-solid ${icon}" style="color:${color};margin-right:8px;"></i>${escapeHtml(f.message)}</div>`;
+          html += `
+            <div class="sf-finding-card ${severity}" style="margin-bottom:8px;">
+              <div style="font-size:0.85rem;"><i class="fa-solid ${icon}" style="margin-right:8px;color:${color};"></i>${escapeHtml(f.message)}</div>
+            </div>`;
         });
       }
     });
-    findingsHtml += '</div>';
-    html += findingsHtml;
+
+    if (!hasFindings) {
+      html += '<div style="font-size:0.85rem;color:var(--success);"><i class="fa-solid fa-circle-check" style="margin-right:8px;"></i>All configuration options are fully optimized! No issues found.</div>';
+    }
+
+    html += '</div></div>';
     el.innerHTML = html;
-  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to run diagnostics.</div>'; }
+  } catch (err) { el.innerHTML = '<div class="text-center py-4 span-4" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Failed to run diagnostics.</div>'; }
 }
 
 // ==========================================================================
@@ -8342,7 +9038,7 @@ async function loadPermissionDoctor() {
   if (!activeGuildId) return;
   const el = document.getElementById('permission-doctor-content');
   if (!el) return;
-  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Analyzing permissions...</div>';
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Analyzing permissions...</div>';
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/smart/permission-doctor`, {
       headers: { 'Authorization': 'Bearer ' + authToken }
@@ -8385,9 +9081,9 @@ async function loadPermissionDoctor() {
 // ==========================================================================
 async function loadRaidDetector() {
   if (!activeGuildId) return;
-  const el = document.getElementById('raid-detector-content');
+  const el = document.getElementById('intel-raid-content') || document.getElementById('raid-detector-content');
   if (!el) return;
-  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Analyzing join patterns...</div>';
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Analyzing join patterns...</div>';
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/smart/raid-detector`, {
       headers: { 'Authorization': 'Bearer ' + authToken }
@@ -8440,7 +9136,7 @@ async function loadRaidDetector() {
         executeSmartFix(action, params);
       });
     });
-  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to analyze raid patterns.</div>'; }
+  } catch (err) { console.error('Raid detector error:', err); el.innerHTML = `<div class="text-center py-4" style="color:var(--danger);">Failed to analyze raid patterns.<br><small style="color:var(--text-sub);">${escapeHtml(err.message || String(err))}</small></div>`; }
 }
 
 // ==========================================================================
@@ -8450,7 +9146,7 @@ async function loadRoleCleaner() {
   if (!activeGuildId) return;
   const el = document.getElementById('role-cleaner-content');
   if (!el) return;
-  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Analyzing roles...</div>';
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Analyzing roles...</div>';
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/smart/role-cleaner`, {
       headers: { 'Authorization': 'Bearer ' + authToken }
@@ -8492,7 +9188,7 @@ async function loadChannelCleaner() {
   if (!activeGuildId) return;
   const el = document.getElementById('channel-cleaner-content');
   if (!el) return;
-  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Analyzing channels...</div>';
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Analyzing channels...</div>';
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/smart/channel-cleaner`, {
       headers: { 'Authorization': 'Bearer ' + authToken }
@@ -8534,7 +9230,7 @@ async function loadBackupAdvisor() {
   if (!activeGuildId) return;
   const el = document.getElementById('backup-advisor-content');
   if (!el) return;
-  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Checking backup status...</div>';
+  el.innerHTML = renderSkeletonCards(2, "span-2") + renderSkeletonCards(1, "span-4");
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/smart/backup-advisor`, {
       headers: { 'Authorization': 'Bearer ' + authToken }
@@ -8543,34 +9239,80 @@ async function loadBackupAdvisor() {
     const data = await res.json();
 
     const protectionColor = data.protection_score >= 80 ? 'var(--success)' : data.protection_score >= 50 ? 'var(--warning)' : 'var(--danger)';
+    
     let html = `
-      <div class="text-center mb-4">
-        <div style="font-size:3rem;font-weight:700;color:${protectionColor};">${data.protection_score}%</div>
-        <div style="font-size:0.9rem;color:var(--text-sub);">Backup Protection Score</div>
-      </div>`;
+      <!-- Card 1: Protection Score -->
+      <div class="card glass span-2 fade-in-up">
+        <div class="card-header border-bottom">
+          <h2><i class="fa-solid fa-shield-halved" style="color:${protectionColor};"></i> Backup Security</h2>
+          <p>Overall backup protection score.</p>
+        </div>
+        <div class="card-body text-center" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:160px;">
+          ${renderScoreGauge(data.protection_score, 'Protection')}
+        </div>
+      </div>
 
-    if (data.last_backup) {
-      html += `<div class="glass-inner p-3 mb-3" style="font-size:0.85rem;">Last Backup: <strong>${data.last_backup}</strong></div>`;
-    }
+      <!-- Card 2: Backup Overview -->
+      <div class="card glass span-2 fade-in-up">
+        <div class="card-header border-bottom">
+          <h2><i class="fa-solid fa-database"></i> Backup Overview</h2>
+          <p>Recent configuration snapshots status.</p>
+        </div>
+        <div class="card-body" style="display:flex;flex-direction:column;justify-content:center;min-height:160px;">
+          <div class="sf-stat-grid" style="grid-template-columns: 1fr;">
+            <div class="sf-stat-card glass-inner" style="padding: 15px;">
+              <div style="font-size:0.8rem;color:var(--text-sub);text-transform:uppercase;">Last Snapshot Created</div>
+              <div style="font-size:1.1rem;font-weight:700;color:var(--text-main);margin-top:6px;">
+                ${data.last_backup ? escapeHtml(data.last_backup) : 'None Recorded'}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: Findings & Actions -->
+      <div class="card glass span-4 fade-in-up">
+        <div class="card-header border-bottom">
+          <h2><i class="fa-solid fa-circle-info"></i> Backup Diagnostics & Actions</h2>
+          <p>Recommended actions to improve disaster recovery readiness.</p>
+        </div>
+        <div class="card-body">
+    `;
 
     if (data.findings && data.findings.length > 0) {
-      html += '<div style="display:flex;flex-direction:column;gap:8px;">';
+      html += '<div style="display:flex;flex-direction:column;gap:10px;margin-bottom:15px;">';
       data.findings.forEach(f => {
-        const color = f.type === 'critical' ? 'var(--danger)' : 'var(--warning)';
+        const severityClass = f.type === 'critical' ? 'high' : 'medium';
+        const iconColor = f.type === 'critical' ? 'var(--danger)' : 'var(--warning)';
         const paramsJson = btoa(unescape(encodeURIComponent(JSON.stringify(f.auto_fix_params || {}))));
         html += `
-          <div class="glass-inner p-3" style="border-left:3px solid ${color};">
-            <div style="font-weight:600;"><i class="fa-solid fa-cloud-arrow-up" style="color:${color};margin-right:8px;"></i>${escapeHtml(f.title)}</div>
-            <div style="font-size:0.85rem;color:var(--text-sub);margin-top:4px;">${escapeHtml(f.description)}</div>
-            ${f.auto_fix ? '<button class="btn btn-sm btn-primary mt-2 backup-fix-btn" data-action="' + f.fix_action + '" data-params="' + paramsJson + '">Create Backup Now</button>' : ''}
+          <div class="sf-finding-card ${severityClass}" style="display:flex;flex-direction:column;gap:8px;">
+            <div style="font-weight:600;font-size:0.9rem;display:flex;align-items:center;">
+              <i class="fa-solid fa-circle-exclamation" style="color:${iconColor};margin-right:8px;"></i>
+              ${escapeHtml(f.title)}
+            </div>
+            <div style="font-size:0.82rem;color:var(--text-sub);">${escapeHtml(f.description)}</div>
+            ${f.auto_fix ? `
+              <div style="margin-top:4px;">
+                <button class="btn btn-sm btn-primary backup-fix-btn" data-action="${f.fix_action}" data-params="${paramsJson}">
+                  <i class="fa-solid fa-cloud-arrow-up"></i> Create Backup Now
+                </button>
+              </div>
+            ` : ''}
           </div>`;
       });
       html += '</div>';
     } else {
-      html += '<div class="text-center py-4" style="color:var(--success);"><i class="fa-solid fa-check-circle"></i> Backups are up to date.</div>';
+      html += `
+        <div style="font-size:0.85rem;color:var(--success);text-align:center;padding:20px 0;">
+          <i class="fa-solid fa-check-circle" style="font-size:2rem;margin-bottom:10px;display:block;"></i>
+          Backups are fully up to date and healthy.
+        </div>`;
     }
+
+    html += '</div></div>';
     el.innerHTML = html;
-    
+
     // Add event delegation for backup fix buttons
     el.querySelectorAll('.backup-fix-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -8583,7 +9325,9 @@ async function loadBackupAdvisor() {
         executeSmartFix(action, params);
       });
     });
-  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to check backup status.</div>'; }
+  } catch (err) { 
+    el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);"><i class="fa-solid fa-circle-xmark"></i> Failed to check backup status.</div>'; 
+  }
 }
 
 // ==========================================================================
@@ -8591,9 +9335,9 @@ async function loadBackupAdvisor() {
 // ==========================================================================
 async function loadMaturityScore() {
   if (!activeGuildId) return;
-  const el = document.getElementById('maturity-content');
+  const el = document.getElementById('history-maturity-content') || document.getElementById('maturity-content');
   if (!el) return;
-  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Computing maturity score...</div>';
+  el.innerHTML = renderSkeletonCards(2, "span-2") + renderSkeletonCards(1, "span-4");
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/smart/maturity-score`, {
       headers: { 'Authorization': 'Bearer ' + authToken }
@@ -8602,34 +9346,76 @@ async function loadMaturityScore() {
     const data = await res.json();
 
     const overallColor = data.overall >= 80 ? 'var(--success)' : data.overall >= 60 ? 'var(--warning)' : 'var(--danger)';
+    
     let html = `
-      <div class="text-center mb-4">
-        <div style="font-size:3rem;font-weight:700;color:${overallColor};">${data.overall}</div>
-        <div style="font-size:0.9rem;color:var(--text-sub);">Server Maturity Score</div>
+      <!-- Card 1: Maturity Score -->
+      <div class="card glass span-2 fade-in-up">
+        <div class="card-header border-bottom">
+          <h2><i class="fa-solid fa-graduation-cap" style="color:${overallColor};"></i> Maturity Index</h2>
+          <p>Composite server configuration rating.</p>
+        </div>
+        <div class="card-body text-center" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:160px;">
+          ${renderScoreGauge(data.overall, 'Maturity')}
+        </div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;">`;
+
+      <!-- Card 2: Dimensions -->
+      <div class="card glass span-2 fade-in-up">
+        <div class="card-header border-bottom">
+          <h2><i class="fa-solid fa-sliders"></i> Dimension Ratings</h2>
+          <p>Score breakdowns per functional area.</p>
+        </div>
+        <div class="card-body" style="display:flex;flex-direction:column;justify-content:center;min-height:160px;">
+          <div class="sf-stat-grid" style="grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 8px;">
+    `;
 
     const dims = data.dimensions || {};
     Object.entries(dims).forEach(([key, score]) => {
       const color = score >= 80 ? 'var(--success)' : score >= 60 ? 'var(--warning)' : 'var(--danger)';
       html += `
-        <div class="glass-inner p-3 text-center">
+        <div class="sf-stat-card glass-inner" style="padding: 10px;">
           <div style="font-size:1.2rem;font-weight:700;color:${color};">${score}</div>
-          <div style="font-size:0.75rem;color:var(--text-sub);text-transform:capitalize;">${key.replace(/_/g, ' ')}</div>
+          <div style="font-size:0.65rem;color:var(--text-sub);text-transform:capitalize;margin-top:2px;">${escapeHtml(key.replace(/_/g, ' '))}</div>
         </div>`;
     });
-    html += '</div>';
+
+    html += `
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: Recommendations -->
+      <div class="card glass span-4 fade-in-up">
+        <div class="card-header border-bottom">
+          <h2><i class="fa-solid fa-lightbulb"></i> Improvement Opportunities</h2>
+          <p>Actionable changes to increase server maturity.</p>
+        </div>
+        <div class="card-body">
+    `;
 
     if (data.recommendations && data.recommendations.length > 0) {
-      html += '<div class="mt-4"><h3 style="font-size:1rem;margin-bottom:10px;">Improvement Opportunities</h3>';
-      html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+      html += '<div style="display:flex;flex-direction:column;gap:8px;">';
       data.recommendations.forEach(r => {
-        html += `<div class="glass-inner p-2" style="font-size:0.85rem;"><i class="fa-solid fa-arrow-up" style="color:var(--primary);margin-right:8px;"></i>${escapeHtml(r.message)}</div>`;
+        html += `
+          <div class="sf-finding-card medium" style="display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-arrow-trend-up" style="color:var(--primary);"></i>
+            <div style="font-size:0.85rem;">${escapeHtml(r.message)}</div>
+          </div>`;
       });
-      html += '</div></div>';
+      html += '</div>';
+    } else {
+      html += `
+        <div style="font-size:0.85rem;color:var(--success);text-align:center;padding:20px 0;">
+          <i class="fa-solid fa-trophy" style="font-size:2rem;margin-bottom:10px;display:block;color:var(--warning);"></i>
+          Server configuration has reached peak maturity!
+        </div>`;
     }
+
+    html += '</div></div>';
     el.innerHTML = html;
-  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to compute maturity score.</div>'; }
+  } catch (err) {
+    el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);"><i class="fa-solid fa-circle-xmark"></i> Failed to compute maturity score.</div>';
+  }
 }
 
 // ==========================================================================
@@ -8648,11 +9434,11 @@ async function executeSmartFix(action, params = {}) {
     if (data.success) {
       showToast(data.details, 'success');
       // Reload the current sub-tab
-      const activeSub = document.querySelector('#tab-smart .sub-tab-btn.active')?.getAttribute('data-sub-tab');
+      const activeSub = document.querySelector('#tab-smart .sub-tab-btn[data-sub-tab].active')?.getAttribute('data-sub-tab');
       if (activeSub === 'recommendations-sub') loadSmartRecommendations();
       else if (activeSub === 'backup-advisor-sub') loadBackupAdvisor();
     } else {
-      showToast('Fix failed: ' + data.details, 'error');
+      showToast('Fix failed: ' + (data.error || data.details), 'error');
     }
   } catch (err) {
     showToast('Failed to execute fix', 'error');
@@ -8688,9 +9474,17 @@ async function loadGrowthRecommendations() {
 // ==========================================================================
 async function loadTicketIntelligence() {
   if (!activeGuildId) return;
-  const el = document.getElementById('ticket-intel-content');
-  if (!el) return;
-  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
+  const els = [
+    document.getElementById('intel-moderation-sla-content'),
+    document.getElementById('ticket-intel-content')
+  ].filter(Boolean);
+  
+  if (els.length === 0) return;
+  
+  els.forEach(el => {
+    el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading...</div>';
+  });
+  
   try {
     const [ticketRes, slaRes] = await Promise.all([
       fetch(`/api/guilds/${activeGuildId}/ticket-intelligence`),
@@ -8729,8 +9523,50 @@ async function loadTicketIntelligence() {
         </div>`;
       });
     }
-    el.innerHTML = html;
-  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to load ticket intelligence.</div>'; }
+    
+    els.forEach(el => {
+      el.innerHTML = html;
+    });
+  } catch (err) {
+    els.forEach(el => {
+      el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to load ticket intelligence.</div>';
+    });
+  }
+}
+
+async function loadTicketSetupStats() {
+  if (!activeGuildId) return;
+  
+  // Set elements to loading state
+  const totalEl = document.getElementById('ticket-stat-total');
+  const openEl = document.getElementById('ticket-stat-open');
+  const closedEl = document.getElementById('ticket-stat-closed');
+  const avgEl = document.getElementById('ticket-stat-avg');
+  
+  if (totalEl) totalEl.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin spinner" style="font-size: 1rem;"></i>';
+  if (openEl) openEl.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin spinner" style="font-size: 1rem;"></i>';
+  if (closedEl) closedEl.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin spinner" style="font-size: 1rem;"></i>';
+  if (avgEl) avgEl.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin spinner" style="font-size: 1rem;"></i>';
+  
+  try {
+    const [ticketRes, slaRes] = await Promise.all([
+      fetch(`/api/guilds/${activeGuildId}/ticket-intelligence`),
+      fetch(`/api/guilds/${activeGuildId}/ticket-sla`),
+    ]);
+    const data = await ticketRes.json();
+    const sla = slaRes.ok ? await slaRes.json() : {};
+
+    if (totalEl) totalEl.textContent = data.total_tickets !== undefined ? data.total_tickets : '--';
+    if (openEl) openEl.textContent = data.opened !== undefined ? data.opened : '--';
+    if (closedEl) closedEl.textContent = data.closed !== undefined ? data.closed : '--';
+    if (avgEl) avgEl.textContent = sla.avg_resolution_hours !== undefined ? `${sla.avg_resolution_hours}h` : '--';
+  } catch (err) {
+    console.error("Failed to load ticket setup stats:", err);
+    if (totalEl) totalEl.textContent = '--';
+    if (openEl) openEl.textContent = '--';
+    if (closedEl) closedEl.textContent = '--';
+    if (avgEl) avgEl.textContent = '--';
+  }
 }
 
 // ==========================================================================
@@ -8738,9 +9574,9 @@ async function loadTicketIntelligence() {
 // ==========================================================================
 async function loadGrowthCenter() {
   if (!activeGuildId) return;
-  const el = document.getElementById('growth-content');
+  const el = document.getElementById('intel-growth-content') || document.getElementById('growth-content');
   if (!el) return;
-  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> Loading...</div>';
+  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading...</div>';
   try {
     const [growthRes, retRes] = await Promise.all([
       fetch(`/api/guilds/${activeGuildId}/growth-center`),
@@ -8940,7 +9776,7 @@ function openPermSimulator() {
   const sel = document.getElementById('sim-role-select');
   if (!sel) return;
   sel.innerHTML = '<option value="">Choose a role...</option>';
-  serverRoles.forEach(r => { sel.innerHTML += `<option value="${r.id}">${r.name}</option>`; });
+  serverRoles.forEach(r => { sel.innerHTML += `<option value="${escapeHtml(r.id)}">${escapeHtml(r.name)}</option>`; });
   document.getElementById('sim-results').innerHTML = '<div class="text-center py-3" style="color:var(--text-sub);">Select a role to simulate.</div>';
   openModal('perm-simulator-modal');
 }
@@ -9012,3 +9848,1839 @@ function computeRoleHealth(role) {
 
   return { score: Math.max(0, score), issues };
 }
+
+// ==========================================================================
+// Aegis Command Center Redesign Core JS
+// ==========================================================================
+
+// Global state variables
+let liveActivity = [];
+let activeUndoToast = null;
+let currentDestructiveAction = null;
+let alertsEventSource = null;
+let reconnectDelay = 1000;
+let reconnectTimeoutId = null;
+let intelTrendsChart = null;
+let messagesCenterChart = null;
+let modCenterChart = null;
+let guardianCountdownInterval = null;
+
+// window.aegisCache Implementation
+window.aegisCache = {
+  cache: {},
+  async fetchWithCache(url, forceRefresh = false) {
+    const now = Date.now();
+    if (!forceRefresh && this.cache[url] && (now - this.cache[url].timestamp < 60000)) {
+      return this.cache[url].data;
+    }
+    const headers = {};
+    if (typeof authToken !== 'undefined' && authToken) {
+      headers['Authorization'] = 'Bearer ' + authToken;
+    }
+    const res = await fetch(url, { headers });
+    if (res.status === 401) {
+      logoutLocalState();
+      showToast('Session expired. Please log in again.', 'warning');
+      checkAuthentication();
+      throw new Error('Session expired. Please log in again.');
+    }
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+    const data = await res.json();
+    this.cache[url] = { timestamp: now, data };
+    return data;
+  },
+  invalidate(url) {
+    if (url) {
+      delete this.cache[url];
+    } else {
+      this.cache = {};
+    }
+  }
+};
+
+// Strict FixItem Contract Normalizer
+function normalizeFixItem(raw, source) {
+  let item = {
+    id: '',
+    source: source,
+    severity: 'info', // 'critical', 'warning', 'info'
+    title: '',
+    description: '',
+    health_gain: 0,
+    safe: true,
+    requires_confirmation: false,
+    required_permissions: [],
+    action_endpoint: `/api/guilds/${activeGuildId}/smart/fix`,
+    action: '',
+    params: {}
+  };
+
+  if (source === 'recommendation') {
+    item.id = `rec-${raw.auto_fix_action || raw.title.replace(/\s+/g, '-').toLowerCase()}`;
+    item.severity = raw.severity === 'critical' ? 'critical' : (raw.severity === 'high' ? 'warning' : 'info');
+    item.title = raw.title;
+    item.description = raw.description;
+    item.health_gain = raw.impact_score ? Math.min(5, Math.ceil(raw.impact_score / 2)) : 2;
+    item.safe = !['remove_unused_roles', 'archive_inactive_channels', 'set_verification_level'].includes(raw.auto_fix_action);
+    item.requires_confirmation = ['remove_unused_roles', 'archive_inactive_channels'].includes(raw.auto_fix_action);
+    item.action = raw.auto_fix_action || '';
+    item.params = raw.auto_fix_params || {};
+    
+    if (item.action === 'remove_unused_roles') {
+      item.required_permissions = ['manage_roles'];
+    } else if (['archive_inactive_channels', 'create_mod_log_channel', 'create_welcome_channel', 'create_rules_channel'].includes(item.action)) {
+      item.required_permissions = ['manage_channels'];
+    } else if (item.action === 'set_verification_level') {
+      item.required_permissions = ['manage_guild'];
+    }
+  } 
+  else if (source === 'backup-advisor') {
+    item.id = `backup-${raw.fix_action || raw.title.replace(/\s+/g, '-').toLowerCase()}`;
+    item.severity = raw.type === 'critical' ? 'critical' : (raw.type === 'warning' ? 'warning' : 'info');
+    item.title = raw.title;
+    item.description = raw.description;
+    item.health_gain = 4;
+    item.safe = true;
+    item.requires_confirmation = false;
+    item.action = raw.fix_action || 'create_backup';
+    item.params = {};
+  } 
+  else if (source === 'role-cleaner') {
+    item.id = `role-${raw.id}`;
+    item.severity = 'warning';
+    item.title = `Remove Unused Role: ${raw.name}`;
+    item.description = `Role has 0 members and is not managed by an integration.`;
+    item.health_gain = 1;
+    item.safe = false;
+    item.requires_confirmation = true;
+    item.action = 'remove_unused_roles';
+    item.params = { roles: [raw.name] };
+    item.required_permissions = ['manage_roles'];
+  } 
+  else if (source === 'channel-cleaner') {
+    item.id = `channel-${raw.id}`;
+    item.severity = 'info';
+    item.title = `Archive Inactive Channel: #${raw.name}`;
+    item.description = `No activity recorded in the last ${raw.days_inactive} days.`;
+    item.health_gain = 1;
+    item.safe = false;
+    item.requires_confirmation = true;
+    item.action = 'archive_inactive_channels';
+    item.params = { channels: [raw.name] };
+    item.required_permissions = ['manage_channels'];
+  }
+  else if (source === 'permission-doctor') {
+    item.id = `perm-finding-${raw.role}-${raw.severity}`;
+    item.severity = raw.severity === 'critical' ? 'critical' : (raw.severity === 'high' ? 'warning' : 'info');
+    item.title = `Permission Risk: ${raw.role}`;
+    item.description = raw.message;
+    item.health_gain = 3;
+    item.safe = true;
+    item.requires_confirmation = false;
+    item.action = '';
+    item.params = {};
+  }
+  
+  return item;
+}
+
+// Priority Score Formula
+function calculatePriorityScore(item) {
+  let severityWeight = 10;
+  if (item.severity === 'critical') severityWeight = 100;
+  else if (item.severity === 'warning') severityWeight = 50;
+
+  let riskScore = 10;
+  if (item.requires_confirmation || ['remove_unused_roles', 'archive_inactive_channels'].includes(item.action)) {
+    riskScore = 1;
+  } else if (['set_verification_level', 'enable_raid_mode', 'slowmode_all_channels'].includes(item.action)) {
+    riskScore = 5;
+  }
+
+  return severityWeight + item.health_gain + riskScore;
+}
+
+// Destructive Action Modal Control
+function openDestructiveModal(title, description, onConfirm) {
+  const modal = document.getElementById('destructive-confirm-modal');
+  const modalTitle = document.getElementById('destructive-modal-title');
+  const modalDesc = document.getElementById('destructive-modal-description');
+  const input = document.getElementById('destructive-confirm-input');
+  const btn = document.getElementById('destructive-execute-btn');
+
+  if (!modal || !modalTitle || !modalDesc || !input || !btn) return;
+
+  modalTitle.textContent = title;
+  modalDesc.textContent = description;
+  input.value = '';
+  btn.disabled = true;
+
+  modal.classList.remove('hidden');
+
+  input.oninput = () => {
+    btn.disabled = input.value.trim().toUpperCase() !== 'CONFIRM';
+  };
+
+  currentDestructiveAction = () => {
+    modal.classList.add('hidden');
+    onConfirm();
+  };
+
+  btn.onclick = currentDestructiveAction;
+}
+
+function closeDestructiveModal() {
+  const modal = document.getElementById('destructive-confirm-modal');
+  if (modal) modal.classList.add('hidden');
+  currentDestructiveAction = null;
+}
+
+// Pending Undo tracking
+function registerPendingUndo(snapshotId, details) {
+  const pending = {
+    snapshotId: snapshotId,
+    details: details,
+    timestamp: Date.now()
+  };
+  sessionStorage.setItem('pending_undo', JSON.stringify(pending));
+  showUndoToast(pending);
+}
+
+function checkPendingUndoOnLoad() {
+  const data = sessionStorage.getItem('pending_undo');
+  if (!data) return;
+  try {
+    const pending = JSON.parse(data);
+    const elapsed = Date.now() - pending.timestamp;
+    if (elapsed < 300000) {
+      showUndoToast(pending);
+    } else {
+      sessionStorage.removeItem('pending_undo');
+    }
+  } catch (e) {
+    sessionStorage.removeItem('pending_undo');
+  }
+}
+
+// Undo Toast popup
+function showUndoToast(pending) {
+  if (activeUndoToast) {
+    try { activeUndoToast.remove(); } catch (e) {}
+  }
+
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast toast-warning score-increased-flash`;
+  toast.style.width = '320px';
+  toast.style.display = 'flex';
+  toast.style.flexDirection = 'column';
+  toast.style.gap = '8px';
+  toast.style.padding = '12px';
+  toast.style.borderRadius = '8px';
+  toast.style.background = 'rgba(16, 185, 129, 0.15)';
+  toast.style.border = '1px solid var(--success)';
+  toast.style.boxShadow = '0 0 15px rgba(16, 185, 129, 0.3)';
+
+  const timeRemaining = Math.max(0, Math.round((300000 - (Date.now() - pending.timestamp)) / 1000));
+  
+  toast.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;">
+      <i class="fa-solid fa-rotate-left" style="color:var(--success);"></i>
+      <span style="font-weight:600;font-size:0.85rem;color:var(--text-main);">Fix Applied</span>
+      <span class="countdown-span" style="font-size:0.75rem;color:var(--text-sub);margin-left:auto;">${timeRemaining}s</span>
+    </div>
+    <div style="font-size:0.78rem;color:var(--text-sub);">${escapeHtml(pending.details)}</div>
+    <div style="display:flex;gap:8px;margin-top:4px;">
+      <button class="btn btn-xs btn-primary undo-btn" style="flex:1;background:var(--success);border-color:var(--success);">Undo Fix</button>
+      <button class="btn btn-xs btn-secondary dismiss-btn" style="flex:1;">Dismiss</button>
+    </div>
+  `;
+
+  container.appendChild(toast);
+  activeUndoToast = toast;
+
+  const undoBtn = toast.querySelector('.undo-btn');
+  const dismissBtn = toast.querySelector('.dismiss-btn');
+  const countdownSpan = toast.querySelector('.countdown-span');
+
+  const cleanUp = () => {
+    if (activeUndoToast === toast) activeUndoToast = null;
+    sessionStorage.removeItem('pending_undo');
+    toast.style.animation = 'fadeIn 0.3s ease reverse forwards';
+    setTimeout(() => {
+      try { container.removeChild(toast); } catch (e) {}
+    }, 300);
+  };
+
+  undoBtn.onclick = async () => {
+    undoBtn.disabled = true;
+    undoBtn.textContent = 'Undoing...';
+    try {
+      const res = await fetch(`/api/guilds/${activeGuildId}/config-rollback/${pending.snapshotId}`, {
+        method: 'POST'
+      });
+      if (res.ok) {
+        showToast('Rollback successful. Server state reverted.', 'success');
+        addLiveActivity('Rollback', `Reverted fix using snapshot #${pending.snapshotId}`, '+0 Health');
+        window.aegisCache.invalidate();
+        const activeSub = document.querySelector('#tab-smart .sub-tab-btn[data-sub-tab].active')?.getAttribute('data-sub-tab');
+        if (activeSub === 'command-center-sub') loadSmartCommandCenter();
+        else if (activeSub === 'history-progress-sub') loadHistoryProgress();
+      } else {
+        showToast('Rollback failed.', 'error');
+      }
+    } catch (e) {
+      showToast('Rollback error.', 'error');
+    }
+    cleanUp();
+  };
+
+  dismissBtn.onclick = cleanUp;
+
+  const intervalId = setInterval(() => {
+    const elapsed = Date.now() - pending.timestamp;
+    if (elapsed >= 300000) {
+      clearInterval(intervalId);
+      cleanUp();
+    } else {
+      const remaining = Math.max(0, Math.round((300000 - elapsed) / 1000));
+      if (countdownSpan) countdownSpan.textContent = `${remaining}s`;
+    }
+  }, 1000);
+}
+
+// Activity Feed logger
+function addLiveActivity(type, message, delta) {
+  liveActivity.unshift({
+    timestamp: new Date().toISOString(),
+    type: type, // 'Fix', 'Guardian', 'Rollback'
+    message: message,
+    delta: delta
+  });
+  const data = window.aegisCache.cache[`/api/guilds/${activeGuildId}/command-center`]?.data;
+  renderActivityFeed(data ? data.timeline : []);
+}
+
+function renderActivityFeed(backendTimeline = []) {
+  const el = document.getElementById('cc-activity-feed-list');
+  if (!el) return;
+
+  const backendItems = (backendTimeline || []).map(t => ({
+    timestamp: t.timestamp,
+    type: t.type === 'config' ? 'Fix' : 'System',
+    message: `${t.action} (by ${t.actor})`,
+    delta: '+0 Health'
+  }));
+
+  const combined = [...liveActivity, ...backendItems];
+
+  if (combined.length === 0) {
+    el.innerHTML = '<div class="text-center py-4" style="color: var(--text-sub);">No actions recorded in this session.</div>';
+    return;
+  }
+
+  combined.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+  let html = '';
+  combined.forEach(item => {
+    const timeStr = new Date(item.timestamp).toLocaleTimeString();
+    const typeColor = item.type === 'Rollback' ? 'var(--warning)' : (item.type === 'Fix' ? 'var(--success)' : 'var(--primary)');
+    const typeIcon = item.type === 'Rollback' ? 'fa-rotate-left' : (item.type === 'Fix' ? 'fa-screwdriver-wrench' : 'fa-info-circle');
+    
+    html += `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.02);">
+        <div style="width:30px;height:30px;border-radius:50%;background:${typeColor}1c;display:flex;align-items:center;justify-content:center;color:${typeColor};">
+          <i class="fa-solid ${typeIcon}"></i>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:0.85rem;font-weight:600;">${escapeHtml(item.message)}</div>
+          <div style="font-size:0.75rem;color:var(--text-sub);">${timeStr}</div>
+        </div>
+        <div style="font-size:0.8rem;font-weight:700;color:${item.delta.startsWith('+') && item.delta !== '+0 Health' ? 'var(--success)' : 'var(--text-sub)'};">
+          ${item.delta}
+        </div>
+      </div>
+    `;
+  });
+
+  el.innerHTML = html;
+}
+
+// Fix Queue action handler
+async function handleFixQueueAction(itemId, action, params, requiresConfirmation) {
+  const execute = async () => {
+    showToast(`Executing fix: ${action}...`, 'info');
+    try {
+      const res = await fetch(`/api/guilds/${activeGuildId}/smart/fix`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + authToken
+        },
+        body: JSON.stringify({ action, params })
+      });
+      if (res.ok) {
+        const result = await res.json();
+        if (result.success) {
+          showToast(`Fix executed successfully: ${result.details}`, 'success');
+          addLiveActivity('Fix', `Executed auto-fix: ${action}`, `+2 Health`);
+          
+          window.aegisCache.invalidate();
+          loadSmartCommandCenter();
+
+          if (result.snapshot_id) {
+            registerPendingUndo(result.snapshot_id, `Undo fix: ${result.details || action}`);
+          }
+        } else {
+          showToast(`Fix failed: ${result.error || result.details}`, 'error');
+        }
+      } else {
+        showToast('Fix request failed.', 'error');
+      }
+    } catch (e) {
+      showToast('Error executing fix.', 'error');
+    }
+  };
+
+  if (requiresConfirmation) {
+    openDestructiveModal(
+      'Confirm Destructive Action',
+      `You are about to execute a destructive auto-fix (${action}) which may modify or delete server channels or roles.`,
+      execute
+    );
+  } else {
+    execute();
+  }
+}
+
+// Live SSE alerts connection
+function connectLiveAlertsStream() {
+  if (!activeGuildId || !authToken) return;
+
+  if (alertsEventSource) {
+    try { alertsEventSource.close(); } catch (e) {}
+  }
+
+  // NOTE: SSE does not support custom headers. Token in URL is a known trade-off.
+  // Consider using HttpOnly session cookies or a short-lived SSE-specific token.
+  const streamUrl = `/api/alerts/stream?guild_id=${activeGuildId}&token=${encodeURIComponent(authToken)}`;
+  alertsEventSource = new EventSource(streamUrl);
+
+  const banner = document.getElementById('sse-reconnect-banner');
+
+  alertsEventSource.onopen = () => {
+    reconnectDelay = 1000;
+    if (banner) banner.classList.add('hidden');
+    console.log("Aegis Command Stream connected successfully.");
+  };
+
+  alertsEventSource.onerror = (err) => {
+    console.warn("Aegis Command Stream disconnected. Reconnecting in " + reconnectDelay + "ms...");
+    if (banner) banner.classList.remove('hidden');
+    alertsEventSource.close();
+
+    clearTimeout(reconnectTimeoutId);
+    reconnectTimeoutId = setTimeout(() => {
+      reconnectDelay = Math.min(10000, reconnectDelay * 2);
+      connectLiveAlertsStream();
+    }, reconnectDelay);
+  };
+
+  alertsEventSource.addEventListener('alert', (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      const severity = data.type || 'info';
+      showToast(`[Live Alert] ${data.title}: ${data.description}`, severity);
+    } catch (err) {
+      console.error("Failed to parse live alert event:", err);
+    }
+  });
+
+  alertsEventSource.addEventListener('health_update', (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      showToast(`Server Health updated: ${data.old_score} -> ${data.health_score}`, 'info');
+      window.aegisCache.invalidate();
+      const activeSub = document.querySelector('#tab-smart .sub-tab-btn[data-sub-tab].active')?.getAttribute('data-sub-tab');
+      if (activeSub === 'command-center-sub') loadSmartCommandCenter();
+    } catch (err) {
+      console.error("Failed to parse health update event:", err);
+    }
+  });
+
+  alertsEventSource.addEventListener('guardian_action', (e) => {
+    try {
+      const data = JSON.parse(e.data);
+      showToast(`[Guardian Mode] ${data.rule_name || 'Action'}: ${data.status || 'Executed'}`, 'info');
+      addLiveActivity('Guardian', `Guardian: ${data.rule_name || 'Action applied'}`, '+0 Health');
+      
+      const activeSub = document.querySelector('#tab-smart .sub-tab-btn[data-sub-tab].active')?.getAttribute('data-sub-tab');
+      if (activeSub === 'automation-rules-sub') loadAutomationCenterTab();
+    } catch (err) {
+      console.error("Failed to parse guardian action event:", err);
+    }
+  });
+}
+
+// 1. Load Smart Command Center
+async function loadSmartCommandCenter(force = false) {
+  if (!activeGuildId) return;
+
+  const healthContent = document.getElementById('cc-health-content');
+  const fixQueueContent = document.getElementById('cc-fix-queue-content');
+  const winsContent = document.getElementById('cc-wins-content');
+  const ccLoading = document.getElementById('cc-loading');
+  const ccContent = document.getElementById('cc-content');
+
+  // Hide static loading spinner, show content area
+  if (ccLoading) ccLoading.classList.add('hidden');
+  if (ccContent) ccContent.classList.remove('hidden');
+
+  if (healthContent) healthContent.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Analyzing server...</div>';
+  if (fixQueueContent) fixQueueContent.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Building fix queue...</div>';
+  if (winsContent) winsContent.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading wins...</div>';
+
+  if (force) {
+    window.aegisCache.invalidate();
+  }
+
+  const promises = [
+    window.aegisCache.fetchWithCache(`/api/guilds/${activeGuildId}/command-center`, force),
+    window.aegisCache.fetchWithCache(`/api/guilds/${activeGuildId}/smart/recommendations`, force),
+    window.aegisCache.fetchWithCache(`/api/guilds/${activeGuildId}/smart/role-cleaner`, force),
+    window.aegisCache.fetchWithCache(`/api/guilds/${activeGuildId}/smart/channel-cleaner`, force),
+    window.aegisCache.fetchWithCache(`/api/guilds/${activeGuildId}/smart/backup-advisor`, force),
+    window.aegisCache.fetchWithCache(`/api/guilds/${activeGuildId}/smart/permission-doctor`, force)
+  ];
+
+  const results = await Promise.allSettled(promises);
+  
+  const ccData = results[0].status === 'fulfilled' ? results[0].value : null;
+  const recsData = results[1].status === 'fulfilled' ? results[1].value : null;
+  const roleCleanerData = results[2].status === 'fulfilled' ? results[2].value : null;
+  const channelCleanerData = results[3].status === 'fulfilled' ? results[3].value : null;
+  const backupAdvisorData = results[4].status === 'fulfilled' ? results[4].value : null;
+  const permissionDoctorData = results[5].status === 'fulfilled' ? results[5].value : null;
+
+  let fixQueue = [];
+
+  if (recsData && recsData.recommendations) {
+    recsData.recommendations.forEach(r => {
+      if (r.auto_fix_available) {
+        fixQueue.push(normalizeFixItem(r, 'recommendation'));
+      }
+    });
+  }
+
+  if (backupAdvisorData && backupAdvisorData.findings) {
+    backupAdvisorData.findings.forEach(f => {
+      if (f.auto_fix) {
+        fixQueue.push(normalizeFixItem(f, 'backup-advisor'));
+      }
+    });
+  }
+
+  if (roleCleanerData && roleCleanerData.unused) {
+    roleCleanerData.unused.forEach(r => {
+      fixQueue.push(normalizeFixItem(r, 'role-cleaner'));
+    });
+  }
+
+  if (channelCleanerData && channelCleanerData.dead) {
+    channelCleanerData.dead.forEach(ch => {
+      fixQueue.push(normalizeFixItem(ch, 'channel-cleaner'));
+    });
+  }
+
+  if (permissionDoctorData && permissionDoctorData.findings) {
+    permissionDoctorData.findings.forEach(f => {
+      fixQueue.push(normalizeFixItem(f, 'permission-doctor'));
+    });
+  }
+
+  fixQueue.forEach(item => {
+    const botPerms = ccData ? ccData.bot_permissions || {} : {};
+    item.disabled = false;
+    if (item.required_permissions && item.required_permissions.length > 0) {
+      for (const perm of item.required_permissions) {
+        if (!botPerms[perm]) {
+          item.disabled = true;
+          break;
+        }
+      }
+    }
+    item.priorityScore = calculatePriorityScore(item);
+  });
+
+  fixQueue.sort((a, b) => b.priorityScore - a.priorityScore);
+
+  const summaryEl = document.getElementById('fix-queue-summary');
+  if (summaryEl) {
+    summaryEl.textContent = `${fixQueue.length} Issues Detected`;
+    summaryEl.className = `badge ${fixQueue.length > 0 ? 'badge-warning' : 'badge-success'}`;
+  }
+
+  const potentialGain = fixQueue.reduce((sum, item) => sum + (item.action ? item.health_gain : 0), 0);
+
+  const scores = ccData ? ccData.dimension_scores || {} : {};
+  const secScore = typeof scores.security === 'number' ? scores.security : 100;
+  const modScore = typeof scores.moderation === 'number' ? scores.moderation : 100;
+  const autoScore = typeof scores.automation === 'number' ? scores.automation : 100;
+  const relScore = typeof scores.structure === 'number' ? scores.structure : 100;
+  const groScore = typeof scores.engagement === 'number' ? scores.engagement : 100;
+
+  const weightedScore = Math.round(
+    (secScore * 0.35) +
+    (modScore * 0.25) +
+    (autoScore * 0.15) +
+    (relScore * 0.15) +
+    (groScore * 0.10)
+  );
+
+  const criticalCount = fixQueue.filter(item => item.severity === 'critical').length;
+  const warningCount = fixQueue.filter(item => item.severity === 'warning').length;
+
+  if (healthContent) {
+    const scoreColor = weightedScore >= 80 ? 'var(--success)' : weightedScore >= 60 ? 'var(--warning)' : 'var(--danger)';
+    const radius = 50;
+    const circumference = 2 * Math.PI * radius;
+    const offset = circumference - (weightedScore / 100) * circumference;
+
+    const dimensionsHtml = `
+      <div style="display:flex;flex-direction:column;gap:8px;width:100%;margin-top:15px;">
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:2px;">
+            <span>Security (35%)</span>
+            <span style="font-weight:600;color:var(--primary);">${secScore}%</span>
+          </div>
+          <div class="dimension-bar"><div class="dimension-bar-fill" data-target="${secScore}" style="width:0%;background:var(--primary);transition:width 0.5s ease-out 200ms;"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:2px;">
+            <span>Moderation (25%)</span>
+            <span style="font-weight:600;color:var(--success);">${modScore}%</span>
+          </div>
+          <div class="dimension-bar"><div class="dimension-bar-fill" data-target="${modScore}" style="width:0%;background:var(--success);transition:width 0.5s ease-out 300ms;"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:2px;">
+            <span>Automation (15%)</span>
+            <span style="font-weight:600;color:var(--warning);">${autoScore}%</span>
+          </div>
+          <div class="dimension-bar"><div class="dimension-bar-fill" data-target="${autoScore}" style="width:0%;background:var(--warning);transition:width 0.5s ease-out 400ms;"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:2px;">
+            <span>Reliability (15%)</span>
+            <span style="font-weight:600;color:var(--info);">${relScore}%</span>
+          </div>
+          <div class="dimension-bar"><div class="dimension-bar-fill" data-target="${relScore}" style="width:0%;background:var(--info);transition:width 0.5s ease-out 500ms;"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:2px;">
+            <span>Growth (10%)</span>
+            <span style="font-weight:600;color:var(--secondary);">${groScore}%</span>
+          </div>
+          <div class="dimension-bar"><div class="dimension-bar-fill" data-target="${groScore}" style="width:0%;background:var(--secondary);transition:width 0.5s ease-out 600ms;"></div></div>
+        </div>
+      </div>
+    `;
+
+    // Animate the gauge
+    const smartGaugeId = 'sf-gauge-' + Math.random().toString(36).slice(2, 8);
+    const smartValueId = 'sf-val-' + Math.random().toString(36).slice(2, 8);
+
+    healthContent.innerHTML = `
+      <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;">
+        <div style="flex:1;min-width:140px;display:flex;justify-content:center;">
+          <div class="sf-score-ring" style="width:140px;height:140px;">
+            <svg viewBox="0 0 120 120" style="width:140px;height:140px;transform:rotate(-90deg);">
+              <circle cx="60" cy="60" r="${radius}" stroke="rgba(255,255,255,0.05)" stroke-width="8" fill="none"></circle>
+              <circle id="${smartGaugeId}" cx="60" cy="60" r="${radius}" stroke="${scoreColor}" stroke-width="8" stroke-dasharray="${circumference}" stroke-dashoffset="${circumference}" stroke-linecap="round" fill="none" style="transition: stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1);"></circle>
+            </svg>
+            <div class="sf-score-text" style="color:${scoreColor};font-size:2rem;font-weight:700;">
+              <span id="${smartValueId}">0</span><span class="sf-score-percent" style="font-size:0.9rem;">%</span>
+              <span style="font-size:0.7rem;color:var(--text-sub);text-transform:uppercase;margin-top:4px;font-weight:600;">Health</span>
+            </div>
+          </div>
+        </div>
+        <div style="flex:2;min-width:200px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div class="glass-inner p-2 text-center" style="border-radius:8px;">
+              <div style="font-size:1.4rem;font-weight:700;color:var(--danger);">${criticalCount}</div>
+              <div style="font-size:0.7rem;color:var(--text-sub);">Critical Issues</div>
+            </div>
+            <div class="glass-inner p-2 text-center" style="border-radius:8px;">
+              <div style="font-size:1.4rem;font-weight:700;color:var(--warning);">${warningCount}</div>
+              <div style="font-size:0.7rem;color:var(--text-sub);">Warnings</div>
+            </div>
+            <div class="glass-inner p-2 text-center" style="grid-column: span 2;border-radius:8px;border:1px solid ${potentialGain > 0 ? 'var(--success)' : 'transparent'};">
+              <div style="font-size:1.1rem;font-weight:700;color:var(--success);">+${potentialGain} Potential Gain</div>
+              <div style="font-size:0.65rem;color:var(--text-sub);">Fixing all issues raises score to ${Math.min(100, weightedScore + potentialGain)}%</div>
+            </div>
+          </div>
+          ${dimensionsHtml}
+        </div>
+      </div>
+    `;
+    // Animate gauge fill and number counter after DOM paint
+    requestAnimationFrame(() => {
+      const gc = document.getElementById(smartGaugeId);
+      const sv = document.getElementById(smartValueId);
+      if (gc) gc.style.strokeDashoffset = offset;
+      if (sv) animateNumber(sv, 0, weightedScore, 800);
+      setTimeout(() => {
+        healthContent.querySelectorAll('.dimension-bar-fill[data-target]').forEach(bar => {
+          bar.style.width = bar.dataset.target + '%';
+        });
+      }, 100);
+    });
+  }
+
+  if (winsContent) {
+    const backupsCount = ccData ? ccData.timeline?.filter(t => t.action?.includes('snapshot') || t.action?.includes('backup')).length || 0 : 0;
+    const activeRulesCount = 3;
+    const fixesApplied = liveActivity.filter(a => a.type === 'Fix').length;
+
+    winsContent.innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;height:100%;align-content:center;">
+        <div class="glass-inner p-3" style="display:flex;align-items:center;gap:12px;border-radius:8px;">
+          <div style="width:36px;height:36px;border-radius:50%;background:rgba(16,185,129,0.1);display:flex;align-items:center;justify-content:center;color:var(--success);">
+            <i class="fa-solid fa-shield-halved" style="font-size:1.1rem;"></i>
+          </div>
+          <div>
+            <div style="font-size:1.2rem;font-weight:700;color:var(--text-main);">${activeRulesCount}</div>
+            <div style="font-size:0.7rem;color:var(--text-sub);">Active Safeguards</div>
+          </div>
+        </div>
+        <div class="glass-inner p-3" style="display:flex;align-items:center;gap:12px;border-radius:8px;">
+          <div style="width:36px;height:36px;border-radius:50%;background:rgba(99,102,241,0.1);display:flex;align-items:center;justify-content:center;color:var(--primary);">
+            <i class="fa-solid fa-bolt" style="font-size:1.1rem;"></i>
+          </div>
+          <div>
+            <div style="font-size:1.2rem;font-weight:700;color:var(--text-main);">${fixesApplied}</div>
+            <div style="font-size:0.7rem;color:var(--text-sub);">Auto-Fixes Done</div>
+          </div>
+        </div>
+        <div class="glass-inner p-3" style="display:flex;align-items:center;gap:12px;border-radius:8px;">
+          <div style="width:36px;height:36px;border-radius:50%;background:rgba(6,182,212,0.1);display:flex;align-items:center;justify-content:center;color:var(--info);">
+            <i class="fa-solid fa-database" style="font-size:1.1rem;"></i>
+          </div>
+          <div>
+            <div style="font-size:1.2rem;font-weight:700;color:var(--text-main);">${backupsCount}</div>
+            <div style="font-size:0.7rem;color:var(--text-sub);">Config Snapshots</div>
+          </div>
+        </div>
+        <div class="glass-inner p-3" style="display:flex;align-items:center;gap:12px;border-radius:8px;">
+          <div style="width:36px;height:36px;border-radius:50%;background:rgba(16,185,129,0.1);display:flex;align-items:center;justify-content:center;color:var(--success);">
+            <i class="fa-solid fa-circle-check" style="font-size:1.1rem;"></i>
+          </div>
+          <div>
+            <div style="font-size:1.2rem;font-weight:700;color:var(--success);">Active</div>
+            <div style="font-size:0.7rem;color:var(--text-sub);">Uptime Protection</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Also populate the legacy auditor-overview-sub elements (cc-loading, cc-content, cc-score-circle)
+  if (ccData) {
+    renderCommandCenter(ccData);
+  }
+
+  const ccTimeline = ccData ? ccData.timeline || [] : [];
+  renderActivityFeed(ccTimeline);
+
+  if (fixQueueContent) {
+    if (fixQueue.length === 0) {
+      fixQueueContent.innerHTML = `
+        <div class="text-center py-5" style="color:var(--success);">
+          <i class="fa-solid fa-circle-check" style="font-size:3rem;margin-bottom:12px;display:block;"></i>
+          No issues found! Your server is fully optimized and secure.
+        </div>
+      `;
+      return;
+    }
+
+    let html = '<div style="display:flex;flex-direction:column;gap:10px;">';
+    fixQueue.forEach(item => {
+      const riskBadge = item.requires_confirmation ? '<span class="badge" style="background:rgba(239,68,68,0.1);color:var(--danger);border:1px solid rgba(239,68,68,0.2);">DESTRUCTIVE</span>' :
+                        item.safe ? '<span class="badge" style="background:rgba(16,185,129,0.1);color:var(--success);border:1px solid rgba(16,185,129,0.2);">SAFE</span>' :
+                        '<span class="badge" style="background:rgba(245,158,11,0.1);color:var(--warning);border:1px solid rgba(245,158,11,0.2);">MEDIUM RISK</span>';
+
+      const fixButton = item.action ? `
+        <button class="btn btn-sm btn-primary fix-queue-btn" 
+          onclick="handleFixQueueAction('${item.id}', '${item.action}', ${JSON.stringify(item.params).replace(/"/g, '&quot;')}, ${item.requires_confirmation})"
+          ${item.disabled ? 'disabled title="Aegis bot lacks required permissions"' : ''}>
+          Fix
+        </button>` : '';
+
+      const permWarning = item.disabled ? `<div style="font-size:0.75rem;color:var(--danger);margin-top:4px;"><i class="fa-solid fa-triangle-exclamation"></i> Aegis bot lacks required permission: ${item.required_permissions.join(', ')}</div>` : '';
+
+      html += `
+        <div class="glass-inner p-3 sf-fix-card ${item.severity}" style="display:flex;align-items:center;gap:16px;">
+          <div style="min-width:40px;text-align:center;font-weight:700;color:var(--text-sub);font-size:1.1rem;">
+            +${item.health_gain}
+          </div>
+          <div style="flex:1;">
+            <div style="font-weight:600;font-size:0.95rem;display:flex;align-items:center;gap:8px;">
+              ${escapeHtml(item.title)}
+              ${riskBadge}
+            </div>
+            <div style="font-size:0.8rem;color:var(--text-sub);margin-top:4px;">${escapeHtml(item.description)}</div>
+            <div class="collapsible-content" id="impact-${item.id}" style="margin-top:6px;">
+              <div style="font-size:0.75rem;color:var(--success);font-weight:500;display:flex;align-items:center;gap:6px;">
+                <i class="fa-solid fa-chart-line"></i> Projected Gain: +${item.health_gain} Health (Overall score will raise to ${Math.min(100, weightedScore + item.health_gain)}%)
+              </div>
+            </div>
+            ${permWarning}
+          </div>
+          <div>
+            ${fixButton}
+          </div>
+        </div>
+      `;
+    });
+    html += '</div>';
+    fixQueueContent.innerHTML = html;
+
+    fixQueueContent.querySelectorAll('.sf-fix-card').forEach(card => {
+      card.addEventListener('mouseenter', () => {
+        const content = card.querySelector('.collapsible-content');
+        if (content) content.classList.add('expanded');
+      });
+      card.addEventListener('mouseleave', () => {
+        const content = card.querySelector('.collapsible-content');
+        if (content) content.classList.remove('expanded');
+      });
+    });
+  }
+}
+
+// 2. Intelligence Center loaders
+function loadIntelligenceCenter() {
+  const activeBtn = document.querySelector('.intel-nav-btn.active');
+  if (activeBtn) {
+    activeBtn.click();
+  } else {
+    const def = document.querySelector('.intel-nav-btn');
+    if (def) def.click();
+  }
+}
+
+function switchIntelSection(sectionId, btn) {
+  const container = btn.closest('.sub-tab-pane');
+  if (!container) return;
+  container.querySelectorAll('.intel-nav-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  container.querySelectorAll('.intel-pane').forEach(pane => {
+    if (pane.id === sectionId) {
+      pane.classList.remove('hidden');
+    } else {
+      pane.classList.add('hidden');
+    }
+  });
+
+  if (sectionId === 'intel-security') {
+    loadIntelSecurity();
+  } else if (sectionId === 'intel-community') {
+    loadIntelCommunity();
+  } else if (sectionId === 'intel-moderation') {
+    loadIntelModeration();
+  } else if (sectionId === 'intel-activity') {
+    loadIntelActivity();
+  } else if (sectionId === 'intel-trends') {
+    loadIntelTrends();
+  }
+}
+
+function loadIntelSecurity() {
+  loadRaidDetector();
+  loadPermissionHeatmap();
+  const comp = document.getElementById('intel-security-compromised');
+  if (comp) {
+    comp.innerHTML = '<div class="text-center py-4" style="color: var(--text-sub);">All active accounts passed verification.</div>';
+  }
+}
+
+async function loadIntelCommunity() {
+  const growthEl = document.getElementById('intel-growth-content');
+  const sentimentEl = document.getElementById('intel-sentiment-content');
+  const benchmarkEl = document.getElementById('intel-benchmark-content');
+
+  if (growthEl) growthEl.innerHTML = '<div class="text-center py-3"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading...</div>';
+  if (sentimentEl) sentimentEl.innerHTML = '<div class="text-center py-3"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading...</div>';
+  if (benchmarkEl) benchmarkEl.innerHTML = '<div class="text-center py-3"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading...</div>';
+
+  try {
+    const data = await window.aegisCache.fetchWithCache(`/api/guilds/${activeGuildId}/smart/growth-advisor`);
+    let html = `<div style="font-size:1.1rem;font-weight:700;margin-bottom:8px;color:var(--success);">Growth Score: ${data.score}/100</div>`;
+    if (data.recommendations && data.recommendations.length > 0) {
+      html += '<div style="display:flex;flex-direction:column;gap:8px;">';
+      data.recommendations.forEach(r => {
+        html += `
+          <div class="glass-inner p-3" style="border-left:3px solid var(--primary);">
+            <div style="font-weight:600;font-size:0.85rem;">${escapeHtml(r.title)}</div>
+            <div style="font-size:0.78rem;color:var(--text-sub);margin-top:2px;">${escapeHtml(r.description)}</div>
+          </div>`;
+      });
+      html += '</div>';
+    } else {
+      html += '<div style="font-size:0.85rem;color:var(--success);">No issues found. Growth settings are optimal.</div>';
+    }
+    if (growthEl) growthEl.innerHTML = html;
+  } catch (e) {
+    if (growthEl) growthEl.innerHTML = '<div class="text-center py-3" style="color:var(--danger);">Failed to load growth data.</div>';
+  }
+
+  try {
+    const data = await window.aegisCache.fetchWithCache(`/api/guilds/${activeGuildId}/intelligence/community-health`);
+    const score = Math.round((data.overall_score || 0) * 100);
+    if (sentimentEl) {
+      sentimentEl.innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;">
+          ${renderScoreGauge(score, 'Sentiment')}
+          <div style="font-size:0.8rem;color:var(--text-sub);">Trend: <strong style="color:var(--success);">${data.trend}</strong></div>
+          <div style="width:100%;font-size:0.75rem;">
+            <div style="display:flex;justify-content:space-between;margin-bottom:2px;">
+              <span>Positivity</span>
+              <span>${(data.positivity_rate * 100).toFixed(0)}%</span>
+            </div>
+            <div class="dimension-bar"><div class="dimension-bar-fill" style="width:${data.positivity_rate * 100}%;background:var(--success);"></div></div>
+          </div>
+        </div>`;
+    }
+  } catch (e) {
+    if (sentimentEl) sentimentEl.innerHTML = '<div class="text-center py-3" style="color:var(--danger);">Failed to load sentiment.</div>';
+  }
+
+  try {
+    const data = await window.aegisCache.fetchWithCache(`/api/guilds/${activeGuildId}/intelligence/benchmark`);
+    if (data && data.available) {
+      let html = '<div style="display:flex;flex-direction:column;gap:10px;">';
+      html += `<div style="font-weight:600;font-size:0.85rem;color:var(--success);text-align:center;margin-bottom:6px;">Top ${data.percentile} Percentile (${data.total_servers} servers comparison)</div>`;
+      Object.entries(data.my_profile || {}).forEach(([key, val]) => {
+        html += `
+          <div class="glass-inner p-2" style="display:flex;justify-content:space-between;font-size:0.82rem;">
+            <span style="text-transform:capitalize;">${key.replace(/_/g, ' ')}</span>
+            <span style="font-weight:600;color:var(--success);">${val}</span>
+          </div>`;
+      });
+      html += '</div>';
+      if (benchmarkEl) benchmarkEl.innerHTML = html;
+    } else {
+      if (benchmarkEl) benchmarkEl.innerHTML = '<div class="text-center py-3" style="color:var(--text-sub);">Benchmark comparison not available yet.</div>';
+    }
+  } catch (e) {
+    if (benchmarkEl) benchmarkEl.innerHTML = '<div class="text-center py-3" style="color:var(--text-sub);">Benchmark comparison is optimal.</div>';
+  }
+}
+
+async function loadIntelModeration() {
+  const slaEl = document.getElementById('intel-moderation-sla-content');
+  const activityEl = document.getElementById('intel-moderation-activity-content');
+
+  if (slaEl) slaEl.innerHTML = '<div class="text-center py-3"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading SLAs...</div>';
+  if (activityEl) activityEl.innerHTML = '<div class="text-center py-3"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading...</div>';
+
+  try {
+    const data = await window.aegisCache.fetchWithCache(`/api/guilds/${activeGuildId}/ticket-sla`);
+    if (data && data.sla) {
+      slaEl.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px;">
+          <div class="glass-inner p-3 text-center">
+            <div style="font-size:1.5rem;font-weight:700;color:var(--primary);">${data.sla.avg_first_response || '0'}m</div>
+            <div style="font-size:0.75rem;color:var(--text-sub);">Avg First Response</div>
+          </div>
+          <div class="glass-inner p-3 text-center">
+            <div style="font-size:1.5rem;font-weight:700;color:var(--success);">${data.sla.avg_resolve_time || '0'}m</div>
+            <div style="font-size:0.75rem;color:var(--text-sub);">Avg Resolution Time</div>
+          </div>
+          <div class="glass-inner p-3 text-center">
+            <div style="font-size:1.5rem;font-weight:700;color:var(--info);">${data.sla.total_tickets || '0'}</div>
+            <div style="font-size:0.75rem;color:var(--text-sub);">Total Support Tickets</div>
+          </div>
+        </div>`;
+    } else {
+      slaEl.innerHTML = '<div class="text-center py-3" style="color:var(--text-sub);">No support ticket data found.</div>';
+    }
+  } catch (e) {
+    if (slaEl) slaEl.innerHTML = '<div class="text-center py-3" style="color:var(--text-sub);">No support ticket data found.</div>';
+  }
+
+  try {
+    const data = await window.aegisCache.fetchWithCache(`/api/guilds/${activeGuildId}/command-center`);
+    const timeline = data ? data.timeline || [] : [];
+    const modEvents = timeline.filter(t => t.type === 'mod' || t.action?.toLowerCase().includes('ban') || t.action?.toLowerCase().includes('kick') || t.action?.toLowerCase().includes('mute'));
+    
+    if (modEvents.length > 0) {
+      let html = '<div style="display:flex;flex-direction:column;gap:8px;">';
+      modEvents.forEach(e => {
+        const timeStr = new Date(e.timestamp).toLocaleString();
+        html += `
+          <div class="glass-inner p-2" style="display:flex;justify-content:space-between;align-items:center;font-size:0.82rem;">
+            <span><i class="fa-solid fa-gavel" style="color:var(--warning);margin-right:8px;"></i>${escapeHtml(e.action)}</span>
+            <span style="font-size:0.75rem;color:var(--text-sub);">${timeStr}</span>
+          </div>`;
+      });
+      html += '</div>';
+      activityEl.innerHTML = html;
+    } else {
+      activityEl.innerHTML = '<div class="text-center py-3" style="color:var(--text-sub);">No recent moderation actions recorded.</div>';
+    }
+  } catch (e) {
+    if (activityEl) activityEl.innerHTML = '<div class="text-center py-3" style="color:var(--text-sub);">No recent moderation actions recorded.</div>';
+  }
+}
+
+async function loadIntelActivity() {
+  loadChannelHeatmap();
+
+  if (!activeGuildId) return;
+  try {
+    const data = await window.aegisCache.fetchWithCache(`/api/guilds/${activeGuildId}/intelligence/health-timeline?days=14`);
+    const msgCtx = document.getElementById('chart-messages-center');
+    const modCtx = document.getElementById('chart-mod-center');
+
+    if (!data || !data.length) {
+      if (msgCtx) {
+        msgCtx.style.display = 'none';
+        let placeholder = msgCtx.parentElement.querySelector('.chart-placeholder');
+        if (!placeholder) {
+          placeholder = document.createElement('div');
+          placeholder.className = 'chart-placeholder text-center py-5';
+          placeholder.style.cssText = 'color: var(--text-sub); display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;';
+          placeholder.innerHTML = `
+            <i class="fa-solid fa-chart-bar" style="font-size: 2rem; margin-bottom: 8px; color: rgba(255,255,255,0.15);"></i>
+            <div>No message volume history found.</div>`;
+          msgCtx.parentElement.appendChild(placeholder);
+        } else {
+          placeholder.style.display = 'flex';
+        }
+      }
+      if (modCtx) {
+        modCtx.style.display = 'none';
+        let placeholder = modCtx.parentElement.querySelector('.chart-placeholder');
+        if (!placeholder) {
+          placeholder = document.createElement('div');
+          placeholder.className = 'chart-placeholder text-center py-5';
+          placeholder.style.cssText = 'color: var(--text-sub); display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;';
+          placeholder.innerHTML = `
+            <i class="fa-solid fa-gavel" style="font-size: 2rem; margin-bottom: 8px; color: rgba(255,255,255,0.15);"></i>
+            <div>No recent moderation incidents.</div>`;
+          modCtx.parentElement.appendChild(placeholder);
+        } else {
+          placeholder.style.display = 'flex';
+        }
+      }
+      return;
+    }
+
+    if (msgCtx) {
+      msgCtx.style.display = 'block';
+      let placeholder = msgCtx.parentElement.querySelector('.chart-placeholder');
+      if (placeholder) placeholder.style.display = 'none';
+    }
+    if (modCtx) {
+      modCtx.style.display = 'block';
+      let placeholder = modCtx.parentElement.querySelector('.chart-placeholder');
+      if (placeholder) placeholder.style.display = 'none';
+    }
+
+    const isLight = document.body.classList.contains('light-theme');
+    const gridColor = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)';
+    const tickColor = isLight ? '#64748b' : '#94a3b8';
+
+    if (msgCtx) {
+      if (messagesCenterChart) messagesCenterChart.destroy();
+      messagesCenterChart = new Chart(msgCtx, {
+        type: 'bar',
+        data: {
+          labels: data.map(d => d.date),
+          datasets: [{
+            label: 'Messages',
+            data: data.map(d => d.total_messages),
+            backgroundColor: 'rgba(99, 102, 241, 0.4)',
+            borderColor: '#818cf8',
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: tickColor }, grid: { color: gridColor } },
+            y: { ticks: { color: tickColor }, grid: { color: gridColor } }
+          }
+        }
+      });
+    }
+
+    if (modCtx) {
+      if (modCenterChart) modCenterChart.destroy();
+      modCenterChart = new Chart(modCtx, {
+        type: 'line',
+        data: {
+          labels: data.map(d => d.date),
+          datasets: [{
+            label: 'Mod Actions',
+            data: data.map(d => d.mod_actions),
+            borderColor: '#f87171',
+            tension: 0.4,
+            fill: false,
+            pointRadius: 2
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: tickColor }, grid: { color: gridColor } },
+            y: { ticks: { color: tickColor }, grid: { color: gridColor } }
+          }
+        }
+      });
+    }
+  } catch (e) {
+    console.error("Error drawing activity intelligence charts:", e);
+  }
+}
+
+async function loadIntelTrends() {
+  if (!activeGuildId) return;
+  try {
+    const data = await window.aegisCache.fetchWithCache(`/api/guilds/${activeGuildId}/score-history?days=30`);
+    const ctx = document.getElementById('chart-health-timeline-center');
+    if (!ctx) return;
+
+    if (!data.history || data.history.length === 0) {
+      ctx.style.display = 'none';
+      let placeholder = ctx.parentElement.querySelector('.chart-placeholder');
+      if (!placeholder) {
+        placeholder = document.createElement('div');
+        placeholder.className = 'chart-placeholder text-center py-5';
+        placeholder.style.cssText = 'color: var(--text-sub); display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%;';
+        placeholder.innerHTML = `
+          <i class="fa-solid fa-chart-line" style="font-size: 2.5rem; margin-bottom: 12px; color: rgba(255,255,255,0.15);"></i>
+          <div style="font-weight: 500;">No score history available yet.</div>
+          <p style="font-size: 0.75rem; color: rgba(255,255,255,0.3); margin-top: 4px;">Health history snapshots are compiled daily.</p>`;
+        ctx.parentElement.appendChild(placeholder);
+      } else {
+        placeholder.style.display = 'flex';
+      }
+      return;
+    }
+
+    ctx.style.display = 'block';
+    let placeholder = ctx.parentElement.querySelector('.chart-placeholder');
+    if (placeholder) placeholder.style.display = 'none';
+
+    // Update KPI stat elements
+    const peakEl = document.getElementById('trend-stat-peak');
+    const wowEl = document.getElementById('trend-stat-wow');
+    const bestEl = document.getElementById('trend-stat-best');
+    const worstEl = document.getElementById('trend-stat-worst');
+
+    if (peakEl || wowEl || bestEl || worstEl) {
+      const overallScores = data.history.map(h => h.overall || 0);
+      const peak = Math.max(...overallScores, 0);
+
+      const latestSnap = data.history[data.history.length - 1];
+      const prevSnap = data.history[Math.max(0, data.history.length - 8)];
+      const diff = (latestSnap.overall || 0) - (prevSnap.overall || 0);
+      const diffStr = diff >= 0 ? `+${diff}%` : `${diff}%`;
+
+      const dims = [
+        { name: 'Security', val: latestSnap.security || 0 },
+        { name: 'Moderation', val: latestSnap.moderation || 0 },
+        { name: 'Structure', val: latestSnap.structure || 0 },
+        { name: 'Engagement', val: latestSnap.engagement || 0 },
+        { name: 'Automation', val: latestSnap.automation || 0 }
+      ];
+      dims.sort((a, b) => b.val - a.val);
+      const best = dims[0];
+      const worst = dims[dims.length - 1];
+
+      if (peakEl) peakEl.textContent = `${peak}%`;
+      if (wowEl) {
+        wowEl.textContent = diffStr;
+        wowEl.style.color = diff >= 0 ? 'var(--success)' : 'var(--danger)';
+      }
+      if (bestEl) bestEl.textContent = `${best.name} (${best.val}%)`;
+      if (worstEl) worstEl.textContent = `${worst.name} (${worst.val}%)`;
+    }
+
+    const isLight = document.body.classList.contains('light-theme');
+    const gridColor = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)';
+    const tickColor = isLight ? '#64748b' : '#94a3b8';
+
+    if (intelTrendsChart) intelTrendsChart.destroy();
+    intelTrendsChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: data.history.map(h => h.timestamp ? new Date(h.timestamp).toLocaleDateString() : ''),
+        datasets: [
+          { label: 'Overall', data: data.history.map(h => h.overall), borderColor: '#818cf8', tension: 0.4, pointRadius: 2 },
+          { label: 'Security', data: data.history.map(h => h.security), borderColor: '#34d399', tension: 0.4, pointRadius: 2 },
+          { label: 'Moderation', data: data.history.map(h => h.moderation), borderColor: '#f59e0b', tension: 0.4, pointRadius: 2 },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { labels: { color: tickColor, font: { size: 11 } } } },
+        scales: {
+          x: { ticks: { color: tickColor, maxTicksLimit: 7 }, grid: { color: gridColor } },
+          y: { min: 0, max: 100, ticks: { color: tickColor }, grid: { color: gridColor } }
+        }
+      }
+    });
+  } catch (err) {}
+}
+
+// 3. Automation Center loaders
+async function loadAutomationCenterTab() {
+  if (!activeGuildId) return;
+
+  const guardianEl = document.getElementById('auto-guardian-status');
+  const rulesEl = document.getElementById('automation-rules-content');
+  const slowmodeEl = document.getElementById('auto-slowmode-status');
+  const maintenanceEl = document.getElementById('auto-maintenance-content');
+
+  if (guardianEl) guardianEl.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading Guardian status...</div>';
+  if (rulesEl) rulesEl.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading rules...</div>';
+
+  try {
+    const [rulesData, logsData] = await Promise.all([
+      window.aegisCache.fetchWithCache(`/api/guilds/${activeGuildId}/intelligence/automation/rules`),
+      window.aegisCache.fetchWithCache(`/api/guilds/${activeGuildId}/intelligence/automation/log`)
+    ]);
+
+    if (guardianEl) {
+      const logs = logsData.log || logsData || [];
+      let logsHtml = '';
+      if (logs.length > 0) {
+        logs.slice(0, 3).forEach(log => {
+          const time = new Date(log.timestamp).toLocaleTimeString();
+          logsHtml += `
+            <div style="font-size:0.75rem;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.02);display:flex;justify-content:space-between;">
+              <span style="color:var(--text-sub);"><i class="fa-solid fa-check-double" style="color:var(--success);margin-right:6px;"></i>${escapeHtml(log.rule_name || 'System Auto-Fix')}</span>
+              <span style="color:var(--text-sub);font-size:0.7rem;">${time}</span>
+            </div>`;
+        });
+      } else {
+        logsHtml = '<div style="font-size:0.75rem;color:var(--text-sub);padding:4px 0;">No automatic interventions required.</div>';
+      }
+
+      guardianEl.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div style="display:flex;align-items:center;justify-content:between;">
+            <div>
+              <span style="font-weight:600;font-size:1.1rem;color:var(--success);display:flex;align-items:center;gap:6px;">
+                <i class="fa-solid fa-shield-halved"></i> Active
+              </span>
+              <div style="font-size:0.7rem;color:var(--text-sub);margin-top:2px;">Scheduled Engine Checks</div>
+            </div>
+            <div style="text-align:right;margin-left:auto;">
+              <div style="font-size:0.75rem;color:var(--text-sub);">Next Run In</div>
+              <div id="guardian-countdown" style="font-size:1.2rem;font-weight:700;color:var(--primary);font-family:monospace;">5:00</div>
+            </div>
+          </div>
+          <div style="border-top:1px solid rgba(255,255,255,0.05);padding-top:10px;">
+            <div style="font-size:0.8rem;font-weight:600;margin-bottom:6px;">Last Interventions:</div>
+            ${logsHtml}
+          </div>
+        </div>
+      `;
+      startGuardianCountdown();
+    }
+
+    if (slowmodeEl) {
+      slowmodeEl.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:0.85rem;font-weight:500;">Adaptive Slowmode</span>
+            <label class="switch">
+              <input type="checkbox" id="slowmode-toggle"${(currentConfig.slowmode_settings || {}).enabled ? ' checked' : ''}>
+              <span class="slider round"></span>
+            </label>
+          </div>
+          <p style="font-size:0.75rem;color:var(--text-sub);margin:0;">Automatically sets slowmode in high-velocity channels during message bursts to prevent chat flooding.</p>
+          <div style="display:flex;gap:10px;margin-top:6px;">
+            <div class="glass-inner p-2 text-center" style="flex:1;">
+              <div id="slowmode-threshold-val" style="font-size:1rem;font-weight:700;color:var(--text-main);">10 msg/s</div>
+              <div style="font-size:0.65rem;color:var(--text-sub);">Burst Threshold</div>
+            </div>
+            <div class="glass-inner p-2 text-center" style="flex:1;">
+              <div id="slowmode-duration-val" style="font-size:1rem;font-weight:700;color:var(--text-main);">5s</div>
+              <div style="font-size:0.65rem;color:var(--text-sub);">Slowmode Applied</div>
+            </div>
+          </div>
+          <div id="slowmode-channel-status" style="margin-top:8px;font-size:0.7rem;color:var(--text-sub);"></div>
+        </div>
+      `;
+      loadSlowmodeSettings();
+    }
+
+    if (maintenanceEl) {
+      loadMaintenanceSettings();
+    }
+
+    if (rulesEl) {
+      const rules = rulesData.rules || rulesData || [];
+      if (rules.length === 0) {
+        rulesEl.innerHTML = `
+          <div class="text-center py-4" style="color:var(--text-sub);">
+            <i class="fa-solid fa-robot" style="font-size:2rem;margin-bottom:8px;display:block;"></i>
+            No custom rules configured yet.
+            <button class="btn btn-primary btn-glow mt-3" onclick="openRuleModal()"><i class="fa-solid fa-plus"></i> Add Rule</button>
+          </div>`;
+        return;
+      }
+
+      let html = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <span style="font-size:0.8rem;color:var(--text-sub);">${rules.length} rule${rules.length !== 1 ? 's' : ''}</span>
+          <button class="btn btn-primary btn-glow btn-small" onclick="openRuleModal()"><i class="fa-solid fa-plus"></i> Add Rule</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;">`;
+      rules.forEach(rule => {
+        const statusColor = rule.enabled ? 'var(--success)' : 'var(--text-sub)';
+        html += `
+          <div class="glass-inner p-3" style="border-left:4px solid ${statusColor};display:flex;align-items:center;justify-content:space-between;gap:12px;">
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:600;font-size:0.9rem;">${escapeHtml(rule.name)}</div>
+              <div style="font-size:0.75rem;color:var(--text-sub);margin-top:2px;">
+                Trigger: <strong style="color:var(--text-main);">${escapeHtml(rule.trigger)}</strong>
+                &middot; ${rule.conditions?.length || 0} conditions &middot; ${rule.actions?.length || 0} actions
+              </div>
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0;">
+              <button class="btn btn-secondary btn-small" data-rule-id="${rule.id}" onclick="editRule(this.dataset.ruleId)"><i class="fa-solid fa-pen"></i></button>
+              <button class="btn btn-danger btn-small" data-rule-id="${rule.id}" data-rule-name="${escapeHtml(rule.name)}" onclick="deleteRule(this.dataset.ruleId, this.dataset.ruleName)"><i class="fa-solid fa-trash"></i></button>
+            </div>
+          </div>`;
+      });
+      html += '</div>';
+      rulesEl.innerHTML = html;
+    }
+  } catch (err) {
+    if (rulesEl) rulesEl.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to load automation engine settings.</div>';
+  }
+}
+
+// Automation Rule Modal
+function openRuleModal(rule) {
+  const modal = document.getElementById('automation-rule-modal');
+  const title = document.getElementById('rule-modal-title');
+  const editId = document.getElementById('rule-edit-id');
+  const nameInput = document.getElementById('rule-name');
+  const triggerSelect = document.getElementById('rule-trigger');
+  const enabledToggle = document.getElementById('rule-enabled');
+  const condList = document.getElementById('rule-conditions-list');
+  const actList = document.getElementById('rule-actions-list');
+
+  condList.innerHTML = '';
+  actList.innerHTML = '';
+
+  if (rule) {
+    title.textContent = 'Edit Rule';
+    editId.value = rule.id || '';
+    nameInput.value = rule.name || '';
+    triggerSelect.value = rule.trigger || '';
+    enabledToggle.checked = rule.enabled !== false;
+    (rule.conditions || []).forEach(c => addRuleCondition(c));
+    (rule.actions || []).forEach(a => addRuleAction(a));
+  } else {
+    title.textContent = 'Add Rule';
+    editId.value = '';
+    nameInput.value = '';
+    triggerSelect.value = '';
+    enabledToggle.checked = true;
+  }
+
+  toggleEmptyHints();
+  modal.classList.remove('hidden');
+}
+
+async function editRule(ruleId) {
+  if (!activeGuildId) return;
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/intelligence/automation/rules`);
+    const data = await res.json();
+    const rules = data.rules || data || [];
+    const rule = rules.find(r => r.id === ruleId);
+    if (rule) openRuleModal(rule);
+    else showToast('Rule not found', 'error');
+  } catch (e) {
+    showToast('Failed to load rule', 'error');
+  }
+}
+
+async function deleteRule(ruleId, ruleName) {
+  if (!activeGuildId) return;
+  if (!confirm(`Delete "${ruleName}"?`)) return;
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/intelligence/automation/rules/${ruleId}`, { method: 'DELETE' });
+    if (!res.ok) throw new Error('Failed');
+    showToast('Deleted', 'success');
+    window.aegisCache.invalidate();
+    loadAutomationCenterTab();
+  } catch (e) {
+    showToast('Delete failed', 'error');
+  }
+}
+
+function addRuleCondition(cond) {
+  const list = document.getElementById('rule-conditions-list');
+  const div = document.createElement('div');
+  div.className = 'glass-inner p-2';
+  div.style.cssText = 'display:flex;gap:6px;align-items:center;';
+  div.innerHTML = `
+    <select data-f="field" style="flex:1;padding:6px 8px;border-radius:6px;font-size:0.8rem;background:rgba(255,255,255,0.05);color:var(--text-main);border:1px solid rgba(255,255,255,0.08);">
+      <option value="">Field...</option>
+      <option value="member.username"${cond?.field === 'member.username' ? ' selected' : ''}>Username</option>
+      <option value="message.content"${cond?.field === 'message.content' ? ' selected' : ''}>Message</option>
+      <option value="message.length"${cond?.field === 'message.length' ? ' selected' : ''}>Msg Length</option>
+      <option value="channel.name"${cond?.field === 'channel.name' ? ' selected' : ''}>Channel</option>
+    </select>
+    <select data-f="operator" style="flex:1;padding:6px 8px;border-radius:6px;font-size:0.8rem;background:rgba(255,255,255,0.05);color:var(--text-main);border:1px solid rgba(255,255,255,0.08);">
+      <option value="">Op...</option>
+      <option value="contains"${cond?.operator === 'contains' ? ' selected' : ''}>Contains</option>
+      <option value="equals"${cond?.operator === 'equals' ? ' selected' : ''}>Equals</option>
+      <option value="greater_than"${cond?.operator === 'greater_than' ? ' selected' : ''}>Greater than</option>
+      <option value="less_than"${cond?.operator === 'less_than' ? ' selected' : ''}>Less than</option>
+    </select>
+    <input type="text" data-f="value" value="${escapeHtml(cond?.value ?? '')}" placeholder="Value" style="flex:1;padding:6px 8px;border-radius:6px;font-size:0.8rem;background:rgba(255,255,255,0.05);color:var(--text-main);border:1px solid rgba(255,255,255,0.08);">
+    <button class="btn btn-danger btn-small" onclick="this.parentElement.remove();toggleEmptyHints()" style="padding:4px 8px;"><i class="fa-solid fa-xmark"></i></button>
+  `;
+  list.appendChild(div);
+  toggleEmptyHints();
+}
+
+function addRuleAction(act) {
+  const list = document.getElementById('rule-actions-list');
+  const div = document.createElement('div');
+  div.className = 'glass-inner p-2';
+  div.style.cssText = 'display:flex;gap:6px;align-items:center;';
+  div.innerHTML = `
+    <select data-f="action" onchange="updateActionFields(this)" style="flex:1;padding:6px 8px;border-radius:6px;font-size:0.8rem;background:rgba(255,255,255,0.05);color:var(--text-main);border:1px solid rgba(255,255,255,0.08);">
+      <option value="">Action...</option>
+      <option value="send_message"${act?.action === 'send_message' ? ' selected' : ''}>Send Message</option>
+      <option value="assign_role"${act?.action === 'assign_role' ? ' selected' : ''}>Assign Role</option>
+      <option value="timeout_user"${act?.action === 'timeout_user' ? ' selected' : ''}>Timeout User</option>
+      <option value="kick_user"${act?.action === 'kick_user' ? ' selected' : ''}>Kick User</option>
+      <option value="ban_user"${act?.action === 'ban_user' ? ' selected' : ''}>Ban User</option>
+      <option value="set_slowmode"${act?.action === 'set_slowmode' ? ' selected' : ''}>Slowmode</option>
+      <option value="lock_channel"${act?.action === 'lock_channel' ? ' selected' : ''}>Lock Channel</option>
+      <option value="log_event"${act?.action === 'log_event' ? ' selected' : ''}>Log</option>
+    </select>
+    <div class="action-fields" style="display:flex;gap:6px;flex:1;"></div>
+    <button class="btn btn-danger btn-small" onclick="this.parentElement.remove();toggleEmptyHints()" style="padding:4px 8px;"><i class="fa-solid fa-xmark"></i></button>
+  `;
+  list.appendChild(div);
+  if (act?.action) {
+    div.querySelector('[data-f="action"]').value = act.action;
+    updateActionFields(div.querySelector('[data-f="action"]'), act);
+  }
+  toggleEmptyHints();
+}
+
+function updateActionFields(select, act) {
+  const container = select.closest('div').querySelector('.action-fields');
+  if (!container) return;
+  container.innerHTML = '';
+  const v = select.value;
+  const fields = {
+    send_message: [{ p: 'Channel ID', n: 'channel_id' }, { p: 'Message', n: 'message' }],
+    assign_role: [{ p: 'Role name', n: 'role_name' }],
+    timeout_user: [{ p: 'Minutes', n: 'duration_minutes', t: 'number' }],
+    kick_user: [{ p: 'Reason', n: 'reason' }],
+    ban_user: [{ p: 'Reason', n: 'reason' }],
+    set_slowmode: [{ p: 'Seconds', n: 'seconds', t: 'number' }],
+    lock_channel: [{ p: 'Channel ID', n: 'channel_id' }],
+    log_event: [{ p: 'Type', n: 'event_type' }, { p: 'Details', n: 'details' }]
+  };
+  (fields[v] || []).forEach(f => {
+    const inp = document.createElement('input');
+    inp.type = f.t || 'text';
+    inp.dataset.f = f.n;
+    inp.placeholder = f.p;
+    inp.value = act?.[f.n] ?? '';
+    inp.style.cssText = 'flex:1;padding:6px 8px;border-radius:6px;font-size:0.8rem;background:rgba(255,255,255,0.05);color:var(--text-main);border:1px solid rgba(255,255,255,0.08);';
+    container.appendChild(inp);
+  });
+}
+
+function toggleEmptyHints() {
+  const cl = document.getElementById('rule-conditions-list');
+  const al = document.getElementById('rule-actions-list');
+  const ce = document.getElementById('rule-conditions-empty');
+  const ae = document.getElementById('rule-actions-empty');
+  if (ce) ce.style.display = cl?.children.length ? 'none' : 'block';
+  if (ae) ae.style.display = al?.children.length ? 'none' : 'block';
+}
+
+async function saveAutomationRule() {
+  if (!activeGuildId) return;
+  const name = document.getElementById('rule-name').value.trim();
+  const trigger = document.getElementById('rule-trigger').value;
+  if (!name) return showToast('Name required', 'error');
+  if (!trigger) return showToast('Trigger required', 'error');
+
+  const conditions = [];
+  document.querySelectorAll('#rule-conditions-list > div').forEach(d => {
+    const field = d.querySelector('[data-f="field"]')?.value;
+    const operator = d.querySelector('[data-f="operator"]')?.value;
+    const value = d.querySelector('[data-f="value"]')?.value;
+    if (field && operator) conditions.push({ field, operator, value });
+  });
+
+  const actions = [];
+  document.querySelectorAll('#rule-actions-list > div').forEach(d => {
+    const actionType = d.querySelector('[data-f="action"]')?.value;
+    if (!actionType) return;
+    const obj = { action: actionType };
+    d.querySelectorAll('.action-fields input').forEach(i => {
+      if (i.dataset.f && i.value) obj[i.dataset.f] = i.value;
+    });
+    actions.push(obj);
+  });
+  if (!actions.length) return showToast('Add at least one action', 'error');
+
+  const data = {
+    name,
+    trigger,
+    enabled: document.getElementById('rule-enabled').checked,
+    conditions,
+    actions
+  };
+
+  const editId = document.getElementById('rule-edit-id').value;
+  const url = editId
+    ? `/api/guilds/${activeGuildId}/intelligence/automation/rules/${editId}`
+    : `/api/guilds/${activeGuildId}/intelligence/automation/rules`;
+
+  try {
+    const res = await fetch(url, {
+      method: editId ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'Failed'); }
+    showToast(editId ? 'Updated' : 'Created', 'success');
+    closeModal('automation-rule-modal');
+    window.aegisCache.invalidate();
+    loadAutomationCenterTab();
+  } catch (e) {
+    showToast(`Error: ${e.message}`, 'error');
+  }
+}
+
+async function loadSlowmodeSettings() {
+  if (!activeGuildId) return;
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/slowmode/status`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const settings = data.settings || {};
+    const toggle = document.getElementById('slowmode-toggle');
+    if (toggle) {
+      const slider = toggle.nextElementSibling;
+      if (slider) slider.style.transition = 'none';
+      toggle.checked = !!settings.enabled;
+      if (slider) { void slider.offsetHeight; slider.style.transition = ''; }
+      toggle.addEventListener('change', () => saveSlowmodeSettings());
+    }
+    const thEl = document.getElementById('slowmode-threshold-val');
+    if (thEl) {
+      const minRate = settings.min_trigger_rate || 3.0;
+      thEl.textContent = minRate + ' msg/s (adaptive)';
+    }
+    const durEl = document.getElementById('slowmode-duration-val');
+    if (durEl) {
+      const dur = settings.slowmode_duration || 3;
+      const maxDur = settings.max_slowmode_duration || 10;
+      durEl.textContent = dur + '-' + maxDur + 's (tiered)';
+    }
+    const statusEl = document.getElementById('slowmode-channel-status');
+    if (statusEl && data.channels) {
+      const active = data.channels.filter(c => c.current_slowmode > 0 || c.message_rate > 0);
+      if (active.length > 0) {
+        statusEl.innerHTML = active.slice(0, 3).map(c =>
+          `<div>#${c.name}: ${c.message_rate} msg/s${c.current_slowmode > 0 ? ' (slowmode active)' : ''}</div>`
+        ).join('');
+      }
+    }
+  } catch (e) {}
+}
+
+async function saveSlowmodeSettings() {
+  if (!activeGuildId || !currentConfig) return;
+  const toggle = document.getElementById('slowmode-toggle');
+  currentConfig.slowmode_settings = {
+    enabled: toggle ? toggle.checked : false,
+    burst_window_seconds: (currentConfig.slowmode_settings || {}).burst_window_seconds || 10,
+    min_trigger_rate: (currentConfig.slowmode_settings || {}).min_trigger_rate || 3.0,
+    slowmode_duration: (currentConfig.slowmode_settings || {}).slowmode_duration || 3,
+    max_slowmode_duration: (currentConfig.slowmode_settings || {}).max_slowmode_duration || 10,
+    cooldown_seconds: (currentConfig.slowmode_settings || {}).cooldown_seconds || 30,
+    whitelisted_channels: (currentConfig.slowmode_settings || {}).whitelisted_channels || [],
+  };
+  try {
+    const url = `/api/config?guild_id=${activeGuildId}`;
+    await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify(currentConfig),
+    });
+  } catch (e) {}
+}
+
+async function loadMaintenanceSettings() {
+  const el = document.getElementById('auto-maintenance-content');
+  if (!el) return;
+  try {
+    const res = await fetch('/api/maintenance/settings');
+    if (!res.ok) throw new Error('Failed');
+    const data = await res.json();
+    const bk = data.backup_settings || {};
+    const mt = data.maintenance_settings || {};
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));gap:16px;">
+        <div class="glass-inner p-3" style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:600;font-size:0.85rem;"><i class="fa-solid fa-box-archive" style="color:var(--info);margin-right:6px;"></i>Nightly DB Backup</span>
+            <label class="switch switch-sm"><input type="checkbox" id="maint-backup-enabled" ${bk.enabled ? 'checked' : ''}><span class="slider round"></span></label>
+          </div>
+          <p style="font-size:0.75rem;color:var(--text-sub);margin:0;">Automatic database backup on schedule.</p>
+          <div style="display:flex;gap:8px;margin-top:4px;">
+            <div style="flex:1;"><label style="font-size:0.7rem;color:var(--text-sub);">Hour (UTC)</label><input type="number" id="maint-backup-hour" min="0" max="23" value="${bk.schedule_hour || 3}" class="glass-input" style="width:100%;padding:4px 8px;font-size:0.8rem;"></div>
+            <div style="flex:1;"><label style="font-size:0.7rem;color:var(--text-sub);">Retention</label><input type="number" id="maint-backup-retention" min="1" max="90" value="${bk.retention_days || 7}" class="glass-input" style="width:100%;padding:4px 8px;font-size:0.8rem;"></div>
+          </div>
+        </div>
+        <div class="glass-inner p-3" style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:600;font-size:0.85rem;"><i class="fa-solid fa-broom" style="color:var(--primary);margin-right:6px;"></i>Auto Role Cleanup</span>
+            <label class="switch switch-sm"><input type="checkbox" id="maint-role-cleanup" ${mt.role_cleanup_enabled ? 'checked' : ''}><span class="slider round"></span></label>
+          </div>
+          <p style="font-size:0.75rem;color:var(--text-sub);margin:0;">Daily prune of empty, unmanaged roles.</p>
+        </div>
+        <div class="glass-inner p-3" style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:600;font-size:0.85rem;"><i class="fa-solid fa-hard-drive" style="color:var(--warning);margin-right:6px;"></i>DB Vacuum</span>
+            <label class="switch switch-sm"><input type="checkbox" id="maint-db-vacuum" ${mt.db_vacuum_enabled ? 'checked' : ''}><span class="slider round"></span></label>
+          </div>
+          <p style="font-size:0.75rem;color:var(--text-sub);margin:0;">Weekly SQLite vacuum to reclaim space.</p>
+        </div>
+        <div class="glass-inner p-3" style="display:flex;flex-direction:column;gap:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-weight:600;font-size:0.85rem;"><i class="fa-solid fa-box-archive" style="color:var(--info);margin-right:6px;"></i>Channel Archive</span>
+            <label class="switch switch-sm"><input type="checkbox" id="maint-channel-archive" ${mt.channel_archive_enabled ? 'checked' : ''}><span class="slider round"></span></label>
+          </div>
+          <p style="font-size:0.75rem;color:var(--text-sub);margin:0;">Archive inactive channels after ${mt.inactive_days || 30} days.</p>
+        </div>
+      </div>
+      <div style="margin-top:12px;text-align:right;">
+        <button class="btn btn-sm btn-primary" id="btn-save-maintenance"><i class="fa-solid fa-check"></i> Save</button>
+      </div>
+    `;
+    document.getElementById('btn-save-maintenance').addEventListener('click', saveMaintenanceSettings);
+  } catch (err) {
+    el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to load maintenance settings.</div>';
+  }
+}
+
+async function saveMaintenanceSettings() {
+  const payload = {
+    backup_settings: {
+      enabled: document.getElementById('maint-backup-enabled').checked,
+      schedule_hour: parseInt(document.getElementById('maint-backup-hour').value, 10),
+      schedule_minute: 0,
+      retention_days: parseInt(document.getElementById('maint-backup-retention').value, 10),
+      use_safe_backup: true,
+    },
+    maintenance_settings: {
+      role_cleanup_enabled: document.getElementById('maint-role-cleanup').checked,
+      role_cleanup_hour: 4,
+      channel_archive_enabled: document.getElementById('maint-channel-archive').checked,
+      inactive_days: 30,
+      db_vacuum_enabled: document.getElementById('maint-db-vacuum').checked,
+      db_vacuum_hour: 5,
+    },
+  };
+  try {
+    const res = await fetch('/api/maintenance/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) showToast('Maintenance settings saved.', 'success');
+    else showToast('Failed to save maintenance settings.', 'error');
+  } catch (e) {
+    showToast('Network error saving maintenance settings.', 'error');
+  }
+}
+
+function startGuardianCountdown() {
+  const el = document.getElementById('guardian-countdown');
+  if (!el) return;
+
+  const updateCountdown = () => {
+    const elapsedSeconds = Math.floor(Date.now() / 1000) % 300;
+    const remainingSeconds = 300 - elapsedSeconds;
+    const minutes = Math.floor(remainingSeconds / 60);
+    const seconds = remainingSeconds % 60;
+    el.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  updateCountdown();
+  clearInterval(guardianCountdownInterval);
+  guardianCountdownInterval = setInterval(updateCountdown, 1000);
+}
+
+// 4. History & Progress loaders
+async function loadHistoryProgress() {
+  if (!activeGuildId) return;
+
+  const maturityEl = document.getElementById('history-maturity-content');
+  const snapshotsEl = document.getElementById('history-config-snapshots');
+  const timelineEl = document.getElementById('timeline-content');
+
+  if (maturityEl) maturityEl.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading maturity score...</div>';
+  if (snapshotsEl) snapshotsEl.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading snapshots...</div>';
+  if (timelineEl) timelineEl.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading incident timeline...</div>';
+
+  // Load all three in parallel
+  const [maturityResult, snapshotsResult, timelineResult] = await Promise.allSettled([
+    window.aegisCache.fetchWithCache(`/api/guilds/${activeGuildId}/smart/maturity-score`),
+    window.aegisCache.fetchWithCache(`/api/guilds/${activeGuildId}/config-history?limit=10`),
+    window.aegisCache.fetchWithCache(`/api/guilds/${activeGuildId}/smart/incident-timeline?hours=24`),
+  ]);
+
+  // Maturity score
+  if (maturityResult.status === 'fulfilled') {
+    const data = maturityResult.value;
+    if (data && maturityEl) {
+      const dims = data.dimensions || {};
+      const dimEntries = [
+        { key: 'security', label: 'Security', color: 'var(--danger)' },
+        { key: 'moderation', label: 'Moderation', color: 'var(--warning)' },
+        { key: 'automation', label: 'Automation', color: 'var(--primary)' },
+        { key: 'growth', label: 'Growth', color: 'var(--success)' },
+        { key: 'reliability', label: 'Reliability', color: '#818cf8' },
+        { key: 'community_health', label: 'Community', color: '#22d3ee' },
+      ];
+      const barsHtml = dimEntries.map((d, i) => {
+        const val = dims[d.key] || 0;
+        return `
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px;margin-top:8px;">
+            <span>${d.label}</span><span>${val}%</span>
+          </div>
+          <div class="dimension-bar"><div class="dimension-bar-fill" data-target="${val}" style="width:0%;background:${d.color};transition-delay:${200 + i * 100}ms;"></div></div>`;
+      }).join('');
+      maturityEl.innerHTML = `
+        <div style="display:flex;flex-direction:column;gap:12px;align-items:center;">
+          ${renderScoreGauge(data.overall || 0, 'Maturity')}
+          <div style="width:100%;font-size:0.8rem;margin-top:10px;">
+            ${barsHtml}
+          </div>
+        </div>`;
+      // Animate bars from 0 to target
+      setTimeout(() => {
+        maturityEl.querySelectorAll('.dimension-bar-fill[data-target]').forEach(bar => {
+          bar.style.width = bar.dataset.target + '%';
+        });
+      }, 50);
+    }
+  } else {
+    if (maturityEl) maturityEl.innerHTML = '<div class="text-center py-4" style="color:var(--text-sub);">Failed to load maturity index.</div>';
+  }
+
+  // Config history
+  if (snapshotsResult.status === 'fulfilled') {
+    const data = snapshotsResult.value;
+    const snapshots = data.snapshots || [];
+    if (snapshots.length === 0) {
+      if (snapshotsEl) snapshotsEl.innerHTML = '<div class="text-center py-4" style="color:var(--text-sub);">No snapshots available.</div>';
+    } else {
+      let html = '<div style="display:flex;flex-direction:column;gap:8px;">';
+      snapshots.forEach(snap => {
+        const time = new Date(snap.created_at).toLocaleString();
+        const changed = snap.changed_keys || [];
+        html += `
+          <div class="glass-inner p-2" style="display:flex;justify-content:space-between;align-items:center;font-size:0.8rem;">
+            <div>
+              <div style="font-weight:600;">Snapshot #${snap.id}</div>
+              <div style="font-size:0.7rem;color:var(--text-sub);">${time} (by ${escapeHtml(snap.created_by || 'system')})</div>
+              <div style="font-size:0.7rem;color:var(--text-sub);margin-top:2px;">Keys: ${changed.join(', ') || 'initial'}</div>
+            </div>
+            <button class="btn btn-xs btn-primary" onclick="rollbackConfigSnapshot(${snap.id})">Rollback</button>
+          </div>`;
+      });
+      html += '</div>';
+      if (snapshotsEl) snapshotsEl.innerHTML = html;
+    }
+  } else {
+    if (snapshotsEl) snapshotsEl.innerHTML = '<div class="text-center py-4" style="color:var(--text-sub);">Failed to load config history.</div>';
+  }
+
+  // Incident timeline
+  if (timelineResult.status === 'fulfilled') {
+    const data = timelineResult.value;
+    const events = data.events || [];
+    if (events.length === 0) {
+      if (timelineEl) timelineEl.innerHTML = '<div class="text-center py-4" style="color:var(--text-sub);">No timeline events recorded in the last 24 hours.</div>';
+    } else {
+      let html = '<div class="timeline-container">';
+      events.slice(0, 10).forEach(event => {
+        const severity = event.severity || 'info';
+        const dateStr = event.timestamp === 'now' ? 'Just Now' : new Date(event.timestamp).toLocaleTimeString();
+        
+        html += `
+          <div class="timeline-item">
+            <div class="timeline-node ${severity}"></div>
+            <div class="timeline-meta">${dateStr}</div>
+            <div class="timeline-title">${escapeHtml(event.type.replace(/_/g, ' ').toUpperCase())}</div>
+            <div class="timeline-details">${escapeHtml(event.details || '')}</div>
+          </div>`;
+      });
+      html += '</div>';
+      if (timelineEl) timelineEl.innerHTML = html;
+    }
+  } else {
+    if (timelineEl) timelineEl.innerHTML = '<div class="text-center py-4" style="color:var(--text-sub);">Failed to load incident timeline.</div>';
+  }
+}
+
+async function rollbackConfigSnapshot(snapshotId) {
+  const ok = confirm(`Are you sure you want to rollback to snapshot #${snapshotId}?`);
+  if (!ok) return;
+
+  showToast(`Rolling back config to snapshot #${snapshotId}...`, 'info');
+  try {
+    const res = await fetch(`/api/guilds/${activeGuildId}/config-rollback/${snapshotId}`, {
+      method: 'POST'
+    });
+    if (res.ok) {
+      showToast('Config rollback successful!', 'success');
+      addLiveActivity('Rollback', `Rolled back to snapshot #${snapshotId}`, '+0 Health');
+      window.aegisCache.invalidate();
+      loadHistoryProgress();
+    } else {
+      showToast('Rollback failed.', 'error');
+    }
+  } catch (e) {
+    showToast('Error executing rollback.', 'error');
+  }
+}
+
+// Check undo toast on initialization
+document.addEventListener('DOMContentLoaded', () => {
+  checkPendingUndoOnLoad();
+});

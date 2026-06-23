@@ -115,6 +115,21 @@ async def get_command_center(guild_id: str, request: Request):
             "type": "config",
         })
 
+    # Bot permissions for this guild
+    bot_permissions = {}
+    if guild and guild.me and guild.me.guild_permissions:
+        perms = guild.me.guild_permissions
+        bot_permissions = {
+            "manage_guild": perms.manage_guild,
+            "manage_channels": perms.manage_channels,
+            "manage_roles": perms.manage_roles,
+            "manage_webhooks": perms.manage_webhooks,
+            "manage_emojis": perms.manage_emojis,
+            "kick_members": perms.kick_members,
+            "ban_members": perms.ban_members,
+            "administrator": perms.administrator,
+        }
+
     return {
         "guild_id": guild_id,
         "health_score": audit_result.get("overall_score", 0),
@@ -127,6 +142,7 @@ async def get_command_center(guild_id: str, request: Request):
         "notifications": notifications,
         "timeline": timeline[:5],
         "recommendations_count": len(audit_result.get("findings", [])),
+        "bot_permissions": bot_permissions,
     }
 
 

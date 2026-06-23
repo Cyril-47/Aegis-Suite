@@ -4,11 +4,19 @@ import base64
 import hmac
 import time
 import jwt
+import logging
+
+logger = logging.getLogger("aegis.auth")
 
 SESSION_EXPIRY_SECONDS = 24 * 60 * 60  # 24 hours
 _revoked_tokens = set()
 _validated_tokens = {}  # token_hash -> expiry_timestamp
 _db_engine = None
+
+# Rate limiting for login attempts
+_login_attempts = {}  # ip -> [timestamps]
+MAX_LOGIN_ATTEMPTS = 5
+LOGIN_WINDOW_SECONDS = 15 * 60  # 15 minutes
 
 def set_db_engine(engine):
     """Sets the database engine explicitly for testing or startup config."""
@@ -101,7 +109,7 @@ def is_token_revoked(token: str) -> bool:
                 _revoked_tokens.add(token)
                 return True
         except Exception as e:
-            print(f"Error checking revoked token in DB: {e}")
+            logger.error(f"Error checking revoked token in DB: {e}")
         finally:
             session.close()
 
@@ -140,7 +148,7 @@ def revoke_guild_sessions(guild_id: str):
                 revoked_list.append(gid_str)
                 utils.save_config(config)
     except Exception as e:
-        print(f"Error saving revoked guilds to config: {e}")
+        logger.error(f"Error saving revoked guilds to config: {e}")
 
 def validate_session(token: str) -> bool:
     """Checks if a session token is valid, not expired, and not revoked.
@@ -211,7 +219,7 @@ def destroy_session(token: str) -> bool:
                     session.add(row)
                     session.commit()
             except Exception as e:
-                print(f"Error persisting revoked token to DB: {e}")
+                logger.error(f"Error persisting revoked token to DB: {e}")
             finally:
                 session.close()
         return True
@@ -241,7 +249,49 @@ def has_active_sessions() -> bool:
                     session.delete(row)
             session.commit()
         except Exception as e:
-            print(f"Error pruning expired revoked tokens in DB: {e}")
+            logger.error(f"Error pruning expired revoked tokens in DB: {e}")
         finally:
             session.close()
     return True
+
+
+def check_login_rate_limit(ip_address: str) -> bool:
+    """Check if an IP address has exceeded login rate limits.
+    
+    Returns True if the request is allowed, False if rate limited.
+    """
+    now = time.time()
+    
+    # Get or create attempt list for this IP
+    if ip_address not in _login_attempts:
+        _login_attempts[ip_address] = []
+    
+    # Clean up old attempts outside the window
+    _login_attempts[ip_address] = [
+        ts for ts in _login_attempts[ip_address]
+        if now - ts < LOGIN_WINDOW_SECONDS
+    ]
+    
+    # Check if rate limited
+    if len(_login_attempts[ip_address]) >= MAX_LOGIN_ATTEMPTS:
+        logger.warning(f"Login rate limit exceeded for IP: {ip_address}")
+        return False
+    
+    # Record this attempt
+    _login_attempts[ip_address].append(now)
+    return True
+
+
+def get_login_attempts_remaining(ip_address: str) -> int:
+    """Get the number of login attempts remaining for an IP."""
+    now = time.time()
+    if ip_address not in _login_attempts:
+        return MAX_LOGIN_ATTEMPTS
+    
+    # Clean up old attempts
+    _login_attempts[ip_address] = [
+        ts for ts in _login_attempts[ip_address]
+        if now - ts < LOGIN_WINDOW_SECONDS
+    ]
+    
+    return max(0, MAX_LOGIN_ATTEMPTS - len(_login_attempts[ip_address]))

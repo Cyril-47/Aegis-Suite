@@ -1,7 +1,5 @@
 from fastapi import APIRouter, HTTPException, Request
-import aegis.core.utils as utils
 import aegis.core.auth as auth
-from aegis.core.config_history import create_snapshot, get_history, get_snapshot
 
 router = APIRouter()
 
@@ -23,55 +21,6 @@ def _require_guild_access(request: Request, guild_id: str):
     if role == "tenant" and session_guild_id != guild_id:
         raise HTTPException(status_code=403, detail="Forbidden: Session not authorized for this server")
     return token, role
-
-
-# Config History Endpoints
-
-@router.get("/api/guilds/{guild_id}/config/history")
-async def get_config_history(guild_id: str, request: Request, limit: int = 20, offset: int = 0):
-    token, role = _require_guild_access(request, guild_id)
-    if role != "admin":
-        raise HTTPException(status_code=403, detail="Only admins can access configuration history")
-    return get_history(guild_id, limit=limit, offset=offset)
-
-
-@router.get("/api/guilds/{guild_id}/config/history/{snapshot_id}")
-async def get_config_snapshot(guild_id: str, snapshot_id: int, request: Request):
-    token, role = _require_guild_access(request, guild_id)
-    if role != "admin":
-        raise HTTPException(status_code=403, detail="Only admins can access configuration snapshots")
-    snapshot = get_snapshot(snapshot_id)
-    if not snapshot:
-        raise HTTPException(status_code=404, detail="Snapshot not found")
-    if snapshot.get("guild_id") != guild_id:
-        raise HTTPException(status_code=403, detail="Snapshot does not belong to this server")
-    return snapshot
-
-
-@router.post("/api/guilds/{guild_id}/config/history/{snapshot_id}/rollback")
-async def rollback_config(guild_id: str, snapshot_id: int, request: Request):
-    token, role = _require_guild_access(request, guild_id)
-    if role != "admin":
-        raise HTTPException(status_code=403, detail="Only admins can rollback")
-
-    snapshot = get_snapshot(snapshot_id)
-    if not snapshot:
-        raise HTTPException(status_code=404, detail="Snapshot not found")
-    if snapshot.get("guild_id") != guild_id:
-        raise HTTPException(status_code=403, detail="Snapshot does not belong to this server")
-
-    # Create snapshot of current state before rollback
-    current_config = utils.load_config().copy()
-    guild_config = current_config.get("guild_configs", {}).get(guild_id, {})
-    create_snapshot(guild_id, guild_config, changed_keys=[], created_by="rollback_pre")
-
-    # Apply rollback
-    with utils.config_lock:
-        config = utils.load_config()
-        config.setdefault("guild_configs", {})[guild_id] = snapshot["config"]
-        utils.save_config(config)
-
-    return {"status": "success", "rolled_back_to": snapshot_id}
 
 
 # Recommendations Endpoint

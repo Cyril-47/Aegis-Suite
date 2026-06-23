@@ -339,7 +339,7 @@
       </nav>
 
       <div class="sidebar-footer-actions">
-        <button id="btn-theme-toggle" class="sidebar-action-btn" title="Toggle Theme">
+        <button id="btn-theme-toggle" class="sidebar-action-btn" title="Switch Theme">
           <i class="fa-solid fa-circle-half-stroke"></i> Theme
         </button>
         <button id="btn-logout" class="sidebar-action-btn logout" title="Log Out">
@@ -554,7 +554,7 @@
 
             <!-- Active Server Card (Hidden until selected) -->
             <div id="active-server-card" class="card glass span-4 hidden">
-              <div class="card-header border-bottom">
+              <div class="card-header border-bottom flex-header">
                 <div class="guild-header-details">
                     <img id="active-guild-icon" src="" alt="Guild Icon" class="guild-avatar" width="48" height="48" loading="lazy">
                   <div>
@@ -1314,7 +1314,7 @@
                   <h2><i class="fa-solid fa-database"></i> Config Snapshot History</h2>
                   <p>Manage and rollback server configuration snapshots</p>
                 </div>
-                <div class="card-body" id="cc-config-history" style="max-height: 280px; overflow-y: auto;">
+                <div class="card-body" id="history-config-snapshots" style="max-height: 280px; overflow-y: auto;">
                   <div class="text-center py-3" style="color: var(--text-sub);">Loading config history...</div>
                 </div>
               </div>
@@ -1715,22 +1715,24 @@
                 <h2><i class="fa-solid fa-eye"></i> Welcome Preview</h2>
                 <p>Live Discord-accurate preview of your welcome embed.</p>
               </div>
-              <div class="card-body" style="background: #313338; border-radius: 12px; padding: 16px;">
-                <!-- Discord-style message -->
-                <div style="display: flex; gap: 12px; align-items: flex-start;">
-                  <div style="width: 40px; height: 40px; border-radius: 50%; background: #5865F2; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                    <i class="fa-solid fa-robot" style="color: #fff; font-size: 1.1rem;"></i>
-                  </div>
-                  <div style="flex: 1; min-width: 0;">
-                    <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px;">
-                      <span style="font-weight: 600; color: #fff; font-size: 0.95rem;">Aegis Bot</span>
-                      <span style="font-size: 0.7rem; color: #94a3b8; background: #5865F2; padding: 1px 6px; border-radius: 4px; font-weight: 500;">BOT</span>
-                      <span style="font-size: 0.75rem; color: #94a3b8;">Today at 12:00</span>
+              <div class="card-body">
+                <div class="bg-discord-chat" style="padding: 16px; width: 100%;">
+                  <!-- Discord-style message -->
+                  <div style="display: flex; gap: 12px; align-items: flex-start;">
+                    <div style="width: 40px; height: 40px; border-radius: 50%; background: #5865F2; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                      <i class="fa-solid fa-robot" style="color: #fff; font-size: 1.1rem;"></i>
                     </div>
-                    <!-- Discord Embed -->
-                    <div style="background: #2b2d31; border-left: 4px solid #6366f1; border-radius: 4px; padding: 12px 16px; max-width: 520px;">
-                      <div style="font-weight: 600; color: #fff; font-size: 0.95rem; margin-bottom: 4px;" id="preview-embed-title">Welcome to the Server!</div>
-                      <div style="color: #dcddde; font-size: 0.88rem; line-height: 1.4;" id="preview-embed-desc">Welcome @User to our server! We hope you enjoy your stay.</div>
+                    <div style="flex: 1; min-width: 0;">
+                      <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px;">
+                        <span style="font-weight: 600; color: #fff; font-size: 0.95rem;">Aegis Bot</span>
+                        <span style="font-size: 0.7rem; color: #94a3b8; background: #5865F2; padding: 1px 6px; border-radius: 4px; font-weight: 500;">BOT</span>
+                        <span style="font-size: 0.75rem; color: #94a3b8;">Today at 12:00</span>
+                      </div>
+                      <!-- Discord Embed -->
+                      <div style="background: #2b2d31; border-left: 4px solid #6366f1; border-radius: 4px; padding: 12px 16px; max-width: 520px;">
+                        <div style="font-weight: 600; color: #fff; font-size: 0.95rem; margin-bottom: 4px;" id="preview-embed-title">Welcome to the Server!</div>
+                        <div style="color: #dcddde; font-size: 0.88rem; line-height: 1.4;" id="preview-embed-desc">Welcome @User to our server! We hope you enjoy your stay.</div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2017,20 +2019,20 @@
             </div>
             <div class="card-body px-4 pb-4">
               <div class="grid-layout" style="grid-template-columns: repeat(3, 1fr); gap: 12px;">
-                <div class="template-card glass-inner p-3" data-template="gaming" role="button" tabindex="0" style="cursor:pointer; border: 2px solid transparent; border-radius: 12px; text-align: center;">
+                <div class="template-card glass-inner p-3" data-template="gaming" role="button" tabindex="0">
                   <i class="fa-solid fa-gamepad" style="font-size: 1.5rem; color: var(--primary); margin-bottom: 8px;"></i>
-                  <h3 style="font-size: 0.9rem;">Gaming Server</h3>
-                  <div style="font-size: 0.75rem; color: var(--text-sub); margin-top: 4px;">Admin, Mod, VIP, Member</div>
+                  <h3>Gaming Server</h3>
+                  <div>Admin, Mod, VIP, Member</div>
                 </div>
-                <div class="template-card glass-inner p-3" data-template="community" role="button" tabindex="0" style="cursor:pointer; border: 2px solid transparent; border-radius: 12px; text-align: center;">
+                <div class="template-card glass-inner p-3" data-template="community" role="button" tabindex="0">
                   <i class="fa-solid fa-people-group" style="font-size: 1.5rem; color: var(--success); margin-bottom: 8px;"></i>
-                  <h3 style="font-size: 0.9rem;">Community Server</h3>
-                  <div style="font-size: 0.75rem; color: var(--text-sub); margin-top: 4px;">Leader, Helper, Active, Member</div>
+                  <h3>Community Server</h3>
+                  <div>Leader, Helper, Active, Member</div>
                 </div>
-                <div class="template-card glass-inner p-3" data-template="support" role="button" tabindex="0" style="cursor:pointer; border: 2px solid transparent; border-radius: 12px; text-align: center;">
+                <div class="template-card glass-inner p-3" data-template="support" role="button" tabindex="0">
                   <i class="fa-solid fa-headset" style="font-size: 1.5rem; color: var(--warning); margin-bottom: 8px;"></i>
-                  <h3 style="font-size: 0.9rem;">Support Server</h3>
-                  <div style="font-size: 0.75rem; color: var(--text-sub); margin-top: 4px;">Agent, Supervisor, User</div>
+                  <h3>Support Server</h3>
+                  <div>Agent, Supervisor, User</div>
                 </div>
               </div>
               <div id="template-preview" class="mt-3 hidden">
@@ -2207,25 +2209,27 @@
                 <h2>Panel Message Preview</h2>
                 <p>Simulates what the role panel will look like when deployed in Discord.</p>
               </div>
-              <div class="card-body flex-center bg-discord-chat flex-column py-5">
-                <div class="discord-message">
-                  <img src="/static/bot_logo.png" class="discord-author-avatar" alt="Bot avatar" width="40" height="40" loading="lazy">
-                  <div class="discord-message-content">
-                    <div class="discord-message-header">
-                      <span class="discord-author-name">Server Optimizer Bot</span>
-                      <span class="discord-bot-tag">BOT</span>
-                      <span class="discord-timestamp">Today at 12:00 PM</span>
-                    </div>
-                    <div id="preview-role-embed-border" class="discord-embed" style="border-left-color: #6366f1;">
-                      <div class="discord-embed-grid">
-                        <div class="discord-embed-main">
-                          <h4 id="preview-role-embed-title" class="discord-embed-title">Assign Your Roles</h4>
-                          <div id="preview-role-embed-desc" class="discord-embed-description">Click the buttons below to toggle your self-assignable roles!</div>
+              <div class="card-body card-body-preview">
+                <div class="bg-discord-chat" style="width: 100%; max-width: 550px; padding: 24px;">
+                  <div class="discord-message">
+                    <img src="/static/bot_logo.png" class="discord-author-avatar" alt="Bot avatar" width="40" height="40" loading="lazy">
+                    <div class="discord-message-content">
+                      <div class="discord-message-header">
+                        <span class="discord-author-name">Server Optimizer Bot</span>
+                        <span class="discord-bot-tag">BOT</span>
+                        <span class="discord-timestamp">Today at 12:00 PM</span>
+                      </div>
+                      <div id="preview-role-embed-border" class="discord-embed" style="border-left-color: #6366f1;">
+                        <div class="discord-embed-grid">
+                          <div class="discord-embed-main">
+                            <h4 id="preview-role-embed-title" class="discord-embed-title">Assign Your Roles</h4>
+                            <div id="preview-role-embed-desc" class="discord-embed-description">Click the buttons below to toggle your self-assignable roles!</div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div id="preview-role-buttons" class="discord-buttons-row mt-2">
-                      <!-- Simulator Buttons will render here -->
+                      <div id="preview-role-buttons" class="discord-buttons-row mt-2">
+                        <!-- Simulator Buttons will render here -->
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -2690,37 +2694,39 @@
                 <h2>Visual Simulator Preview</h2>
                 <p>Simulates how the embed will look when pushed live to Discord chat.</p>
               </div>
-              <div class="card-body bg-discord-chat flex-column py-5">
-                <!-- Outer message simulation -->
-                <div class="discord-message" style="width: 100%; max-width: 520px;">
-                  <img src="/static/bot_logo.png" class="discord-author-avatar" alt="Bot avatar">
-                  <div class="discord-message-content">
-                    <div class="discord-message-header">
-                      <span class="discord-author-name">Server Optimizer Bot</span>
-                      <span class="discord-bot-tag">BOT</span>
-                      <span class="discord-timestamp">Today at 12:00 PM</span>
-                    </div>
-                    <div id="sim-plain-text" class="sim-message-text mb-2 text-white"></div>
-                    <div id="preview-builder-embed" class="discord-embed" style="border-left-color: #6366f1;">
-                      <div class="discord-embed-grid">
-                        <div class="discord-embed-main">
-                          <div id="preview-embed-author" class="discord-embed-author hidden">
-                            <img id="preview-embed-author-icon" src="" class="discord-embed-author-icon hidden" onload="this.classList.remove('hidden');" onerror="this.classList.add('hidden');">
-                            <span id="preview-embed-author-name"></span>
-                          </div>
-                          <h4 id="preview-embed-title-text" class="discord-embed-title hidden"></h4>
-                          <div id="preview-embed-description" class="discord-embed-description hidden"></div>
-                          
-                          <!-- Custom Fields Grid -->
-                          <div id="preview-embed-fields" class="discord-embed-fields hidden"></div>
-                        </div>
-                        <img id="preview-embed-thumbnail-img" src="" class="discord-embed-thumbnail hidden" alt="Thumbnail" onload="this.classList.remove('hidden');" onerror="this.classList.add('hidden');">
+              <div class="card-body card-body-preview">
+                <div class="bg-discord-chat" style="width: 100%; max-width: 580px; padding: 24px;">
+                  <!-- Outer message simulation -->
+                  <div class="discord-message" style="width: 100%; max-width: 520px;">
+                    <img src="/static/bot_logo.png" class="discord-author-avatar" alt="Bot avatar">
+                    <div class="discord-message-content">
+                      <div class="discord-message-header">
+                        <span class="discord-author-name">Server Optimizer Bot</span>
+                        <span class="discord-bot-tag">BOT</span>
+                        <span class="discord-timestamp">Today at 12:00 PM</span>
                       </div>
-                      <img id="preview-embed-large-img" src="" class="discord-embed-image hidden" alt="Large Image" onload="this.classList.remove('hidden');" onerror="this.classList.add('hidden');">
-                      <div id="preview-embed-footer-container" class="discord-embed-footer hidden">
-                        <img id="preview-embed-footer-icon-img" src="" class="discord-embed-footer-icon hidden" onload="this.classList.remove('hidden');" onerror="this.classList.add('hidden');">
-                        <span id="preview-embed-footer-text-span"></span>
-                        <span id="preview-embed-footer-timestamp" class="ml-1"></span>
+                      <div id="sim-plain-text" class="sim-message-text mb-2 text-white"></div>
+                      <div id="preview-builder-embed" class="discord-embed" style="border-left-color: #6366f1;">
+                        <div class="discord-embed-grid">
+                          <div class="discord-embed-main">
+                            <div id="preview-embed-author" class="discord-embed-author hidden">
+                              <img id="preview-embed-author-icon" src="" class="discord-embed-author-icon hidden" onload="this.classList.remove('hidden');" onerror="this.classList.add('hidden');">
+                              <span id="preview-embed-author-name"></span>
+                            </div>
+                            <h4 id="preview-embed-title-text" class="discord-embed-title hidden"></h4>
+                            <div id="preview-embed-description" class="discord-embed-description hidden"></div>
+                            
+                            <!-- Custom Fields Grid -->
+                            <div id="preview-embed-fields" class="discord-embed-fields hidden"></div>
+                          </div>
+                          <img id="preview-embed-thumbnail-img" src="" class="discord-embed-thumbnail hidden" alt="Thumbnail" onload="this.classList.remove('hidden');" onerror="this.classList.add('hidden');">
+                        </div>
+                        <img id="preview-embed-large-img" src="" class="discord-embed-image hidden" alt="Large Image" onload="this.classList.remove('hidden');" onerror="this.classList.add('hidden');">
+                        <div id="preview-embed-footer-container" class="discord-embed-footer hidden">
+                          <img id="preview-embed-footer-icon-img" src="" class="discord-embed-footer-icon hidden" onload="this.classList.remove('hidden');" onerror="this.classList.add('hidden');">
+                          <span id="preview-embed-footer-text-span"></span>
+                          <span id="preview-embed-footer-timestamp" class="ml-1"></span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -3211,7 +3217,7 @@
           </div>
 
           <div class="card glass">
-            <div class="card-header border-bottom flex-between flex-wrap">
+            <div class="card-header border-bottom flex-header">
               <div>
                 <h2>Dashboard Audit Trail</h2>
                 <p>Chronological feed of administrative and moderation actions logged via this optimizer dashboard.</p>
@@ -3404,7 +3410,7 @@
                   <div class="grid-layout" style="grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px;">
                     <div class="input-group">
                       <label>Response Mode</label>
-                      <select id="ar-response-mode">
+                      <select id="ar-response-mode" class="glass-input">
                         <option value="passive">Passive (Log Only)</option>
                         <option value="alert" selected>Alert (Mod-Log + DM)</option>
                         <option value="lockdown">Lockdown (Temp Mute New Joins)</option>
@@ -3696,7 +3702,7 @@
         <!-- TAB: LIVE LOGS -->
         <section id="tab-logs" class="tab-pane hidden">
           <div class="card glass console-card">
-            <div class="card-header border-bottom flex-between">
+            <div class="card-header border-bottom flex-header">
               <div>
                 <h2>Live System Logs</h2>
                 <p>Real-time terminal feed from the local server and Discord bot processes.</p>

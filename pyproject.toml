@@ -33,6 +33,7 @@ dependencies = [
     "Pillow>=10.0.0",
     "PyJWT>=2.8.0",
     "psutil>=5.9.0",
+    "vaderSentiment>=3.3.2",
     "pywin32>=306; sys_platform == 'win32'",
     "winshell>=0.6; sys_platform == 'win32'",
 ]

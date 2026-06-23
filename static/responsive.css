@@ -41,6 +41,17 @@
     display: none !important;
   }
 
+  .sub-tab-container {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
+
+  .sub-tab-btn {
+    flex: 1 1 auto !important;
+    justify-content: center;
+    padding: 8px 12px !important;
+  }
+
   .bot-badge-container {
     margin-top: 0 !important;
     display: flex;
@@ -141,8 +152,69 @@
   }
 
   .bot-details-grid {
-    flex-direction: column !important;
-    align-items: center !important;
-    text-align: center !important;
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+  
+  .bot-visual {
+    order: -1;
+  }
+  
+  .bot-info-details {
+    text-align: left;
+  }
+
+  .sidebar-footer-actions {
+    flex-direction: row !important;
+    width: 100% !important;
+    max-width: 320px !important;
+    margin: 0 auto 15px auto !important;
+    gap: 8px !important;
+  }
+
+  .sidebar-action-btn {
+    min-height: 44px !important;
+    padding: 8px 12px !important;
+  }
+
+  .card-header.flex-header {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 12px;
+  }
+  
+  .card-header.flex-header .btn,
+  .card-header.flex-header .analytics-select,
+  .card-header.flex-header select,
+  .card-header.flex-header .flex-between,
+  .card-header.flex-header .console-actions {
+    margin-left: 0 !important;
+    width: 100% !important;
+  }
+
+  .card-body-preview {
+    padding: 10px !important;
+  }
+
+  .bg-discord-chat {
+    padding: 16px !important;
+  }
+}
+
+/* Tablet & Medium Screen Layout Optimization */
+@media (min-width: 769px) and (max-width: 1200px) {
+  .grid-layout {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 20px !important;
+  }
+  .span-3, .span-4 {
+    grid-column: span 2 !important;
+  }
+  .span-1, .span-2 {
+    grid-column: span 1 !important;
+  }
+  
+  .grid-3-col {
+    grid-template-columns: repeat(2, 1fr) !important;
   }
 }

@@ -70,23 +70,76 @@ def test_pyinstaller_build_and_boot(tmp_path):
         json.dump(config_data, f)
     
     print("[*] Booting built executable in background...")
-    proc = subprocess.Popen(
-        [str(exe_path)],
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
-    )
+    stdout_log = tmp_path / "stdout.log"
+    stderr_log = tmp_path / "stderr.log"
     
-    # Wait for resolved port and server launch
-    time.sleep(6.0)
+    with open(stdout_log, "w", encoding="utf-8") as out_f, open(stderr_log, "w", encoding="utf-8") as err_f:
+        proc = subprocess.Popen(
+            [str(exe_path)],
+            env=env,
+            stdout=out_f,
+            stderr=err_f
+        )
+        
+    # Wait for resolved port and server launch (up to 45 seconds to account for slow PyInstaller extraction on Windows test runner)
+    url_file = temp_appdata / "Aegis" / "aegis.url"
+    start_time = time.time()
+    while time.time() - start_time < 45.0:
+        if url_file.exists():
+            break
+        if proc.poll() is not None:
+            break
+        time.sleep(1.0)
     
     try:
         # Verify process is active
-        assert proc.poll() is None, "AegisOptimizer.exe exited prematurely after boot"
+        if proc.poll() is not None:
+            out_content = stdout_log.read_text(encoding="utf-8", errors="replace")
+            err_content = stderr_log.read_text(encoding="utf-8", errors="replace")
+            
+            # Check for aegis logs
+            app_log_file = temp_appdata / "Aegis" / "logs" / "aegis.log"
+            app_log_content = ""
+            if app_log_file.exists():
+                app_log_content = app_log_file.read_text(encoding="utf-8", errors="replace")
+                
+            app_err_file = temp_appdata / "Aegis" / "logs" / "aegis.err.log"
+            app_err_content = ""
+            if app_err_file.exists():
+                app_err_content = app_err_file.read_text(encoding="utf-8", errors="replace")
+                
+            raise AssertionError(
+                f"AegisOptimizer.exe exited prematurely with code {proc.returncode}.\n"
+                f"STDOUT:\n{out_content}\n"
+                f"STDERR:\n{err_content}\n"
+                f"APP LOG:\n{app_log_content}\n"
+                f"APP ERR:\n{app_err_content}"
+            )
         
-        # Determine the port from single-instance url file
-        url_file = temp_appdata / "Aegis" / "aegis.url"
-        assert url_file.exists(), "Aegis did not write URL file to local directory"
+        # Verify single-instance url file exists
+        if not url_file.exists():
+            out_content = stdout_log.read_text(encoding="utf-8", errors="replace")
+            err_content = stderr_log.read_text(encoding="utf-8", errors="replace")
+            
+            # Check for aegis logs
+            app_log_file = temp_appdata / "Aegis" / "logs" / "aegis.log"
+            app_log_content = ""
+            if app_log_file.exists():
+                app_log_content = app_log_file.read_text(encoding="utf-8", errors="replace")
+                
+            app_err_file = temp_appdata / "Aegis" / "logs" / "aegis.err.log"
+            app_err_content = ""
+            if app_err_file.exists():
+                app_err_content = app_err_file.read_text(encoding="utf-8", errors="replace")
+                
+            raise AssertionError(
+                f"Aegis did not write URL file to local directory.\n"
+                f"STDOUT:\n{out_content}\n"
+                f"STDERR:\n{err_content}\n"
+                f"APP LOG:\n{app_log_content}\n"
+                f"APP ERR:\n{app_err_content}"
+            )
+        
         url = url_file.read_text().strip()
         print(f"[+] Discovered running dashboard URL: {url}")
         

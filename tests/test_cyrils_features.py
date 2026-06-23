@@ -6,6 +6,8 @@ import re
 
 import aegis.core.utils as utils
 import aegis.bot.bot_manager as bot_manager
+print("AEGIS PATH:", utils.__file__)
+print("BOT_MANAGER PATH:", bot_manager.__file__)
 from aegis.db.models import Base
 from sqlalchemy import create_engine
 import aegis.bot.leveling as leveling
@@ -265,6 +267,7 @@ async def test_cyril_auto_responders(monkeypatch):
             }
         ]
     }
+    monkeypatch.setattr(utils, "load_config", lambda: bot.config)
     bot.process_commands = AsyncMock()
     monkeypatch.setattr(utils, "get_guild_automod_settings", lambda config, guild_id: {"enabled": False})
     monkeypatch.setattr(utils, "get_guild_leveling_settings", lambda config, guild_id: {"enabled": False})
@@ -300,11 +303,14 @@ async def test_cyril_custom_commands(monkeypatch):
             "1509050530369114162": {
                 "custom_commands": {
                     "!website": "Visit our official website at https://example.com!",
-                    "!rules": "Please read #rules-and-info. Be respectful and have fun!"
+                    "!rules": "Please read #rules-and-info. Be respectful and have fun!",
+                    "!help": "Cyril's custom help message",
+                    "!ip": "Cyril server ip is play.cyril.net"
                 }
             }
         }
     }
+    monkeypatch.setattr(utils, "load_config", lambda: bot.config)
     bot.process_commands = AsyncMock()
     monkeypatch.setattr(utils, "get_guild_automod_settings", lambda config, guild_id: {"enabled": False})
     monkeypatch.setattr(utils, "get_guild_leveling_settings", lambda config, guild_id: {"enabled": False})

@@ -6,7 +6,8 @@ We actively provide security updates for the following versions of Aegis Suite:
 
 | Version | Supported |
 | :--- | :--- |
-| v2.1.x | Yes (Active) |
+| v2.2.x | Yes (Active) |
+| v2.1.x | Yes (Maintenance) |
 | v2.0.x | Limited (Critical only) |
 | < v2.0 | No |
 

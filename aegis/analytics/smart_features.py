@@ -62,6 +62,7 @@ class AutoFixResult:
     details: str
     rollback_available: bool
     rollback_data: Optional[Dict] = None
+    error: Optional[str] = None
 
 
 # =============================================================================
@@ -559,7 +560,22 @@ class SmartRaidDetector:
 
         # Check join rate (joins per minute)
         now = datetime.datetime.now(datetime.timezone.utc)
-        recent_5min = [j for j in recent_joins if (now - j.get("timestamp", now)).total_seconds() < 300]
+        recent_5min = []
+        for j in recent_joins:
+            ts = j.get("timestamp")
+            if ts is None:
+                ts = now
+            elif isinstance(ts, str):
+                try:
+                    ts = datetime.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                except ValueError:
+                    ts = now
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=datetime.timezone.utc)
+            else:
+                ts = ts.astimezone(datetime.timezone.utc)
+            if (now - ts).total_seconds() < 300:
+                recent_5min.append(j)
         if len(recent_5min) > 10:
             indicators.append({
                 "type": "high_join_rate",
@@ -838,14 +854,28 @@ class SmartChannelCleaner:
         for channel in guild.text_channels:
             # Check for dead channels (no activity in 30+ days)
             # Use last_message_id instead of last_message (which is cached)
+            # Calculate actual channel age since creation
+            created_at = getattr(channel, "created_at", None)
+            if not isinstance(created_at, datetime.datetime):
+                channel_age = 999
+            else:
+                try:
+                    tz_created = created_at
+                    if tz_created.tzinfo is None:
+                        tz_created = tz_created.replace(tzinfo=datetime.timezone.utc)
+                    channel_age = (datetime.datetime.now(datetime.timezone.utc) - tz_created).days
+                except Exception:
+                    channel_age = 999
+
             if not channel.last_message_id:
-                dead.append({
-                    "id": str(channel.id),
-                    "name": channel.name,
-                    "type": "text",
-                    "last_activity": None,
-                    "days_inactive": 999,
-                })
+                if channel_age >= 30:
+                    dead.append({
+                        "id": str(channel.id),
+                        "name": channel.name,
+                        "type": "text",
+                        "last_activity": None,
+                        "days_inactive": channel_age,
+                    })
             else:
                 import discord
                 created_at = discord.utils.snowflake_time(channel.last_message_id)
@@ -1158,6 +1188,24 @@ class AutoFixEngine:
                 return await self._fix_enable_welcome(guild)
             elif action == "enable_autorole":
                 return await self._fix_enable_autorole(guild)
+            elif action == "enable_raid_mode":
+                return await self._fix_enable_raid_mode(guild)
+            elif action == "slowmode_all_channels":
+                return await self._fix_slowmode_all_channels(guild, params)
+            elif action == "restrict_new_members":
+                return await self._fix_restrict_new_members(guild)
+            elif action == "lock_server":
+                return await self._fix_lock_server(guild)
+            elif action == "enable_slowmode":
+                return await self._fix_slowmode_all_channels(guild, {"duration": params.get("duration", 5)})
+            elif action == "mute_spammers":
+                return await self._fix_mute_users(guild, params.get("users", []))
+            elif action == "lock_channel":
+                return await self._fix_lock_channel(guild, params)
+            elif action == "mute_user":
+                return await self._fix_mute_users(guild, [params.get("user_id")] if params.get("user_id") else [])
+            elif action == "delete_campaign":
+                return await self._fix_delete_campaign(guild, params)
             else:
                 return AutoFixResult(
                     success=False,
@@ -1171,6 +1219,7 @@ class AutoFixEngine:
                 action=action,
                 details=f"Error: {str(e)}",
                 rollback_available=False,
+                error=str(e),
             )
 
     async def _fix_verification(self, guild, params: Dict) -> AutoFixResult:
@@ -1186,10 +1235,9 @@ class AutoFixEngine:
                 rollback_data={"old_level": old_level.value},
             )
         except Exception as e:
-            return AutoFixResult(success=False, action="set_verification_level", details=str(e), rollback_available=False)
+            return AutoFixResult(success=False, action="set_verification_level", details=str(e), rollback_available=False, error=str(e))
 
     async def _fix_create_channel(self, guild, name: str, topic: str) -> AutoFixResult:
-        import asyncio
         try:
             await guild.create_text_channel(name, topic=topic)
             return AutoFixResult(
@@ -1200,7 +1248,7 @@ class AutoFixEngine:
                 rollback_data={"channel_name": name},
             )
         except Exception as e:
-            return AutoFixResult(success=False, action=f"create_{name}_channel", details=str(e), rollback_available=False)
+            return AutoFixResult(success=False, action=f"create_{name}_channel", details=str(e), rollback_available=False, error=str(e))
 
     async def _fix_create_backup(self, guild) -> AutoFixResult:
         from aegis.bot.restructuring import backup_guild_layout
@@ -1217,7 +1265,7 @@ class AutoFixEngine:
                 rollback_available=False,
             )
         except Exception as e:
-            return AutoFixResult(success=False, action="create_backup", details=str(e), rollback_available=False)
+            return AutoFixResult(success=False, action="create_backup", details=str(e), rollback_available=False, error=str(e))
 
     async def _fix_archive_channels(self, guild, params: Dict) -> AutoFixResult:
         channels = params.get("channels", [])
@@ -1235,46 +1283,79 @@ class AutoFixEngine:
             try:
                 archive_category = await guild.create_category("📦 ARCHIVED CHANNELS")
             except Exception as e:
-                return AutoFixResult(success=False, action="archive_channels", details=f"Failed to create archive category: {e}", rollback_available=False)
+                return AutoFixResult(success=False, action="archive_channels", details=f"Failed to create archive category: {e}", rollback_available=False, error=str(e))
         
+        async def archive_one(channel):
+            try:
+                await channel.edit(category=archive_category)
+                return channel.name, None
+            except Exception as e:
+                return channel.name, str(e)
+
+        tasks = []
         for channel_name in channels:
             for channel in guild.text_channels:
                 if channel.name == channel_name:
-                    try:
-                        await channel.edit(category=archive_category)
-                        removed.append(channel_name)
-                    except Exception as e:
-                        errors.append(f"{channel_name}: {e}")
+                    tasks.append(archive_one(channel))
+                    break
+
+        if tasks:
+            import asyncio
+            results = await asyncio.gather(*tasks)
+            for name, err in results:
+                if err:
+                    errors.append(f"{name}: {err}")
+                else:
+                    removed.append(name)
         
+        success = len(removed) > 0
+        details = f"Archived {len(removed)} channels" + (f", {len(errors)} failed" if errors else "")
         return AutoFixResult(
-            success=len(removed) > 0,
+            success=success,
             action="archive_inactive_channels",
-            details=f"Archived {len(removed)} channels" + (f", {len(errors)} failed" if errors else ""),
+            details=details,
             rollback_available=True,
             rollback_data={"archived": removed, "errors": errors},
+            error=errors[0] if errors and not success else None
         )
 
     async def _fix_remove_roles(self, guild, params: Dict) -> AutoFixResult:
-        import asyncio
         roles = params.get("roles", [])
         removed = []
         errors = []
         
+        async def remove_one(role):
+            try:
+                await role.delete(reason="Smart Features: Removing unused role")
+                return role.name, None
+            except Exception as e:
+                return role.name, str(e)
+
+        tasks = []
         for role_name in roles:
             for role in guild.roles:
                 if role.name == role_name and len(role.members) == 0:
-                    try:
-                        await role.delete(reason="Smart Features: Removing unused role")
-                        removed.append(role_name)
-                    except Exception as e:
-                        errors.append(f"{role_name}: {e}")
+                    tasks.append(remove_one(role))
+                    break
+
+        if tasks:
+            import asyncio
+            results = await asyncio.gather(*tasks)
+            for name, err in results:
+                if err:
+                    errors.append(f"{name}: {err}")
+                else:
+                    removed.append(name)
         
+        success = len(removed) > 0
+        details = f"Removed {len(removed)} unused roles" + (f", {len(errors)} failed" if errors else "")
         return AutoFixResult(
-            success=len(removed) > 0,
+            success=success,
             action="remove_unused_roles",
-            details=f"Removed {len(removed)} unused roles" + (f", {len(errors)} failed" if errors else ""),
+            details=details,
             rollback_available=False,
             rollback_data={"removed": removed, "errors": errors},
+            error=errors[0] if errors and not success else None
         )
 
     async def _fix_enable_welcome(self, guild) -> AutoFixResult:
@@ -1294,7 +1375,7 @@ class AutoFixEngine:
                 rollback_available=True,
             )
         except Exception as e:
-            return AutoFixResult(success=False, action="enable_welcome_message", details=str(e), rollback_available=False)
+            return AutoFixResult(success=False, action="enable_welcome_message", details=str(e), rollback_available=False, error=str(e))
 
     async def _fix_enable_autorole(self, guild) -> AutoFixResult:
         from aegis.core.utils import load_config, save_config
@@ -1313,4 +1394,136 @@ class AutoFixEngine:
                 rollback_available=True,
             )
         except Exception as e:
-            return AutoFixResult(success=False, action="enable_autorole", details=str(e), rollback_available=False)
+            return AutoFixResult(success=False, action="enable_autorole", details=str(e), rollback_available=False, error=str(e))
+
+    async def _fix_enable_raid_mode(self, guild) -> AutoFixResult:
+        import discord
+        try:
+            await guild.edit(verification_level=discord.VerificationLevel.HIGH)
+            return AutoFixResult(
+                success=True,
+                action="enable_raid_mode",
+                details="Raid mode enabled (verification level set to HIGH)",
+                rollback_available=False,
+            )
+        except Exception as e:
+            return AutoFixResult(success=False, action="enable_raid_mode", details=str(e), rollback_available=False, error=str(e))
+
+    async def _fix_slowmode_all_channels(self, guild, params: Dict) -> AutoFixResult:
+        duration = params.get("duration", 15)
+        updated = []
+        errors = []
+        for channel in guild.text_channels:
+            try:
+                await channel.edit(slowmode_delay=duration)
+                updated.append(channel.name)
+            except Exception as e:
+                errors.append(f"{channel.name}: {e}")
+        success = len(updated) > 0
+        return AutoFixResult(
+            success=success,
+            action="slowmode_all_channels",
+            details=f"Slowmode set to {duration}s on {len(updated)} channels" + (f", {len(errors)} failed" if errors else ""),
+            rollback_available=False,
+            error=errors[0] if errors and not success else None
+        )
+
+    async def _fix_restrict_new_members(self, guild) -> AutoFixResult:
+        import discord
+        try:
+            await guild.edit(verification_level=discord.VerificationLevel.MEDIUM)
+            return AutoFixResult(
+                success=True,
+                action="restrict_new_members",
+                details="New members restricted (verification level set to MEDIUM)",
+                rollback_available=False,
+            )
+        except Exception as e:
+            return AutoFixResult(success=False, action="restrict_new_members", details=str(e), rollback_available=False, error=str(e))
+
+    async def _fix_lock_server(self, guild) -> AutoFixResult:
+        """Lock server by setting verification to highest and denying send for @everyone."""
+        import discord
+        try:
+            await guild.edit(verification_level=discord.VerificationLevel.HIGH)
+            overwrites = guild.default_role.overwrites
+            overwrites[guild.default_role] = discord.PermissionOverwrite(send_messages=False)
+            await guild.default_role.edit(overwrites=overwrites)
+            return AutoFixResult(
+                success=True,
+                action="lock_server",
+                details="Server locked: verification HIGH, @everyone cannot send messages",
+                rollback_available=True,
+            )
+        except Exception as e:
+            return AutoFixResult(success=False, action="lock_server", details=str(e), rollback_available=False, error=str(e))
+
+    async def _fix_mute_users(self, guild, user_ids: list) -> AutoFixResult:
+        """Timeout multiple users for 10 minutes."""
+        import discord
+        muted = []
+        errors = []
+        for uid in user_ids:
+            try:
+                member = guild.get_member(int(uid))
+                if member:
+                    await member.timeout(datetime.timedelta(minutes=10), reason="Spam/raid auto-mute")
+                    muted.append(str(uid))
+            except Exception as e:
+                errors.append(f"{uid}: {e}")
+        return AutoFixResult(
+            success=len(muted) > 0,
+            action="mute_spammers",
+            details=f"Muted {len(muted)} users for 10 minutes" + (f", {len(errors)} failed" if errors else ""),
+            rollback_available=False,
+            error=errors[0] if errors and not muted else None,
+        )
+
+    async def _fix_lock_channel(self, guild, params: Dict) -> AutoFixResult:
+        """Deny send_messages for @everyone on a specific channel."""
+        import discord
+        channel_id = params.get("channel_id")
+        if not channel_id:
+            return AutoFixResult(success=False, action="lock_channel", details="No channel_id provided", rollback_available=False)
+        try:
+            channel = guild.get_channel(int(channel_id))
+            if not channel:
+                return AutoFixResult(success=False, action="lock_channel", details=f"Channel {channel_id} not found", rollback_available=False)
+            overwrites = channel.overwrites
+            overwrites[guild.default_role] = discord.PermissionOverwrite(send_messages=False)
+            await channel.edit(overwrites=overwrites, reason="Auto-fix: lock channel due to spam")
+            return AutoFixResult(
+                success=True,
+                action="lock_channel",
+                details=f"Locked #{channel.name} — @everyone cannot send messages",
+                rollback_available=True,
+            )
+        except Exception as e:
+            return AutoFixResult(success=False, action="lock_channel", details=str(e), rollback_available=False, error=str(e))
+
+    async def _fix_delete_campaign(self, guild, params: Dict) -> AutoFixResult:
+        """Delete recent messages from spam campaign users."""
+        channel_id = params.get("channel_id")
+        user_ids = params.get("users", [])
+        if not channel_id:
+            return AutoFixResult(success=False, action="delete_campaign", details="No channel_id provided", rollback_available=False)
+        try:
+            channel = guild.get_channel(int(channel_id))
+            if not channel:
+                return AutoFixResult(success=False, action="delete_campaign", details=f"Channel {channel_id} not found", rollback_available=False)
+            deleted = 0
+            async for msg in channel.history(limit=100):
+                if str(msg.author.id) in [str(u) for u in user_ids]:
+                    try:
+                        await msg.delete()
+                        deleted += 1
+                    except Exception:
+                        pass
+            return AutoFixResult(
+                success=True,
+                action="delete_campaign",
+                details=f"Deleted {deleted} spam messages from #{channel.name}",
+                rollback_available=False,
+            )
+        except Exception as e:
+            return AutoFixResult(success=False, action="delete_campaign", details=str(e), rollback_available=False, error=str(e))
