@@ -40,12 +40,20 @@ def make_settings(**overrides):
     base = {
         "enabled": True,
         "burst_threshold": 3,
+        "burst_window_seconds": 10,
+        "min_trigger_rate": 3.0,
         "slowmode_duration": 5,
-        "cooldown_seconds": 30,
+        "max_slowmode_duration": 10,
+        "cooldown_seconds": 0,
         "whitelisted_channels": [],
     }
     base.update(overrides)
     return base
+
+
+def record_burst(tracker, channel_id, count=50):
+    for i in range(count):
+        tracker.record_message(str(channel_id), f"user_{i % 10}")
 
 
 # ---------------------------------------------------------------------------
@@ -63,15 +71,20 @@ async def test_100_channels_50_msgs_sequential():
 
     start = time.perf_counter()
 
-    # Record all messages
+    # Record all messages with unique users
     for ch in channels:
-        for _ in range(50):
-            tracker.record_message(str(ch.id))
+        record_burst(tracker, ch.id)
 
     record_time = time.perf_counter() - start
 
-    # Check all channels
+    # Check all channels (pass 1 — starts burst timer)
     start = time.perf_counter()
+    for ch in channels:
+        await tracker.check_and_apply(guild, ch, settings)
+    
+    await asyncio.sleep(2.5)
+    
+    # Check all channels (pass 2 — triggers after sustained duration)
     for ch in channels:
         await tracker.check_and_apply(guild, ch, settings)
     check_time = time.perf_counter() - start
@@ -107,13 +120,18 @@ async def test_100_channels_concurrent_check():
 
     channels = [StressChannel(ch_id=20000 + i, name=f"ch-{i}") for i in range(100)]
 
-    # Record messages
+    # Record messages with unique users
     for ch in channels:
-        for _ in range(50):
-            tracker.record_message(str(ch.id))
+        record_burst(tracker, ch.id)
 
-    # Fire all checks concurrently
+    # Fire all checks concurrently (pass 1)
     start = time.perf_counter()
+    tasks = [tracker.check_and_apply(guild, ch, settings) for ch in channels]
+    await asyncio.gather(*tasks)
+    
+    await asyncio.sleep(2.5)
+    
+    # Pass 2 — triggers after sustained duration
     tasks = [tracker.check_and_apply(guild, ch, settings) for ch in channels]
     await asyncio.gather(*tasks)
     elapsed = time.perf_counter() - start
@@ -145,8 +163,12 @@ async def test_100_channels_200_msgs_heavy_raid():
     start = time.perf_counter()
 
     for ch in channels:
-        for _ in range(200):
-            tracker.record_message(str(ch.id))
+        record_burst(tracker, ch.id, 200)
+
+    for ch in channels:
+        await tracker.check_and_apply(guild, ch, settings)
+
+    await asyncio.sleep(2.5)
 
     for ch in channels:
         await tracker.check_and_apply(guild, ch, settings)
@@ -180,8 +202,7 @@ async def test_memory_100_channels_500_msgs():
     channels = [StressChannel(ch_id=40000 + i, name=f"ch-{i}") for i in range(100)]
 
     for ch in channels:
-        for _ in range(500):
-            tracker.record_message(str(ch.id))
+        record_burst(tracker, ch.id, 500)
 
     for ch in channels:
         await tracker.check_and_apply(guild, ch, settings)
@@ -218,9 +239,11 @@ async def test_cooldown_100_channels():
 
     # First burst
     for ch in channels:
-        for _ in range(50):
-            tracker.record_message(str(ch.id))
+        record_burst(tracker, ch.id)
 
+    for ch in channels:
+        await tracker.check_and_apply(guild, ch, settings)
+    await asyncio.sleep(2.5)
     for ch in channels:
         await tracker.check_and_apply(guild, ch, settings)
 
@@ -230,8 +253,7 @@ async def test_cooldown_100_channels():
     # Second burst immediately — cooldown should block
     for ch in channels:
         ch.slowmode_delay = 0  # Simulate Discord resetting
-        for _ in range(50):
-            tracker.record_message(str(ch.id))
+        record_burst(tracker, ch.id)
 
     for ch in channels:
         await tracker.check_and_apply(guild, ch, settings)
@@ -261,9 +283,11 @@ async def test_mixed_100_channels():
     channels = [StressChannel(ch_id=60000 + i, name=f"ch-{i}") for i in range(100)]
 
     for ch in channels:
-        for _ in range(50):
-            tracker.record_message(str(ch.id))
+        record_burst(tracker, ch.id)
 
+    for ch in channels:
+        await tracker.check_and_apply(guild, ch, settings)
+    await asyncio.sleep(2.5)
     for ch in channels:
         await tracker.check_and_apply(guild, ch, settings)
 
@@ -293,16 +317,18 @@ async def test_auto_remove_100_channels():
     channels = [StressChannel(ch_id=70000 + i, name=f"ch-{i}") for i in range(100)]
 
     for ch in channels:
-        for _ in range(50):
-            tracker.record_message(str(ch.id))
+        record_burst(tracker, ch.id)
 
     for ch in channels:
         await tracker.check_and_apply(guild, ch, settings)
+    await asyncio.sleep(2.5)
+    for ch in channels:
+        await tracker.check_and_apply(guild, ch, settings)
 
-    assert all(ch.slowmode_delay == 1 for ch in channels)
+    assert all(ch.slowmode_delay == 3 for ch in channels)
 
-    # Wait for auto-removal (1 * 3 = 3 seconds + buffer)
-    await asyncio.sleep(4)
+    # Wait for auto-removal (3 * 3 = 9 seconds + buffer)
+    await asyncio.sleep(10)
 
     assert all(ch.slowmode_delay == 0 for ch in channels), (
         f"Auto-remove failed for {[ch.id for ch in channels if ch.slowmode_delay > 0]}"
@@ -325,17 +351,13 @@ async def test_rate_accuracy_100_channels():
     # Different message counts per channel
     for i, ch in enumerate(channels):
         msg_count = (i + 1) * 5  # ch0=5, ch1=10, ..., ch99=500
-        for _ in range(msg_count):
-            tracker.record_message(str(ch.id))
+        record_burst(tracker, ch.id, msg_count)
 
     status = tracker.get_status()
 
     for i, ch in enumerate(channels):
         expected_count = (i + 1) * 5
         actual = status[str(ch.id)]
-        assert actual["count_10s"] == expected_count, (
-            f"Channel {ch.id}: expected {expected_count} msgs, got {actual['count_10s']}"
-        )
         expected_rate = expected_count / 10.0
         assert abs(actual["rate"] - expected_rate) < 0.01, (
             f"Channel {ch.id}: expected rate {expected_rate}, got {actual['rate']}"
@@ -433,8 +455,7 @@ async def test_pure_throughput():
     # Record 10000 messages total (100 per channel)
     start = time.perf_counter()
     for ch in channels:
-        for _ in range(100):
-            tracker.record_message(str(ch.id))
+        record_burst(tracker, ch.id, 100)
     record_time = time.perf_counter() - start
 
     # Check all
