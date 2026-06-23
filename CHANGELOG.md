@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **AutoFixEngine Expanded**: 18 action mappings covering all raid detector and spam detector actions.
 
 ### Fixed
-- Welcome message showing raw `<@ID>` instead of username.
+- Welcome message showing raw user mention instead of username.
 - Server Health gauge stuck on "Loading Auditor..." due to duplicate element IDs.
 - Config Snapshot History stuck loading due to duplicate `id="cc-config-history"`.
 - Skeleton loaders degrading to infinite loading on API failure.

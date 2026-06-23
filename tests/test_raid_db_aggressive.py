@@ -124,12 +124,15 @@ def test_1000_entries_across_10_guilds(raid_session):
 
 def test_query_ordering(raid_session):
     """Events ordered by detected_at descending."""
+    from datetime import datetime, timedelta
+    base_time = datetime(2026, 1, 1)
     for i in range(20):
         raid_session.add(RaidEvent(
             guild_id="g1",
             join_count=i,
             window_seconds=60,
             response_action="alert",
+            detected_at=base_time + timedelta(seconds=i),
         ))
     raid_session.commit()
 
@@ -137,7 +140,8 @@ def test_query_ordering(raid_session):
         RaidEvent.detected_at.desc()
     ).all()
     assert len(events) == 20
-    assert events[0].join_count >= events[-1].join_count
+    assert events[0].join_count == 19
+    assert events[-1].join_count == 0
 
 
 def test_large_join_count(raid_session):
