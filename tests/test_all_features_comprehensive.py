@@ -854,12 +854,15 @@ def test_raid_event_1000_entries(raid_db):
 def test_raid_event_query_ordering(raid_db):
     """Events ordered by detected_at descending."""
     from aegis.db.models import RaidEvent
+    from datetime import datetime, timedelta
+    base_time = datetime(2026, 1, 1)
     for i in range(10):
         raid_db.add(RaidEvent(
             guild_id="g1",
             join_count=i,
             window_seconds=60,
             response_action="alert",
+            detected_at=base_time + timedelta(seconds=i),
         ))
     raid_db.commit()
 
@@ -867,8 +870,9 @@ def test_raid_event_query_ordering(raid_db):
         RaidEvent.detected_at.desc()
     ).all()
     assert len(events) == 10
-    # Newest first
-    assert events[0].join_count >= events[-1].join_count
+    # Newest first (i=9 has latest detected_at)
+    assert events[0].join_count == 9
+    assert events[-1].join_count == 0
 
 
 # ============================================================================
