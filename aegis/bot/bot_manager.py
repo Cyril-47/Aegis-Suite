@@ -850,10 +850,12 @@ class DiscordOptimizerBot(commands.Bot):
 
         # Anti-raid detection (best-effort)
         try:
+            logger.info(f"Anti-raid check: self.anti_raid={self.anti_raid is not None}, guild={member.guild.name}")
             if self.anti_raid:
                 guild_config = utils.get_guild_config(str(member.guild.id))
                 raid_cfg = guild_config.get("anti_raid_settings", {})
                 if raid_cfg.get("enabled", False):
+                    logger.info(f"Anti-raid ENABLED for {member.guild.name}: mode={raid_cfg.get('response_mode')}, min_age={raid_cfg.get('min_account_age_days')}, threshold={raid_cfg.get('suspicious_score_threshold')}")
                     # Read config at runtime (not cached at init)
                     response_mode = raid_cfg.get("response_mode", "alert")
                     min_age = raid_cfg.get("min_account_age_days", 7)
@@ -862,12 +864,19 @@ class DiscordOptimizerBot(commands.Bot):
                     lockdown_duration = raid_cfg.get("lockdown_duration_seconds", 300)
 
                     # Calculate suspicious score
-                    join_window = raid_cfg.get("join_rate_window_seconds", 30)
+                    try:
+                        has_avatar = member.avatar is not None
+                        avatar_url = str(member.avatar.url) if has_avatar else ""
+                        is_default_avatar = (avatar_url == "")
+                    except Exception as e:
+                        logger.error(f"[ANTI-RAID] Avatar check failed: {e}")
+                        is_default_avatar = True
+                    
                     recent_join_count = len(self.anti_raid._joins.get(str(member.guild.id), []))
                     is_in_raid_window = recent_join_count >= 2
                     score = self.anti_raid.calculate_suspicious_score(
                         member.created_at,
-                        is_default_avatar=(str(member.avatar.url) if member.avatar else "") == "",
+                        is_default_avatar=is_default_avatar,
                         username=member.name,
                         is_raid_window=is_in_raid_window,
                     )
@@ -895,12 +904,12 @@ class DiscordOptimizerBot(commands.Bot):
                             )
 
                     # Account age check — take action based on response mode
-                    if self.anti_raid.check_account_age(member.created_at, min_age):
+                    account_age_days = (datetime.now(timezone.utc) - member.created_at).days if member.created_at.tzinfo else (datetime.now(timezone.utc) - member.created_at.replace(tzinfo=timezone.utc)).days
+                    age_check = self.anti_raid.check_account_age(member.created_at, min_age)
+                    logger.info(f"[ANTI-RAID DEBUG] {member.name}: created={member.created_at}, age_days={account_age_days}, min_age={min_age}, age_check={age_check}, score={score}")
+                    if age_check:
                         account_days = (datetime.now(timezone.utc) - member.created_at).days
-                        logger.warning(
-                            f"Suspicious account joined: {member.name} "
-                            f"(age: {account_days} days, score: {score})"
-                        )
+                        logger.info(f"[ANTI-RAID] Suspicious account: {member.name} (age: {account_days}d, score: {score}, mode: {response_mode})")
 
                         # Auto-verify: trigger for any account younger than min_age (no score threshold needed)
                         if response_mode == "auto_verify":

@@ -210,6 +210,10 @@ async def wizard_token(request: Request, payload: TokenPayload):
         except Exception as e:
             logger.error(f"Failed to encrypt env file: {e}")
 
+    # Update running process env so bot task can pick up the token immediately
+    os.environ["DISCORD_BOT_TOKEN"] = token
+    os.environ["CLIENT_ID"] = client_id
+
     # Load/Update config.json
     from aegis.config.loader import ConfigStore
     try:
