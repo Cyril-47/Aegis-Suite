@@ -1528,22 +1528,11 @@ function renderCommandCenter(data) {
   const scoreLabel = document.getElementById('cc-score-label');
 
   if (scoreCircle) {
-    // Reset to start position, then animate to target
-    scoreCircle.style.transition = 'none';
-    scoreCircle.style.strokeDashoffset = '314';
-    scoreCircle.offsetHeight; // force reflow
-    scoreCircle.style.transition = '';
     const offset = 314 - (314 * score) / 100;
     scoreCircle.style.strokeDashoffset = offset;
     scoreCircle.style.stroke = scoreColor;
   }
-  if (scoreValue) {
-    // Animated number counter
-    animateNumber(scoreValue, 0, score, 800);
-    scoreValue.classList.remove('animate');
-    scoreValue.offsetHeight;
-    scoreValue.classList.add('animate');
-  }
+  if (scoreValue) scoreValue.textContent = score;
   if (scoreLabel) {
     if (score >= 90) { scoreLabel.textContent = 'Excellent'; scoreLabel.style.color = 'var(--success)'; }
     else if (score >= 70) { scoreLabel.textContent = 'Good'; scoreLabel.style.color = 'var(--success)'; }
@@ -1551,20 +1540,17 @@ function renderCommandCenter(data) {
     else { scoreLabel.textContent = 'Needs Work'; scoreLabel.style.color = 'var(--danger)'; }
   }
 
-  // Dimension scores (staggered entrance)
+  // Dimension scores
   const dims = ['security', 'moderation', 'structure', 'engagement', 'automation'];
-  dims.forEach((dim, i) => {
+  for (const dim of dims) {
     const el = document.getElementById(`cc-dim-${dim}`);
-    if (!el) return;
+    if (!el) continue;
     const s = data.dimension_scores[dim] || 0;
     const c = s >= 80 ? 'var(--success)' : s >= 60 ? 'var(--warning)' : 'var(--danger)';
     el.style.borderTop = `3px solid ${c}`;
-    const scoreEl = el.querySelector('.cc-dim-score');
-    if (scoreEl) {
-      scoreEl.style.color = c;
-      setTimeout(() => animateNumber(scoreEl, 0, s, 600), 200 + i * 80);
-    }
-  });
+    el.querySelector('.cc-dim-score').textContent = s;
+    el.querySelector('.cc-dim-score').style.color = c;
+  }
 
   // Quick stats
   setTextContent('cc-members', data.member_count || 0);
@@ -1644,19 +1630,6 @@ async function runCommandCenterScan() {
   }
   showToast('Analyzing server...', 'info');
   await loadSmartCommandCenter(true);
-}
-
-function animateNumber(el, from, to, duration) {
-  const start = performance.now();
-  const diff = to - from;
-  function step(ts) {
-    const elapsed = ts - start;
-    const progress = Math.min(elapsed / duration, 1);
-    const eased = 1 - Math.pow(1 - progress, 3);
-    el.textContent = Math.round(from + diff * eased);
-    if (progress < 1) requestAnimationFrame(step);
-  }
-  requestAnimationFrame(step);
 }
 
 function setTextContent(id, value) {
@@ -3913,95 +3886,43 @@ function setupEventListeners() {
     });
   }
 
-  // Theme Toggle Dropdown (Dark | Light | Red & Blue)
+  // Theme Toggle (Dark → Light Glass → Liquid Glass)
   const btnThemeToggle = document.getElementById('btn-theme-toggle');
   if (btnThemeToggle) {
     const savedTheme = localStorage.getItem('aegis_theme') || 'dark';
-    let dropdownOpen = false;
-
-    // Build the dropdown menu once and insert after the button's parent
-    const wrapper = document.createElement('div');
-    wrapper.className = 'theme-dropdown-wrapper';
-    btnThemeToggle.parentNode.insertBefore(wrapper, btnThemeToggle);
-    wrapper.appendChild(btnThemeToggle);
-
-    const dropdown = document.createElement('div');
-    dropdown.className = 'theme-dropdown';
-    dropdown.setAttribute('role', 'menu');
-    dropdown.innerHTML = `
-      <button class="theme-option" data-theme="dark" role="menuitem">
-        <span class="theme-dot" style="background:#5865f2"></span> Dark
-      </button>
-      <button class="theme-option" data-theme="light" role="menuitem">
-        <span class="theme-dot" style="background:linear-gradient(135deg,#f0f2f5,#b5bac1)"></span> Light
-      </button>
-      <button class="theme-option" data-theme="red-blue" role="menuitem">
-        <span class="theme-dot" style="background:linear-gradient(135deg,#dc143c,#5865f2)"></span> Red &amp; Blue
-      </button>
-    `;
-    wrapper.appendChild(dropdown);
-
-    const THEMES = {
-      dark:     { bodyClass: '',                  icon: 'fa-moon',         label: 'Dark' },
-      light:    { bodyClass: 'light-theme',        icon: 'fa-sun',          label: 'Light' },
-      'red-blue': { bodyClass: 'red-blue-theme',   icon: 'fa-droplet',      label: 'Red &amp; Blue' },
-    };
-
+    
     function applyThemeUI(theme) {
-      // Remove all theme classes
-      document.body.classList.remove('light-theme', 'liquid-glass-theme', 'red-blue-theme');
-      const t = THEMES[theme] || THEMES.dark;
-      if (t.bodyClass) document.body.classList.add(t.bodyClass);
-      btnThemeToggle.innerHTML = `<i class="fa-solid ${t.icon}"></i> ${t.label}`;
-      // Update active state in dropdown
-      dropdown.querySelectorAll('.theme-option').forEach(opt => {
-        opt.classList.toggle('active', opt.dataset.theme === theme);
-      });
-      localStorage.setItem('aegis_theme', theme);
+      document.body.classList.remove('light-theme', 'liquid-glass-theme', 'light-glass');
+      if (theme === 'light') {
+        document.body.classList.add('light-theme');
+        btnThemeToggle.innerHTML = '<i class="fa-solid fa-sun"></i> Light';
+      } else if (theme === 'liquid-glass') {
+        document.body.classList.add('liquid-glass-theme');
+        btnThemeToggle.innerHTML = '<i class="fa-solid fa-droplet"></i> Liquid Glass';
+      } else {
+        btnThemeToggle.innerHTML = '<i class="fa-solid fa-moon"></i> Dark';
+      }
     }
 
-    function openDropdown() {
-      dropdown.classList.add('open');
-      dropdownOpen = true;
-      btnThemeToggle.setAttribute('aria-expanded', 'true');
-    }
-
-    function closeDropdown() {
-      dropdown.classList.remove('open');
-      dropdownOpen = false;
-      btnThemeToggle.setAttribute('aria-expanded', 'false');
-    }
-
-    function triggerThemeRedraw(theme) {
-      applyThemeUI(theme);
-      closeDropdown();
-      // Redraw charts on theme change
-      if (typeof window.loadSmartFeatures === 'function') window.loadSmartFeatures();
-      loadHealthTimeline();
-    }
-
-    // Apply saved theme on load
     applyThemeUI(savedTheme);
 
-    btnThemeToggle.setAttribute('aria-haspopup', 'true');
-    btnThemeToggle.setAttribute('aria-expanded', 'false');
-    btnThemeToggle.addEventListener('click', (e) => {
-      e.stopPropagation();
-      dropdownOpen ? closeDropdown() : openDropdown();
-    });
-
-    dropdown.querySelectorAll('.theme-option').forEach(opt => {
-      opt.addEventListener('click', () => triggerThemeRedraw(opt.dataset.theme));
-    });
-
-    // Close on click outside
-    document.addEventListener('click', (e) => {
-      if (dropdownOpen && !wrapper.contains(e.target)) closeDropdown();
-    });
-
-    // Close on Escape
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && dropdownOpen) closeDropdown();
+    btnThemeToggle.addEventListener('click', () => {
+      let nextTheme = 'dark';
+      if (document.body.classList.contains('liquid-glass-theme')) {
+        nextTheme = 'dark';
+      } else if (document.body.classList.contains('light-theme')) {
+        nextTheme = 'liquid-glass';
+      } else {
+        nextTheme = 'light';
+      }
+      localStorage.setItem('aegis_theme', nextTheme);
+      applyThemeUI(nextTheme);
+      
+      // Dynamic Chart Redraw on Theme Change
+      if (typeof window.loadSmartFeatures === 'function') {
+        window.loadSmartFeatures();
+      }
+      loadHealthTimeline();
     });
   }
 
@@ -8336,44 +8257,22 @@ function refreshCommandCenter() {
 function renderScoreGauge(score, label) {
   const color = score >= 80 ? 'var(--success)' : score >= 60 ? 'var(--warning)' : 'var(--danger)';
   const radius = 50;
-  const circumference = 2 * Math.PI * radius;
-  const targetOffset = circumference - (score / 100) * circumference;
-  
-  const gaugeId = 'gauge-' + Math.random().toString(36).slice(2, 8);
-  
-  setTimeout(() => {
-    const circle = document.getElementById(gaugeId);
-    if (circle) {
-      circle.style.strokeDashoffset = targetOffset;
-    }
-  }, 100);
+  const circumference = 2 * Math.PI * radius; // ~314.16
+  const offset = circumference - (score / 100) * circumference;
   
   return `
     <div class="sf-score-ring">
       <svg>
         <circle cx="60" cy="60" r="${radius}" stroke="rgba(255,255,255,0.05)"></circle>
-        <circle id="${gaugeId}" cx="60" cy="60" r="${radius}" stroke="${color}" stroke-dasharray="${circumference}" stroke-dashoffset="${circumference}" stroke-linecap="round" style="transition: stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1);"></circle>
+        <circle cx="60" cy="60" r="${radius}" stroke="${color}" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"></circle>
       </svg>
       <div class="sf-score-text" style="color:${color};">
         ${score}<span class="sf-score-percent">%</span>
         <span style="font-size:0.65rem;color:var(--text-sub);text-transform:uppercase;margin-top:2px;">${label}</span>
       </div>
-      </div>
-    `;
-    // Animate gauge fill and number counter
-    requestAnimationFrame(() => {
-      const gaugeCircle = document.getElementById(smartGaugeId);
-      const valEl = document.getElementById(smartValueId);
-      if (gaugeCircle) gaugeCircle.style.strokeDashoffset = offset;
-      if (valEl) animateNumber(valEl, 0, weightedScore, 800);
-      // Animate dimension bars from 0
-      setTimeout(() => {
-        healthContent.querySelectorAll('.dimension-bar-fill[data-target]').forEach(bar => {
-          bar.style.width = bar.dataset.target + '%';
-        });
-      }, 100);
-    });
-  }
+    </div>
+  `;
+}
 
 function renderSkeletonCards(cardCount, classes = "span-2") {
   let html = "";
@@ -10457,42 +10356,38 @@ async function loadSmartCommandCenter(force = false) {
             <span>Security (35%)</span>
             <span style="font-weight:600;color:var(--primary);">${secScore}%</span>
           </div>
-          <div class="dimension-bar"><div class="dimension-bar-fill" data-target="${secScore}" style="width:0%;background:var(--primary);transition:width 0.5s ease-out 200ms;"></div></div>
+          <div class="dimension-bar"><div class="dimension-bar-fill" style="width:${secScore}%;background:var(--primary);"></div></div>
         </div>
         <div>
           <div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:2px;">
             <span>Moderation (25%)</span>
             <span style="font-weight:600;color:var(--success);">${modScore}%</span>
           </div>
-          <div class="dimension-bar"><div class="dimension-bar-fill" data-target="${modScore}" style="width:0%;background:var(--success);transition:width 0.5s ease-out 300ms;"></div></div>
+          <div class="dimension-bar"><div class="dimension-bar-fill" style="width:${modScore}%;background:var(--success);"></div></div>
         </div>
         <div>
           <div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:2px;">
             <span>Automation (15%)</span>
             <span style="font-weight:600;color:var(--warning);">${autoScore}%</span>
           </div>
-          <div class="dimension-bar"><div class="dimension-bar-fill" data-target="${autoScore}" style="width:0%;background:var(--warning);transition:width 0.5s ease-out 400ms;"></div></div>
+          <div class="dimension-bar"><div class="dimension-bar-fill" style="width:${autoScore}%;background:var(--warning);"></div></div>
         </div>
         <div>
           <div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:2px;">
             <span>Reliability (15%)</span>
             <span style="font-weight:600;color:var(--info);">${relScore}%</span>
           </div>
-          <div class="dimension-bar"><div class="dimension-bar-fill" data-target="${relScore}" style="width:0%;background:var(--info);transition:width 0.5s ease-out 500ms;"></div></div>
+          <div class="dimension-bar"><div class="dimension-bar-fill" style="width:${relScore}%;background:var(--info);"></div></div>
         </div>
         <div>
           <div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:2px;">
             <span>Growth (10%)</span>
             <span style="font-weight:600;color:var(--secondary);">${groScore}%</span>
           </div>
-          <div class="dimension-bar"><div class="dimension-bar-fill" data-target="${groScore}" style="width:0%;background:var(--secondary);transition:width 0.5s ease-out 600ms;"></div></div>
+          <div class="dimension-bar"><div class="dimension-bar-fill" style="width:${groScore}%;background:var(--secondary);"></div></div>
         </div>
       </div>
     `;
-
-    // Animate the gauge
-    const smartGaugeId = 'sf-gauge-' + Math.random().toString(36).slice(2, 8);
-    const smartValueId = 'sf-val-' + Math.random().toString(36).slice(2, 8);
 
     healthContent.innerHTML = `
       <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;">
@@ -10500,10 +10395,10 @@ async function loadSmartCommandCenter(force = false) {
           <div class="sf-score-ring" style="width:140px;height:140px;">
             <svg viewBox="0 0 120 120" style="width:140px;height:140px;transform:rotate(-90deg);">
               <circle cx="60" cy="60" r="${radius}" stroke="rgba(255,255,255,0.05)" stroke-width="8" fill="none"></circle>
-              <circle id="${smartGaugeId}" cx="60" cy="60" r="${radius}" stroke="${scoreColor}" stroke-width="8" stroke-dasharray="${circumference}" stroke-dashoffset="${circumference}" stroke-linecap="round" fill="none" style="transition: stroke-dashoffset 1.2s cubic-bezier(0.4, 0, 0.2, 1);"></circle>
+              <circle cx="60" cy="60" r="${radius}" stroke="${scoreColor}" stroke-width="8" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" stroke-linecap="round" fill="none" style="filter:drop-shadow(0 0 8px ${scoreColor}40);"></circle>
             </svg>
             <div class="sf-score-text" style="color:${scoreColor};font-size:2rem;font-weight:700;">
-              <span id="${smartValueId}">0</span><span class="sf-score-percent" style="font-size:0.9rem;">%</span>
+              ${weightedScore}<span class="sf-score-percent" style="font-size:0.9rem;">%</span>
               <span style="font-size:0.7rem;color:var(--text-sub);text-transform:uppercase;margin-top:4px;font-weight:600;">Health</span>
             </div>
           </div>
@@ -10527,18 +10422,6 @@ async function loadSmartCommandCenter(force = false) {
         </div>
       </div>
     `;
-    // Animate gauge fill and number counter after DOM paint
-    requestAnimationFrame(() => {
-      const gc = document.getElementById(smartGaugeId);
-      const sv = document.getElementById(smartValueId);
-      if (gc) gc.style.strokeDashoffset = offset;
-      if (sv) animateNumber(sv, 0, weightedScore, 800);
-      setTimeout(() => {
-        healthContent.querySelectorAll('.dimension-bar-fill[data-target]').forEach(bar => {
-          bar.style.width = bar.dataset.target + '%';
-        });
-      }, 100);
-    });
   }
 
   if (winsContent) {
@@ -11576,13 +11459,13 @@ async function loadHistoryProgress() {
         { key: 'reliability', label: 'Reliability', color: '#818cf8' },
         { key: 'community_health', label: 'Community', color: '#22d3ee' },
       ];
-      const barsHtml = dimEntries.map((d, i) => {
+      const barsHtml = dimEntries.map(d => {
         const val = dims[d.key] || 0;
         return `
           <div style="display:flex;justify-content:space-between;margin-bottom:4px;margin-top:8px;">
             <span>${d.label}</span><span>${val}%</span>
           </div>
-          <div class="dimension-bar"><div class="dimension-bar-fill" data-target="${val}" style="width:0%;background:${d.color};transition-delay:${200 + i * 100}ms;"></div></div>`;
+          <div class="dimension-bar"><div class="dimension-bar-fill" style="width:${val}%;background:${d.color};"></div></div>`;
       }).join('');
       maturityEl.innerHTML = `
         <div style="display:flex;flex-direction:column;gap:12px;align-items:center;">
@@ -11591,12 +11474,6 @@ async function loadHistoryProgress() {
             ${barsHtml}
           </div>
         </div>`;
-      // Animate bars from 0 to target
-      setTimeout(() => {
-        maturityEl.querySelectorAll('.dimension-bar-fill[data-target]').forEach(bar => {
-          bar.style.width = bar.dataset.target + '%';
-        });
-      }, 50);
     }
   } else {
     if (maturityEl) maturityEl.innerHTML = '<div class="text-center py-4" style="color:var(--text-sub);">Failed to load maturity index.</div>';
