@@ -108,21 +108,71 @@ def main() -> int:
             logger.warning(f"Could not install Windows console control handler: {e}")
 
     exit_code = 0
-    try:
-        # Run AppCore event loop
-        exit_code = loop.run_until_complete(core.run())
-    except KeyboardInterrupt:
-        logger.info("KeyboardInterrupt caught, shutting down...")
-        loop.run_until_complete(core.request_shutdown())
-    except Exception:
-        logger.exception("Unhandled exception in main loop")
-        exit_code = 1
-    finally:
-        # 6. Release mutex guard
+    use_gui = False
+    import os
+    if not os.environ.get("HEADLESS") and not os.environ.get("RENDER"):
+        try:
+            import webview
+            use_gui = True
+        except ImportError:
+            use_gui = False
+
+    if use_gui:
+        import threading
+        import time
+        import webview
+
+        logger.info("Starting Aegis Suite Desktop GUI Application...")
+        bg_thread = threading.Thread(target=lambda: loop.run_until_complete(core.run()), daemon=True)
+        bg_thread.start()
+
+        # Wait for web_port to be assigned
+        for _ in range(50):
+            if core.web_port is not None:
+                break
+            time.sleep(0.1)
+
+        if core.web_port is not None:
+            dash_url = f"http://127.0.0.1:{core.web_port}"
+            logger.info(f"Opening Standalone Desktop App Window at: {dash_url}")
+            try:
+                webview.create_window(
+                    title="Aegis Suite",
+                    url=dash_url,
+                    width=1280,
+                    height=850,
+                    min_size=(960, 640),
+                    resizable=True
+                )
+                webview.start(gui='edgechromium', debug=False)
+            except Exception as e:
+                logger.warning(f"PyWebView launch error: {e}. Opening browser...")
+                webbrowser.open(dash_url)
+                bg_thread.join()
+            finally:
+                asyncio.run_coroutine_threadsafe(core.request_shutdown(), loop)
+        else:
+            logger.error("Web server startup timed out.")
+            asyncio.run_coroutine_threadsafe(core.request_shutdown(), loop)
+        
         guard.release()
         logger.info("Aegis Suite stopped.")
-        
-    return exit_code
+        return 0
+    else:
+        try:
+            # Run AppCore event loop directly on main thread
+            exit_code = loop.run_until_complete(core.run())
+        except KeyboardInterrupt:
+            logger.info("KeyboardInterrupt caught, shutting down...")
+            loop.run_until_complete(core.request_shutdown())
+        except Exception:
+            logger.exception("Unhandled exception in main loop")
+            exit_code = 1
+        finally:
+            guard.release()
+            logger.info("Aegis Suite stopped.")
+            
+        return exit_code
 
 if __name__ == "__main__":
     sys.exit(main())

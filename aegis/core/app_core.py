@@ -234,39 +234,9 @@ class AppCore:
 
         if self.web_port is not None:
             dash_url = f"http://127.0.0.1:{self.web_port}"
-            try:
-                import webview
-                import threading
-                import os
-                
-                logger.info(f"Opening Aegis Suite Standalone Desktop App at {dash_url}")
-                
-                def _launch_desktop_window():
-                    try:
-                        webview.create_window(
-                            title="Aegis Suite",
-                            url=dash_url,
-                            width=1280,
-                            height=850,
-                            min_size=(960, 640),
-                            resizable=True
-                        )
-                        webview.start(gui='edgechromium', debug=False)
-                    except Exception as gw_err:
-                        logger.warning(f"PyWebView window launch failed: {gw_err}, falling back to browser")
-                        import webbrowser
-                        webbrowser.open(dash_url)
-
-                gui_thread = threading.Thread(target=_launch_desktop_window, daemon=True)
-                gui_thread.start()
-            except ImportError:
-                import webbrowser
-                try:
-                    webbrowser.open(dash_url)
-                except Exception as e:
-                    logger.warning(f"Failed to open browser automatically: {e}")
+            logger.info(f"Aegis Suite web dashboard server ready at: {dash_url}")
         else:
-            logger.error("Web server did not start in time. Desktop window launch bypassed.")
+            logger.error("Web server did not start in time.")
 
 
     async def run(self) -> int:

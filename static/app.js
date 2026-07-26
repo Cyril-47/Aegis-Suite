@@ -6420,6 +6420,12 @@ async function fetchAuditLogs() {
     if (!res.ok) return;
     const data = await res.json();
     
+    const signature = JSON.stringify(data.logs || []);
+    if (tbody.dataset.signature === signature) {
+      return;
+    }
+    tbody.dataset.signature = signature;
+    
     tbody.innerHTML = '';
     if (!data.logs || data.logs.length === 0) {
       empty.classList.remove('hidden');
