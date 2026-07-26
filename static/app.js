@@ -526,24 +526,16 @@ function initApp() {
   // Restore Embed Builder State
   restoreEmbedBuilderState();
   
-  // Refresh loop for status and stats (Tier 3.2, 3.15)
-  // Reduced from 15s to 30s — SSE handles real-time alerts
+  // Refresh loop for status and stats
   statusInterval = setInterval(() => {
     if (document.visibilityState === 'hidden') return;
     checkStatus();
     
     if (isAuthenticated) {
       fetchStats();
-      
-      // Poll music status if the music tab is active
-      const activePane = document.querySelector('.tab-pane:not(.hidden)');
-      if (activePane && activePane.id === 'tab-music' && activeGuildId) {
-        fetchMusicStatus();
-      } else if (activePane && activePane.id === 'tab-giveaways' && activeGuildId) {
-        loadGiveaways();
-      }
+      refreshActiveTabContent();
     }
-  }, 30000);
+  }, 10000);
 }
 
 async function fetchStats() {
@@ -1867,16 +1859,19 @@ function updateAutomodTogglesState() {
   const isEnabled = document.getElementById('automod-enabled').checked;
   const profanityCheckbox = document.getElementById('automod-profanity');
   const linksCheckbox = document.getElementById('automod-links');
+  const invitesCheckbox = document.getElementById('automod-invites');
   if (profanityCheckbox && linksCheckbox) {
     profanityCheckbox.disabled = !isEnabled;
     linksCheckbox.disabled = !isEnabled;
+    if (invitesCheckbox) invitesCheckbox.disabled = !isEnabled;
 
     const profanityGroup = profanityCheckbox.closest('.toggle-group');
     const linksGroup = linksCheckbox.closest('.toggle-group');
+    const invitesGroup = invitesCheckbox ? invitesCheckbox.closest('.toggle-group') : null;
     
     if (profanityGroup) {
       profanityGroup.style.opacity = isEnabled ? '1' : '0.5';
-      profanityGroup.style.pointerEvents = isEnabled ? '1' : 'none';
+      profanityGroup.style.pointerEvents = isEnabled ? 'auto' : 'none';
       const desc = profanityGroup.nextElementSibling;
       if (desc && desc.classList.contains('setting-desc')) {
         desc.style.opacity = isEnabled ? '1' : '0.5';
@@ -1885,8 +1880,17 @@ function updateAutomodTogglesState() {
     
     if (linksGroup) {
       linksGroup.style.opacity = isEnabled ? '1' : '0.5';
-      linksGroup.style.pointerEvents = isEnabled ? '1' : 'none';
+      linksGroup.style.pointerEvents = isEnabled ? 'auto' : 'none';
       const desc = linksGroup.nextElementSibling;
+      if (desc && desc.classList.contains('setting-desc')) {
+        desc.style.opacity = isEnabled ? '1' : '0.5';
+      }
+    }
+
+    if (invitesGroup) {
+      invitesGroup.style.opacity = isEnabled ? '1' : '0.5';
+      invitesGroup.style.pointerEvents = isEnabled ? 'auto' : 'none';
+      const desc = invitesGroup.nextElementSibling;
       if (desc && desc.classList.contains('setting-desc')) {
         desc.style.opacity = isEnabled ? '1' : '0.5';
       }
@@ -1899,6 +1903,8 @@ function populateAutomodForm(settings) {
   document.getElementById('automod-enabled').checked = settings.enabled;
   document.getElementById('automod-profanity').checked = settings.block_profanity;
   document.getElementById('automod-links').checked = settings.block_links;
+  const invitesEl = document.getElementById('automod-invites');
+  if (invitesEl) invitesEl.checked = settings.block_invites ?? settings.block_links;
   document.getElementById('automod-max-mentions').value = settings.max_mentions;
   document.getElementById('automod-words').value = settings.profanity_words.join(', ');
   document.getElementById('automod-whitelisted-domains').value = (settings.whitelisted_domains || []).join('\n');
@@ -1912,12 +1918,13 @@ async function saveAutomodSettings(e) {
   const enabled = document.getElementById('automod-enabled').checked;
   const block_profanity = document.getElementById('automod-profanity').checked;
   const block_links = document.getElementById('automod-links').checked;
+  const invitesEl = document.getElementById('automod-invites');
+  const block_invites = invitesEl ? invitesEl.checked : block_links;
   const max_mentions = parseInt(document.getElementById('automod-max-mentions').value, 10);
   const logSelect = document.getElementById('automod-log-channel');
   const log_channel_id = logSelect.value || null;
   const log_channel_name = logSelect.selectedIndex >= 0 ? logSelect.options[logSelect.selectedIndex].text : 'mod-logs';
   const wordsRaw = document.getElementById('automod-words').value;
-  const block_invites = block_links;
   const whitelisted_domains = document.getElementById('automod-whitelisted-domains').value
     .split('\n')
     .map(d => d.trim())
@@ -3101,6 +3108,7 @@ function connectWebSocket() {
   
   socket = new WebSocket(wsUrl);
   
+  let logDebounceTimer = null;
   socket.onmessage = (event) => {
     try {
       const parsed = JSON.parse(event.data);
@@ -3116,6 +3124,11 @@ function connectWebSocket() {
       }
     } catch (e) {}
     appendLogLine(event.data);
+
+    if (logDebounceTimer) clearTimeout(logDebounceTimer);
+    logDebounceTimer = setTimeout(() => {
+      refreshActiveTabContent();
+    }, 1000);
   };
   
   socket.onclose = (event) => {

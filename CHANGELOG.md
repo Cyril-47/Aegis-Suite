@@ -5,6 +5,19 @@ All notable changes to the Aegis Suite project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-07-26
+
+### Added
+- **Liquid Glass Design System**: Premium deep frosted glass theme with dynamic glassmorphism tokens (`aegis_theme`), custom HSL color palette, smooth backdrop blurs, and glass surface borders.
+- **Independent Discord Invite Link Filter**: Added a standalone `#automod-invites` UI toggle and backend configuration persistence for filtering Discord invite codes (`discord.gg`) independently from general URL link filtering.
+- **Real-Time Data & Logs Auto-Sync**: Added 10-second active tab polling and WebSocket message dispatchers in `static/app.js` to auto-refresh Audit Logs, Incident Timelines, System Logs, and Leveling history in real time.
+- **Toast Notification Engine Redesign**: Glassmorphic toast notifications with automatic deduplication, reflow re-animations, active timeout resets, and a max 3 toast queue limit.
+
+### Fixed
+- **AutoMod & Link Filter Toggle Lock**: Fixed invalid CSS `pointer-events = '1'` property in `updateAutomodTogglesState()`. Sub-toggles can now be turned on/off without interaction locks.
+- **Discord Preview Simulators**: Refined centering and padding on Welcome Preview, Panel Message Preview, and Visual Simulator Preview cards across Dark, Light, and Liquid Glass themes.
+- **Chart & Canvas Lifecycle**: Added explicit `chart.destroy()` calls in `renderActivityChart` and `renderPermissionHeatmap` to prevent canvas re-render leaks during rapid navigation.
+
 ---
 
 ## [2.3.0] - 2026-06-23

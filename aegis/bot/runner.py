@@ -99,6 +99,94 @@ async def start_bot_task(core, token: str) -> None:
     from aegis.bot.commands import register_commands
     register_commands(bot)
     
+    import os
+    if os.environ.get("AEGIS_MOCK_ENV") == "1":
+        import datetime
+        from unittest.mock import MagicMock, AsyncMock
+        
+        # Build mock guild list
+        mock_guild_obj = MagicMock()
+        mock_guild_obj.id = 1509050530369114162 # Cyril's server id
+        mock_guild_obj.name = "Cyril's Server"
+        mock_guild_obj.member_count = 120
+        mock_guild_obj.premium_subscription_count = 5
+        mock_guild_obj.premium_tier = 1
+        mock_guild_obj.verification_level = discord.VerificationLevel.high
+        mock_guild_obj.explicit_content_filter = discord.ContentFilter.all_members
+        mock_guild_obj.created_at = datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc)
+        mock_guild_obj.icon = MagicMock()
+        mock_guild_obj.icon.url = "https://example.com/icon.png"
+        
+        # Mock channels
+        welcome_ch = MagicMock()
+        welcome_ch.id = 1509557921615319041
+        welcome_ch.name = "welcome"
+        
+        general_ch = MagicMock()
+        general_ch.id = 1508707951550922782
+        general_ch.name = "general"
+        
+        mod_logs_ch = MagicMock()
+        mod_logs_ch.id = 1509557966792167579
+        mod_logs_ch.name = "mod-logs"
+        
+        mock_guild_obj.text_channels = [welcome_ch, general_ch, mod_logs_ch]
+        mock_guild_obj.voice_channels = []
+        mock_guild_obj.channels = [welcome_ch, general_ch, mod_logs_ch]
+        
+        # Mock role
+        mock_role = MagicMock()
+        mock_role.id = 12345
+        mock_role.name = "Moderator"
+        mock_role.color = MagicMock()
+        mock_role.color.value = 0x6366F1
+        mock_role.position = 1
+        mock_role.permissions = MagicMock()
+        mock_role.permissions.value = 8
+        mock_role.hoist = True
+        mock_role.managed = False
+        mock_guild_obj.roles = [mock_role]
+        
+        mock_me = MagicMock()
+        mock_me_top_role = MagicMock()
+        mock_me_top_role.position = 10
+        mock_me.top_role = mock_me_top_role
+        mock_guild_obj.me = mock_me
+        
+        def mock_get_channel(channel_id):
+            for ch in [welcome_ch, general_ch, mod_logs_ch]:
+                if ch.id == int(channel_id):
+                    return ch
+            return None
+        mock_guild_obj.get_channel = mock_get_channel
+        
+        type(bot).guilds = property(lambda self: [mock_guild_obj])
+        bot.is_ready = MagicMock(return_value=True)
+        bot.get_guild = MagicMock(return_value=mock_guild_obj)
+        
+        mock_fetched = MagicMock()
+        mock_fetched.approximate_presence_count = 10
+        mock_fetched.approximate_member_count = 120
+        bot.fetch_guild = AsyncMock(return_value=mock_fetched)
+        
+        mock_bot_user = MagicMock()
+        mock_bot_user.name = "AegisOptimizerBot"
+        mock_bot_user.display_name = "AegisOptimizerBot"
+        mock_bot_user.username = "AegisOptimizerBot"
+        mock_bot_user.discriminator = "9999"
+        mock_bot_user.avatar = MagicMock()
+        mock_bot_user.avatar.url = "https://example.com/avatar.png"
+        mock_bot_user.avatar_url = "https://example.com/avatar.png"
+        type(bot).user = property(lambda self: mock_bot_user)
+        
+        logger.info("Mock bot environment started.")
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            logger.info("Mock bot task cancelled.")
+            raise
+        return
+
     logger.info("Starting Discord bot instance...")
     try:
         await bot.start(token)
