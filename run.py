@@ -44,6 +44,7 @@ _PACKAGE_IMPORT_MAP = {
     "httpx": "httpx",
     "Pillow": "PIL",
     "PyJWT": "jwt",
+    "pywebview": "webview",
 }
 
 
