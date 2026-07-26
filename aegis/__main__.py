@@ -135,8 +135,53 @@ def main() -> int:
         if core.web_port is not None:
             dash_url = f"http://127.0.0.1:{core.web_port}"
             logger.info(f"Opening Standalone Desktop App Window at: {dash_url}")
+            
+            is_full_exit = False
+            window_ref = None
+
+            def on_restore():
+                if window_ref:
+                    try:
+                        window_ref.show()
+                        window_ref.restore()
+                    except Exception as e:
+                        logger.warning(f"Could not restore desktop window: {e}")
+
+            def on_full_exit():
+                nonlocal is_full_exit
+                is_full_exit = True
+                if window_ref:
+                    try:
+                        window_ref.destroy()
+                    except Exception:
+                        pass
+
+            # Initialize System Tray Manager
+            tray_mgr = None
             try:
-                webview.create_window(
+                from aegis.core.tray import SystemTrayManager
+                tray_mgr = SystemTrayManager(
+                    root_dir=paths.root,
+                    on_open_callback=on_restore,
+                    on_exit_callback=on_full_exit
+                )
+                tray_mgr.run_detached()
+            except Exception as tray_err:
+                logger.warning(f"Could not initialize system tray icon: {tray_err}")
+
+            def on_closing():
+                if is_full_exit:
+                    return True # Allow window destruction on full exit
+                
+                # Minimize to system tray and notify user
+                if tray_mgr:
+                    tray_mgr.notify_background_running()
+                if window_ref:
+                    window_ref.hide()
+                return False # Cancel default close to keep background bot running
+
+            try:
+                window_ref = webview.create_window(
                     title="Aegis Suite",
                     url=dash_url,
                     width=1280,
@@ -144,12 +189,15 @@ def main() -> int:
                     min_size=(960, 640),
                     resizable=True
                 )
+                window_ref.events.closing += on_closing
                 webview.start(gui='edgechromium', debug=False)
             except Exception as e:
                 logger.warning(f"PyWebView launch error: {e}. Opening browser...")
                 webbrowser.open(dash_url)
                 bg_thread.join()
             finally:
+                if tray_mgr:
+                    tray_mgr.stop()
                 asyncio.run_coroutine_threadsafe(core.request_shutdown(), loop)
         else:
             logger.error("Web server startup timed out.")

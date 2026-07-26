@@ -45,6 +45,7 @@ _PACKAGE_IMPORT_MAP = {
     "Pillow": "PIL",
     "PyJWT": "jwt",
     "pywebview": "webview",
+    "pystray": "pystray",
 }
 
 

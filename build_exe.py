@@ -165,6 +165,8 @@ def main():
         "--hidden-import", "aegis.core.utils",
         "--hidden-import", "aegis.core.audit_log",
         "--hidden-import", "aegis.core.secret_store",
+        "--hidden-import", "aegis.core.tray",
+        "--hidden-import", "pystray",
         "--hidden-import", "aegis.analytics.__init__",
         "--hidden-import", "aegis.analytics.engine",
         "--hidden-import", "aegis.analytics.aggregator",

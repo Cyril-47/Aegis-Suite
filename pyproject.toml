@@ -35,6 +35,7 @@ dependencies = [
     "psutil>=5.9.0",
     "vaderSentiment>=3.3.2",
     "pywebview>=6.0.0",
+    "pystray>=0.19.5",
     "pywin32>=306; sys_platform == 'win32'",
     "winshell>=0.6; sys_platform == 'win32'",
 ]
