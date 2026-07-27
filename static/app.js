@@ -1091,12 +1091,14 @@ function updateBotBadge(data) {
       botAvatar.src = data.bot_user.avatar_url;
     }
     
-    // Enable/Unlock selector and invite buttons
-    document.getElementById('server-select').disabled = false;
-    if (savedClientId) {
-      document.getElementById('btn-invite-bot').classList.remove('hidden');
-      document.getElementById('btn-invite-bot-prompt').classList.remove('hidden');
+    // Derive effective client ID (savedClientId or bot_user.id)
+    const effectiveClientId = savedClientId || data.bot_user.id;
+    if (effectiveClientId) {
+      updateInviteLinks(effectiveClientId);
     }
+
+    // Enable/Unlock selector
+    document.getElementById('server-select').disabled = false;
   } else if (data.status === 'connecting') {
     botUsername.textContent = 'Connecting...';
     botStatus.textContent = 'Connecting';
@@ -1257,6 +1259,8 @@ async function refreshGuildsList() {
   } else {
     activeGuildId = null;
     localStorage.removeItem('active_guild_id');
+    select.innerHTML = '<option value="">No servers found (Invite bot to server)</option>';
+    handleServerSelection(null);
   }
   
   showToast('Servers list updated.', 'info');
@@ -1275,9 +1279,15 @@ async function handleServerSelection(guildId) {
   const backupCard = document.getElementById('backup-restore-card');
   
   if (!guildId) {
-    helper.classList.remove('hidden');
-    card.classList.add('hidden');
+    if (helper) helper.classList.remove('hidden');
+    if (card) card.classList.add('hidden');
     if (backupCard) backupCard.classList.add('hidden');
+    
+    // Auto-update invite links if client ID is available
+    if (savedClientId) {
+      updateInviteLinks(savedClientId);
+    }
+    
     // Clear audit views
     clearAuditView();
     await fetchConfig(); // Call fetchConfig to restore global defaults

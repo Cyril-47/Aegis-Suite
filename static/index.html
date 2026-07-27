@@ -541,17 +541,24 @@
             </div>
 
             <!-- Server Selector Helper -->
-            <div id="no-server-selected-card" class="card glass span-4 text-center select-helper-card">
-              <div class="empty-server-icon">
+            <div id="no-server-selected-card" class="card glass span-4 text-center select-helper-card p-4">
+              <div class="empty-server-icon" style="font-size: 3rem; color: var(--primary); margin-bottom: 12px;">
                 <i class="fa-solid fa-server"></i>
               </div>
-              <h2>No Discord Server Selected</h2>
-              <p>Please select a guild from the dropdown in the top right to analyze and optimize its structure.</p>
-              <div class="invite-prompt-group">
-                <p>Don't see your server in the list? Make sure the bot is invited to it!</p>
-                <a id="btn-invite-bot-prompt" href="#" target="_blank" class="btn btn-discord hidden">
-                  <i class="fa-brands fa-discord"></i> Invite Bot to Server
+              <h2 style="font-size: 1.4rem; font-weight: 700; color: var(--text-main); margin-bottom: 8px;">No Connected Discord Servers</h2>
+              <p style="color: var(--text-sub); max-width: 540px; margin: 0 auto 20px; font-size: 0.9rem; line-height: 1.5;">
+                The bot is active, but it has not joined any Discord servers yet. Invite the Aegis Bot to your server to start managing channels, roles, automod, and leveling.
+              </p>
+              <div class="invite-prompt-group" style="display: flex; flex-direction: column; align-items: center; gap: 12px;">
+                <a id="btn-invite-bot-prompt" href="#" target="_blank" class="btn btn-discord btn-glow hidden" style="padding: 12px 24px; font-size: 1rem; border-radius: 12px; text-decoration: none;">
+                  <i class="fa-brands fa-discord"></i> Invite Aegis Bot to Your Server
                 </a>
+                <button type="button" class="btn btn-secondary" onclick="refreshGuildsList()" style="padding: 8px 18px; border-radius: 8px; font-size: 0.85rem;">
+                  <i class="fa-solid fa-rotate"></i> Refresh Servers List
+                </button>
+              </div>
+              <div class="glass-inner p-3 mt-4" style="max-width: 540px; margin-left: auto; margin-right: auto; border-radius: 10px; text-align: left; font-size: 0.82rem; color: var(--text-sub);">
+                <strong style="color: var(--text-main);"><i class="fa-solid fa-lightbulb" style="color: var(--warning);"></i> Quick Tip:</strong> After adding the bot to your server, click <strong>Refresh Servers List</strong> or select the server from the top-right dropdown. You can also run <code>/linkdashboard</code> in Discord to generate a connection code.
               </div>
             </div>
 
