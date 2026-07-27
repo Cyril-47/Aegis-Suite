@@ -2621,6 +2621,76 @@ function closeModal(id) {
   if (m) m.classList.add('hidden');
 }
 
+async function saveBotTokenFromModal(e) {
+  if (e) e.preventDefault();
+  const tokenInput = document.getElementById('modal-bot-token-input');
+  const errorDiv = document.getElementById('modal-bot-token-error');
+  const submitBtn = document.getElementById('btn-save-modal-bot-token');
+  if (!tokenInput || !tokenInput.value.trim()) return;
+
+  const token = tokenInput.value.trim();
+  if (errorDiv) errorDiv.classList.add('hidden');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Validating & Connecting...';
+  }
+
+  try {
+    const res = await fetch('/wizard/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: token })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      const msg = data.detail || 'Token validation failed.';
+      if (errorDiv) {
+        errorDiv.textContent = msg;
+        errorDiv.classList.remove('hidden');
+      }
+      showToast(msg, 'error');
+      return;
+    }
+
+    // Success!
+    savedClientId = extractClientIdFromToken(token) || '';
+    if (savedClientId) {
+      updateInviteLinks(savedClientId);
+    }
+    showToast('Bot token connected successfully! Starting bot...', 'success');
+    closeModal('bot-token-setup-modal');
+    tokenInput.value = '';
+    
+    // Refresh status and guilds after 1 second
+    setTimeout(async () => {
+      await checkStatus();
+      await refreshGuildsList();
+    }, 1200);
+  } catch (err) {
+    console.error('Error saving bot token:', err);
+    if (errorDiv) {
+      errorDiv.textContent = 'Network error saving bot token: ' + err.message;
+      errorDiv.classList.remove('hidden');
+    }
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fa-solid fa-play"></i> Connect & Start Bot';
+    }
+  }
+}
+
+function extractClientIdFromToken(token) {
+  try {
+    const parts = token.split('.');
+    if (parts.length > 0 && parts[0]) {
+      return atob(parts[0]);
+    }
+  } catch (e) {}
+  return '';
+}
+
 async function fetchBuiltinTemplates() {
   const container = document.getElementById('builtin-templates-container');
   if (!container) return;

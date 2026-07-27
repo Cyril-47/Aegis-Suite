@@ -56,9 +56,14 @@ def load_env_file():
             from aegis.core.secret_store import decrypt_env_file, CorruptedSecretFile
             try:
                 plaintext_bytes = decrypt_env_file(enc_path)
-            except CorruptedSecretFile as exc:
-                print(f"[!] Encrypted secrets at {enc_path} could not be loaded: {exc}")
+            except (CorruptedSecretFile, Exception) as exc:
+                print(f"[!] Encrypted secrets at {enc_path} could not be decrypted on this system: {exc}")
                 plaintext_bytes = None
+                try:
+                    os.remove(enc_path)
+                    print("[+] Removed stale cross-machine .env.enc file to allow new token setup.")
+                except Exception:
+                    pass
             if plaintext_bytes is not None:
                 encrypted_lines = plaintext_bytes.decode("utf-8", errors="replace").splitlines()
         except Exception as exc:

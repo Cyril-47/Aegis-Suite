@@ -547,18 +547,78 @@
               </div>
               <h2 style="font-size: 1.4rem; font-weight: 700; color: var(--text-main); margin-bottom: 8px;">No Connected Discord Servers</h2>
               <p style="color: var(--text-sub); max-width: 540px; margin: 0 auto 20px; font-size: 0.9rem; line-height: 1.5;">
-                The bot is active, but it has not joined any Discord servers yet. Invite the Aegis Bot to your server to start managing channels, roles, automod, and leveling.
+                The bot is active, but it has not joined any Discord servers yet. Invite the Aegis Bot to your server or configure your Bot Token to start managing channels, roles, automod, and leveling.
               </p>
               <div class="invite-prompt-group" style="display: flex; flex-direction: column; align-items: center; gap: 12px;">
                 <a id="btn-invite-bot-prompt" href="#" target="_blank" class="btn btn-discord btn-glow hidden" style="padding: 12px 24px; font-size: 1rem; border-radius: 12px; text-decoration: none;">
                   <i class="fa-brands fa-discord"></i> Invite Aegis Bot to Your Server
                 </a>
-                <button type="button" class="btn btn-secondary" onclick="refreshGuildsList()" style="padding: 8px 18px; border-radius: 8px; font-size: 0.85rem;">
-                  <i class="fa-solid fa-rotate"></i> Refresh Servers List
-                </button>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
+                  <button type="button" class="btn btn-primary" onclick="openModal('bot-token-setup-modal')" style="padding: 8px 18px; border-radius: 8px; font-size: 0.85rem;">
+                    <i class="fa-solid fa-key"></i> Configure Bot Token
+                  </button>
+                  <button type="button" class="btn btn-secondary" onclick="refreshGuildsList()" style="padding: 8px 18px; border-radius: 8px; font-size: 0.85rem;">
+                    <i class="fa-solid fa-rotate"></i> Refresh Servers List
+                  </button>
+                </div>
               </div>
               <div class="glass-inner p-3 mt-4" style="max-width: 540px; margin-left: auto; margin-right: auto; border-radius: 10px; text-align: left; font-size: 0.82rem; color: var(--text-sub);">
                 <strong style="color: var(--text-main);"><i class="fa-solid fa-lightbulb" style="color: var(--warning);"></i> Quick Tip:</strong> After adding the bot to your server, click <strong>Refresh Servers List</strong> or select the server from the top-right dropdown. You can also run <code>/linkdashboard</code> in Discord to generate a connection code.
+              </div>
+            </div>
+
+            <!-- BOT TOKEN SETUP MODAL -->
+            <div id="bot-token-setup-modal" class="wizard-container hidden" role="dialog" aria-modal="true" aria-labelledby="bot-token-setup-title" style="z-index: 10000; background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);">
+              <div class="wizard-box glass" style="max-width: 580px; width: 90%; padding: 25px; border-radius: 16px;">
+                <div class="flex-between border-bottom pb-2 mb-3" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--card-border); padding-bottom: 10px; margin-bottom: 15px;">
+                  <h2 id="bot-token-setup-title" style="font-size: 1.3rem; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 8px; margin: 0;">
+                    <i class="fa-solid fa-key"></i> Connect Discord Bot Token
+                  </h2>
+                  <button type="button" data-close-modal="bot-token-setup-modal" aria-label="Close modal" style="background: none; border: none; color: var(--text-sub); font-size: 1.8rem; cursor: pointer; line-height: 1; padding: 0;">&times;</button>
+                </div>
+
+                <p style="font-size: 0.88rem; color: var(--text-sub); margin-bottom: 16px; line-height: 1.4;">
+                  Enter your Discord Bot Token to start the bot and connect your servers to the dashboard.
+                </p>
+
+                <form id="bot-token-config-form" onsubmit="saveBotTokenFromModal(event)">
+                  <div class="input-group mb-3">
+                    <label for="modal-bot-token-input" style="font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; display: block;">
+                      Discord Bot Token <span class="required" style="color:var(--danger);">*</span>
+                    </label>
+                    <div class="password-wrapper" style="position: relative;">
+                      <input type="password" id="modal-bot-token-input" placeholder="Paste bot token here..." class="glass-input w-100" required style="padding: 10px 40px 10px 12px; border-radius: 8px; font-family: monospace; font-size: 0.85rem;">
+                      <button type="button" class="btn-toggle-pass" data-toggle-password="modal-bot-token-input" aria-label="Toggle token visibility" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-sub); cursor: pointer;">
+                        <i class="fa-solid fa-eye"></i>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Setup Instructions Box -->
+                  <div class="glass-inner p-3 mb-4" style="border-radius: 10px; border: 1px solid rgba(88, 101, 242, 0.2); background: rgba(88, 101, 242, 0.04); font-size: 0.82rem; line-height: 1.5; color: var(--text-sub);">
+                    <strong style="color: var(--text-main); font-size: 0.85rem; display: block; margin-bottom: 6px;">
+                      <i class="fa-brands fa-discord" style="color: #818cf8;"></i> How to get a Bot Token:
+                    </strong>
+                    <ol style="margin: 0; padding-left: 1.2rem;">
+                      <li>Go to <a href="https://discord.com/developers/applications" target="_blank" style="color: var(--primary); text-decoration: underline;">Discord Developer Portal</a>.</li>
+                      <li>Create an Application &rarr; Click <strong>Bot</strong> tab &rarr; Click <strong>Reset Token</strong> to copy your token.</li>
+                      <li><strong>CRITICAL:</strong> Scroll down to <strong>Privileged Gateway Intents</strong> and turn ON all three:
+                        <span style="color: var(--warning); font-weight: 600;">Presence Intent</span>, 
+                        <span style="color: var(--warning); font-weight: 600;">Server Members Intent</span>, and 
+                        <span style="color: var(--warning); font-weight: 600;">Message Content Intent</span>.
+                      </li>
+                    </ol>
+                  </div>
+
+                  <div id="modal-bot-token-error" class="hidden mb-3 p-3 text-center" style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; color: var(--danger); font-size: 0.85rem; line-height: 1.4;"></div>
+
+                  <div class="flex-end" style="display: flex; justify-content: flex-end; gap: 10px;">
+                    <button type="button" class="btn btn-secondary" data-close-modal="bot-token-setup-modal" style="border-radius: 8px;">Cancel</button>
+                    <button type="submit" id="btn-save-modal-bot-token" class="btn btn-primary btn-glow" style="border-radius: 8px; display: inline-flex; align-items: center; gap: 6px;">
+                      <i class="fa-solid fa-play"></i> Connect & Start Bot
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
 

@@ -215,6 +215,14 @@ async def start_bot_task(core, token: str) -> None:
         logger.info("Bot task cancelled, closing bot connection gracefully...")
         await bot.close()
         raise
+    except discord.errors.PrivilegedIntentsRequired as e:
+        logger.error("CRITICAL: Privileged Gateway Intents are disabled! Turn ON Presence, Server Members, and Message Content intents in Discord Developer Portal (https://discord.com/developers/applications).")
+        await bot.close()
+        raise e
+    except discord.errors.LoginFailure as e:
+        logger.error("CRITICAL: Invalid Discord Bot Token! Please verify your token on Discord Developer Portal.")
+        await bot.close()
+        raise e
     except Exception as e:
         logger.exception("Bot encountered a fatal exception during runtime")
         await bot.close()
