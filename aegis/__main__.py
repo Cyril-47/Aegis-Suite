@@ -190,6 +190,26 @@ def main() -> int:
                     resizable=True
                 )
                 window_ref.events.closing += on_closing
+
+                def set_window_native_icon():
+                    try:
+                        base_dir = os.path.dirname(os.path.abspath(__file__))
+                        ico_candidates = [
+                            os.path.join(base_dir, "..", "logo.ico"),
+                            os.path.join(base_dir, "logo.ico"),
+                            os.path.join(os.getcwd(), "logo.ico")
+                        ]
+                        target_ico = next((p for p in ico_candidates if os.path.exists(p)), None)
+                        if target_ico and hasattr(window_ref, "native") and window_ref.native:
+                            import clr
+                            clr.AddReference("System.Drawing")
+                            from System.Drawing import Icon
+                            window_ref.native.Icon = Icon(target_ico)
+                            logger.info(f"Set PyWebView native window icon: {target_ico}")
+                    except Exception as ex:
+                        logger.debug(f"Could not set native window icon: {ex}")
+
+                window_ref.events.shown += set_window_native_icon
                 webview.start(gui='edgechromium', debug=False)
             except Exception as e:
                 logger.warning(f"PyWebView launch error: {e}. Opening browser...")
