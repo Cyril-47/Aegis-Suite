@@ -2762,6 +2762,10 @@ async function fetchTemplates() {
     if (!res.ok) return;
     const templates = await res.json();
     
+    const signature = JSON.stringify(templates || []);
+    if (tbody.dataset.signature === signature) return;
+    tbody.dataset.signature = signature;
+    
     tbody.innerHTML = '';
     if (templates.length === 0) {
       empty.classList.remove('hidden');
@@ -5602,6 +5606,10 @@ function renderMusicQueue(queue) {
   const stats = document.getElementById('music-queue-stats');
   if (!tbody || !empty) return;
   
+  const signature = JSON.stringify(queue || []);
+  if (tbody.dataset.signature === signature) return;
+  tbody.dataset.signature = signature;
+  
   tbody.innerHTML = '';
   if (!queue || queue.length === 0) {
     empty.classList.remove('hidden');
@@ -5805,6 +5813,10 @@ async function fetchScheduledMessages() {
     const allMessages = await res.json();
     
     const messages = allMessages.filter(m => String(m.guild_id) === String(activeGuildId));
+    
+    const signature = JSON.stringify(messages || []);
+    if (tbody.dataset.signature === signature) return;
+    tbody.dataset.signature = signature;
     
     tbody.innerHTML = '';
     if (messages.length === 0) {
@@ -6179,6 +6191,10 @@ async function fetchLeaderboard(guildId) {
     if (!res.ok) return;
     const leaderboard = await res.json();
     
+    const signature = JSON.stringify(leaderboard || []);
+    if (tbody.dataset.signature === signature) return;
+    tbody.dataset.signature = signature;
+    
     tbody.innerHTML = '';
     if (leaderboard.length === 0) {
       empty.classList.remove('hidden');
@@ -6235,6 +6251,10 @@ async function fetchAutoResponders() {
     const allResponders = await res.json();
     
     const responders = allResponders.filter(r => String(r.guild_id) === String(activeGuildId));
+    
+    const signature = JSON.stringify(responders || []);
+    if (tbody.dataset.signature === signature) return;
+    tbody.dataset.signature = signature;
     
     tbody.innerHTML = '';
     if (responders.length === 0) {
@@ -7010,6 +7030,10 @@ function renderActiveGiveaways() {
   const emptyState = document.getElementById('active-giveaways-empty');
   if (!container) return;
   
+  const signature = JSON.stringify(activeGiveaways || []);
+  if (container.dataset.signature === signature) return;
+  container.dataset.signature = signature;
+  
   container.innerHTML = '';
   
   if (activeGiveaways.length === 0) {
@@ -7106,6 +7130,10 @@ function renderGiveawayHistory(history) {
   const tbody = document.getElementById('giveaway-history-list-body');
   const emptyState = document.getElementById('giveaway-history-empty');
   if (!tbody) return;
+  
+  const signature = JSON.stringify(history || []);
+  if (tbody.dataset.signature === signature) return;
+  tbody.dataset.signature = signature;
   
   tbody.innerHTML = '';
   

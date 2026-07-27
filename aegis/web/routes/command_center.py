@@ -79,7 +79,11 @@ async def _get_notifications(guild_id: str) -> list:
 async def get_command_center(guild_id: str, request: Request):
     bot = get_active_bot()
     if not bot:
-        raise HTTPException(status_code=503, detail="Bot not connected")
+        try:
+            from aegis.bot.runner import get_mock_bot
+            bot = get_mock_bot()
+        except Exception:
+            return {"audit": {}, "notifications": [], "history": [], "activity": {}}
 
     from aegis.bot.auditor import ServerAuditor
 

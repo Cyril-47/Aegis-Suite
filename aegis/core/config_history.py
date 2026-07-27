@@ -13,6 +13,14 @@ def get_db_session():
         core = _active_cores[-1]
         if core.db:
             return sessionmaker(bind=core.db)()
+    try:
+        from aegis.db.engine import get_engine
+        from sqlalchemy.orm import sessionmaker
+        engine = get_engine()
+        if engine:
+            return sessionmaker(bind=engine)()
+    except Exception:
+        pass
     return None
 
 

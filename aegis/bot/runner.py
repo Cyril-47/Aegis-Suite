@@ -143,9 +143,24 @@ async def start_bot_task(core, token: str) -> None:
         mock_role.position = 1
         mock_role.permissions = MagicMock()
         mock_role.permissions.value = 8
+        mock_role.permissions.administrator = False
+        mock_role.permissions.manage_guild = False
+        mock_role.permissions.manage_roles = False
+        mock_role.permissions.manage_channels = False
+        mock_role.permissions.ban_members = False
+        mock_role.permissions.kick_members = False
+        mock_role.permissions.manage_messages = False
+        mock_role.permissions.moderate_members = False
+        mock_role.permissions.mention_everyone = False
+        mock_role.permissions.send_messages = True
+        mock_role.permissions.view_channel = True
+        mock_role.permissions.connect = True
+        mock_role.permissions.speak = True
         mock_role.hoist = True
         mock_role.managed = False
+        mock_role.is_default = MagicMock(return_value=False)
         mock_guild_obj.roles = [mock_role]
+        mock_guild_obj.default_role = mock_role
         
         mock_me = MagicMock()
         mock_me_top_role = MagicMock()
@@ -160,6 +175,9 @@ async def start_bot_task(core, token: str) -> None:
             return None
         mock_guild_obj.get_channel = mock_get_channel
         
+        mock_guild_obj.fetch_roles = AsyncMock(return_value=[mock_role])
+        mock_guild_obj.fetch_channels = AsyncMock(return_value=[welcome_ch, general_ch, mod_logs_ch])
+        
         type(bot).guilds = property(lambda self: [mock_guild_obj])
         bot.is_ready = MagicMock(return_value=True)
         bot.get_guild = MagicMock(return_value=mock_guild_obj)
@@ -167,6 +185,9 @@ async def start_bot_task(core, token: str) -> None:
         mock_fetched = MagicMock()
         mock_fetched.approximate_presence_count = 10
         mock_fetched.approximate_member_count = 120
+        mock_fetched.roles = [mock_role]
+        mock_fetched.channels = [welcome_ch, general_ch, mod_logs_ch]
+        mock_fetched.fetch_roles = AsyncMock(return_value=[mock_role])
         bot.fetch_guild = AsyncMock(return_value=mock_fetched)
         
         mock_bot_user = MagicMock()

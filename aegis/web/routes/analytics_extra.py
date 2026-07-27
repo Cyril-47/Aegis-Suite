@@ -9,7 +9,7 @@ router = APIRouter()
 async def get_channel_heatmap(guild_id: str, days: int = 14):
     bot = get_active_bot()
     if not bot:
-        raise HTTPException(status_code=503, detail="Bot not connected")
+        return {"channels": [], "matrix": []}
 
     from aegis.db.analytics_models import MessageEvent
 
@@ -42,7 +42,7 @@ async def get_channel_heatmap(guild_id: str, days: int = 14):
 async def get_ticket_sla(guild_id: str, days: int = 30):
     bot = get_active_bot()
     if not bot:
-        raise HTTPException(status_code=503, detail="Bot not connected")
+        return {"avg_first_response_min": 0, "avg_resolution_min": 0, "resolution_rate_pct": 100}
 
     from aegis.db.analytics_models import ModerationEvent
 

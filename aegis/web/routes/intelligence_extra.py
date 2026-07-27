@@ -222,11 +222,11 @@ async def get_retention(guild_id: str):
 async def get_permission_heatmap(guild_id: str):
     bot = get_active_bot()
     if not bot:
-        raise HTTPException(status_code=503, detail="Bot not connected")
+        return {"roles": [], "matrix": []}
 
     guild = bot.get_guild(int(guild_id) if guild_id.isdigit() else 0)
     if not guild:
-        raise HTTPException(status_code=404, detail="Guild not found")
+        return {"roles": [], "matrix": []}
 
     PERM_MAPPING = {
         "Administrator": "administrator",

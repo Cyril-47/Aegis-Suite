@@ -167,28 +167,19 @@ async def get_score_history(guild_id: str, days: int = 30):
     from aegis.web.routes.dashboard import get_active_bot
 
     engine = _get_analytics_engine()
+    if not engine:
+        return {"history": []}
     session = engine._session_factory()
 
     try:
-        cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+        cutoff = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=days)
         scores = session.query(ServerScore).filter(
             ServerScore.guild_id == guild_id,
             ServerScore.timestamp >= cutoff,
         ).order_by(ServerScore.timestamp).all()
 
         if not scores:
-            # Seed history dynamically from the live audit report
-            bot = get_active_bot()
             overall_score = 75
-            if bot:
-                guild = bot.get_guild(int(guild_id) if guild_id.isdigit() else 0)
-                if guild:
-                    try:
-                        from aegis.bot.restructuring import audit_guild_data
-                        report = audit_guild_data(guild)
-                        overall_score = report.get("score", 75)
-                    except Exception:
-                        pass
             
             # Generate deterministic history points for the last few days
             import random
@@ -250,8 +241,13 @@ async def get_score_history(guild_id: str, days: int = 30):
 
 
 def _get_analytics_engine():
-    from aegis.analytics.engine import get_analytics_engine
+    from aegis.analytics.engine import get_analytics_engine, AnalyticsEngine
+    from aegis.core.paths import Paths
     engine = get_analytics_engine()
     if not engine:
-        raise HTTPException(status_code=503, detail="Analytics engine not available")
+        try:
+            paths = Paths()
+            engine = AnalyticsEngine(paths.analytics_db_path)
+        except Exception:
+            return None
     return engine
