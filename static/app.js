@@ -7966,13 +7966,26 @@ async function loadAutomationCenter() {
     });
     html += '</div>';
 
+    // Test Trigger Action Bar
+    html += `
+      <div class="glass-inner p-3 mt-3 mb-3" style="display:flex;align-items:center;justify-content:space-between;border-left:3px solid var(--primary);">
+        <div>
+          <div style="font-weight:600;font-size:0.9rem;"><i class="fa-solid fa-bolt" style="color:var(--warning);margin-right:6px;"></i>Automation Test & Forecast Trigger</div>
+          <div style="font-size:0.78rem;color:var(--text-sub);">Simulate automation rule triggers, generate live execution logs, and populate initial forecast metrics.</div>
+        </div>
+        <button type="button" class="btn btn-sm btn-primary" onclick="triggerTestAutomation()" style="font-size:0.8rem;padding:6px 14px;border-radius:10px;white-space:nowrap;cursor:pointer;">
+          <i class="fa-solid fa-play mr-1"></i> Trigger Test
+        </button>
+      </div>`;
+
     // Trend forecast
     try {
       const forecastRes = await fetch(`/api/trend-forecast/${activeGuildId}`);
       if (forecastRes.ok) {
         const forecast = await forecastRes.json();
         if (forecast.forecasts && forecast.forecasts.length > 0) {
-          html += '<h3 style="margin:24px 0 12px;"><i class="fa-solid fa-chart-line"></i> 7-Day Forecast</h3>';
+          const simulatedTag = forecast.is_simulated ? ' <span style="font-size:0.7rem;padding:2px 8px;border-radius:8px;background:rgba(88,101,242,0.15);color:var(--primary);margin-left:8px;">Test Projections</span>' : '';
+          html += `<h3 style="margin:20px 0 12px;display:flex;align-items:center;"><i class="fa-solid fa-chart-line" style="margin-right:8px;color:var(--primary);"></i> 7-Day Forecast${simulatedTag}</h3>`;
           html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;">';
           forecast.forecasts.forEach(fc => {
             const trendIcon = fc.trend === 'up' ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down';
@@ -7999,6 +8012,30 @@ async function loadAutomationCenter() {
     if (!el.children.length) {
       el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to load automation center.</div>';
     }
+  }
+}
+
+async function triggerTestAutomation() {
+  if (!activeGuildId) return;
+  try {
+    showToast('Simulating automation rules & generating test forecast...', 'info');
+    const res = await fetch(`/api/guilds/${activeGuildId}/automation/test-trigger`, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(data.message, 'success');
+      if (window.aegisCache) window.aegisCache.invalidate();
+      const el = document.getElementById('automation-overview-content');
+      if (el) delete el.dataset.signature;
+      await loadAutomationCenterTab();
+      await loadAutomationRules();
+    } else {
+      showToast('Test trigger failed', 'error');
+    }
+  } catch (err) {
+    showToast('Failed to execute test trigger: ' + err.message, 'error');
   }
 }
 
