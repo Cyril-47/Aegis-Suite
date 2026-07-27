@@ -7795,11 +7795,17 @@ async function loadModIntelligence() {
   if (!activeGuildId) return;
   const el = document.getElementById('mod-intel-content');
   if (!el) return;
-  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading...</div>';
+  if (!el.children.length) {
+    el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading...</div>';
+  }
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/moderator-intelligence`);
     if (!res.ok) throw new Error('Failed');
     const data = await res.json();
+    const signature = JSON.stringify(data);
+    if (el.dataset.signature === signature) return;
+    el.dataset.signature = signature;
+
     let html = `<div class="glass-inner p-3 mb-4 text-center" style="display:inline-block;">
       <div style="font-size:1.5rem;font-weight:700;color:var(--primary);">${data.total_actions}</div>
       <div style="font-size:0.75rem;color:var(--text-sub);">Total Mod Actions (30d)</div>
@@ -7819,7 +7825,11 @@ async function loadModIntelligence() {
       });
     }
     el.innerHTML = html;
-  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to load moderator intelligence.</div>'; }
+  } catch (err) {
+    if (!el.children.length) {
+      el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to load moderator intelligence.</div>';
+    }
+  }
 }
 
 // ==========================================================================
@@ -7829,11 +7839,17 @@ async function loadAutomationCenter() {
   if (!activeGuildId) return;
   const el = document.getElementById('automation-content');
   if (!el) return;
-  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading...</div>';
+  if (!el.children.length) {
+    el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading...</div>';
+  }
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/automation-center`);
     if (!res.ok) throw new Error('Failed');
     const data = await res.json();
+    const signature = JSON.stringify(data);
+    if (el.dataset.signature === signature) return;
+    el.dataset.signature = signature;
+
     let html = `<div class="glass-inner p-3 mb-4" style="display:inline-flex;gap:8px;align-items:center;">
       <span style="font-weight:600;">Active:</span>
       <span style="font-weight:700;color:var(--success);">${data.active_count}</span>
@@ -7884,7 +7900,11 @@ async function loadAutomationCenter() {
     } catch (e) {}
 
     el.innerHTML = html;
-  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to load automation center.</div>'; }
+  } catch (err) {
+    if (!el.children.length) {
+      el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to load automation center.</div>';
+    }
+  }
 }
 
 // ==========================================================================
@@ -7894,7 +7914,9 @@ async function loadPermissionHeatmap() {
   if (!activeGuildId) return;
   const el = document.getElementById('intel-permissions-heatmap') || document.getElementById('heatmap-content');
   if (!el) return;
-  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading...</div>';
+  if (!el.children.length) {
+    el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading...</div>';
+  }
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/permission-heatmap`, {
       headers: { 'Authorization': 'Bearer ' + authToken }
@@ -10982,14 +11004,18 @@ async function loadAutomationCenterTab() {
   const slowmodeEl = document.getElementById('auto-slowmode-status');
   const maintenanceEl = document.getElementById('auto-maintenance-content');
 
-  if (guardianEl) guardianEl.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading Guardian status...</div>';
-  if (rulesEl) rulesEl.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading rules...</div>';
+  if (guardianEl && !guardianEl.children.length) guardianEl.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading Guardian status...</div>';
+  if (rulesEl && !rulesEl.children.length) rulesEl.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading rules...</div>';
 
   try {
     const [rulesData, logsData] = await Promise.all([
       window.aegisCache.fetchWithCache(`/api/guilds/${activeGuildId}/intelligence/automation/rules`),
       window.aegisCache.fetchWithCache(`/api/guilds/${activeGuildId}/intelligence/automation/log`)
     ]);
+
+    const signature = JSON.stringify({ rules: rulesData, logs: logsData });
+    if (rulesEl && rulesEl.dataset.signature === signature) return;
+    if (rulesEl) rulesEl.dataset.signature = signature;
 
     if (guardianEl) {
       const logs = logsData.log || logsData || [];

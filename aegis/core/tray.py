@@ -22,6 +22,8 @@ class SystemTrayManager:
     def _get_icon_image(self):
         """Loads logo image for system tray."""
         icon_paths = [
+            os.path.join(self.root_dir, "aegis", "core", "tray_icon.png"),
+            os.path.join(self.root_dir, "static", "bot_logo.png"),
             os.path.join(self.root_dir, "logo.ico"),
             os.path.join(self.root_dir, "bot_logo.png"),
             os.path.join(self.root_dir, "static", "favicon.ico"),
@@ -29,7 +31,8 @@ class SystemTrayManager:
         for path in icon_paths:
             if os.path.exists(path):
                 try:
-                    return Image.open(path)
+                    img = Image.open(path)
+                    return img
                 except Exception as e:
                     logger.warning(f"Could not load tray icon image from {path}: {e}")
 
