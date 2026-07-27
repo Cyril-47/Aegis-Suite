@@ -8251,11 +8251,16 @@ async function loadChannelHeatmap() {
   if (!activeGuildId) return;
   const el = document.getElementById('intel-activity-heatmap-content') || document.getElementById('channel-heatmap-content');
   if (!el) return;
-  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading heatmap...</div>';
+  if (!el.children.length) {
+    el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading heatmap...</div>';
+  }
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/channel-heatmap?days=14`);
     if (!res.ok) throw new Error('Failed');
     const data = await res.json();
+    const signature = JSON.stringify(data);
+    if (el.dataset.signature === signature) return;
+    el.dataset.signature = signature;
     const heatmap = data.heatmap;
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const maxVal = Math.max(...heatmap.flat(), 1);
@@ -8450,13 +8455,19 @@ async function loadRaidMonitor() {
   if (!activeGuildId) return;
   const el = document.getElementById('raid-monitor-content');
   if (!el) return;
-  el.innerHTML = renderSkeletonCards(2, "span-2") + renderSkeletonCards(1, "span-4");
+  if (!el.children.length) {
+    el.innerHTML = renderSkeletonCards(2, "span-2") + renderSkeletonCards(1, "span-4");
+  }
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/intelligence/raid-monitor`, {
       headers: { 'Authorization': 'Bearer ' + authToken }
     });
     if (!res.ok) throw new Error('Failed');
     const data = await res.json();
+
+    const signature = JSON.stringify(data);
+    if (el.dataset.signature === signature) return;
+    el.dataset.signature = signature;
 
     const threatColor = data.threat_level === 'critical' ? 'var(--danger)' : 
                        data.threat_level === 'high' ? 'var(--warning)' : 
@@ -8553,7 +8564,7 @@ async function loadRaidMonitor() {
     });
 
   } catch (err) { 
-    el.innerHTML = '<div class="text-center py-4 span-4" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Failed to load raid monitor.</div>'; 
+    if (!el.children.length) el.innerHTML = '<div class="text-center py-4 span-4" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Failed to load raid monitor.</div>'; 
   }
 }
 
@@ -8564,7 +8575,9 @@ async function loadCommunityHealth() {
   if (!activeGuildId) return;
   const el = document.getElementById('community-health-content');
   if (!el) return;
-  el.innerHTML = renderSkeletonCards(2, "span-2") + renderSkeletonCards(1, "span-4");
+  if (!el.children.length) {
+    el.innerHTML = renderSkeletonCards(2, "span-2") + renderSkeletonCards(1, "span-4");
+  }
   try {
     const [healthRes, toxicRes] = await Promise.all([
       fetch(`/api/guilds/${activeGuildId}/intelligence/community-health`, {
@@ -8578,6 +8591,10 @@ async function loadCommunityHealth() {
     
     const data = await healthRes.json();
     const toxicData = await toxicRes.json();
+
+    const signature = JSON.stringify({ health: data, toxic: toxicData });
+    if (el.dataset.signature === signature) return;
+    el.dataset.signature = signature;
 
     const score = Math.round((data.overall_score || 0) * 100);
     const trendIcon = data.trend === 'improving' ? 'fa-arrow-trend-up' : data.trend === 'declining' ? 'fa-arrow-trend-down' : 'fa-minus';
@@ -8662,7 +8679,7 @@ async function loadCommunityHealth() {
     html += '</div></div>';
     el.innerHTML = html;
   } catch (err) {
-    el.innerHTML = '<div class="text-center py-4 span-4" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Failed to load community health.</div>';
+    if (!el.children.length) el.innerHTML = '<div class="text-center py-4 span-4" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Failed to load community health.</div>';
   }
 }
 
@@ -8673,13 +8690,19 @@ async function loadSpamIntelligence() {
   if (!activeGuildId) return;
   const el = document.getElementById('spam-intel-content');
   if (!el) return;
-  el.innerHTML = renderSkeletonCards(2, "span-2") + renderSkeletonCards(1, "span-4");
+  if (!el.children.length) {
+    el.innerHTML = renderSkeletonCards(2, "span-2") + renderSkeletonCards(1, "span-4");
+  }
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/intelligence/spam-intelligence`, {
       headers: { 'Authorization': 'Bearer ' + authToken }
     });
     if (!res.ok) throw new Error('Failed');
     const data = await res.json();
+
+    const signature = JSON.stringify(data);
+    if (el.dataset.signature === signature) return;
+    el.dataset.signature = signature;
 
     const activeCampaigns = data.campaigns?.length || 0;
     const statsColor = activeCampaigns > 0 ? 'var(--danger)' : 'var(--success)';
@@ -8759,7 +8782,7 @@ async function loadSpamIntelligence() {
     });
 
   } catch (err) {
-    el.innerHTML = '<div class="text-center py-4 span-4" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Failed to load spam intelligence.</div>';
+    if (!el.children.length) el.innerHTML = '<div class="text-center py-4 span-4" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Failed to load spam intelligence.</div>';
   }
 }
 
@@ -8770,13 +8793,19 @@ async function loadActivityIntelligence() {
   if (!activeGuildId) return;
   const el = document.getElementById('activity-intel-content');
   if (!el) return;
-  el.innerHTML = renderSkeletonCards(2, "span-2");
+  if (!el.children.length) {
+    el.innerHTML = renderSkeletonCards(2, "span-2");
+  }
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/intelligence/activity`, {
       headers: { 'Authorization': 'Bearer ' + authToken }
     });
     if (!res.ok) throw new Error('Failed');
     const data = await res.json();
+
+    const signature = JSON.stringify(data);
+    if (el.dataset.signature === signature) return;
+    el.dataset.signature = signature;
 
     let html = `
       <!-- Card 1: Peak Timing Clocks -->
@@ -8836,13 +8865,19 @@ async function loadAutomationRules() {
   if (!activeGuildId) return;
   const el = document.getElementById('automation-rules-content');
   if (!el) return;
-  el.innerHTML = renderSkeletonCards(1, "span-4");
+  if (!el.children.length) {
+    el.innerHTML = renderSkeletonCards(1, "span-4");
+  }
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/intelligence/automation/rules`, {
       headers: { 'Authorization': 'Bearer ' + authToken }
     });
     if (!res.ok) throw new Error('Failed');
     const data = await res.json();
+
+    const signature = JSON.stringify(data);
+    if (el.dataset.signature === signature) return;
+    el.dataset.signature = signature;
 
     let html = `
       <div class="card glass span-4 fade-in-up">
@@ -8884,7 +8919,7 @@ async function loadAutomationRules() {
     html += '</div></div></div>';
     el.innerHTML = html;
   } catch (err) {
-    el.innerHTML = '<div class="text-center py-4 span-4" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Failed to load automation rules.</div>';
+    if (!el.children.length) el.innerHTML = '<div class="text-center py-4 span-4" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Failed to load automation rules.</div>';
   }
 }
 
@@ -8895,13 +8930,19 @@ async function loadIntelligenceTimeline() {
   if (!activeGuildId) return;
   const el = document.getElementById('timeline-content');
   if (!el) return;
-  el.innerHTML = renderSkeletonCards(1, "span-4");
+  if (!el.children.length) {
+    el.innerHTML = renderSkeletonCards(1, "span-4");
+  }
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/intelligence/timeline`, {
       headers: { 'Authorization': 'Bearer ' + authToken }
     });
     if (!res.ok) throw new Error('Failed');
     const data = await res.json();
+
+    const signature = JSON.stringify(data);
+    if (el.dataset.signature === signature) return;
+    el.dataset.signature = signature;
 
     let html = `
       <div class="card glass span-4 fade-in-up">
@@ -8937,7 +8978,7 @@ async function loadIntelligenceTimeline() {
     html += '</div></div></div>';
     el.innerHTML = html;
   } catch (err) {
-    el.innerHTML = '<div class="text-center py-4 span-4" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Failed to load timeline.</div>';
+    if (!el.children.length) el.innerHTML = '<div class="text-center py-4 span-4" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Failed to load timeline.</div>';
   }
 }
 
@@ -8948,13 +8989,19 @@ async function loadSmartRecommendations() {
   if (!activeGuildId) return;
   const el = document.getElementById('recommendations-content');
   if (!el) return;
-  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading recommendations...</div>';
+  if (!el.children.length) {
+    el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading recommendations...</div>';
+  }
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/smart/recommendations`, {
       headers: { 'Authorization': 'Bearer ' + authToken }
     });
     if (!res.ok) throw new Error('Failed');
     const data = await res.json();
+
+    const signature = JSON.stringify(data);
+    if (el.dataset.signature === signature) return;
+    el.dataset.signature = signature;
 
     if (data.total === 0) {
       el.innerHTML = '<div class="text-center py-4" style="color:var(--success);"><i class="fa-solid fa-check-circle"></i> No issues found! Your server is well configured.</div>';
@@ -8993,7 +9040,7 @@ async function loadSmartRecommendations() {
         executeSmartFix(action, params);
       });
     });
-  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to load recommendations.</div>'; }
+  } catch (err) { if (!el.children.length) el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to load recommendations.</div>'; }
 }
 
 // ==========================================================================
@@ -9003,13 +9050,19 @@ async function loadConfigDoctor() {
   if (!activeGuildId) return;
   const el = document.getElementById('config-doctor-content');
   if (!el) return;
-  el.innerHTML = renderSkeletonCards(2, "span-2") + renderSkeletonCards(1, "span-4");
+  if (!el.children.length) {
+    el.innerHTML = renderSkeletonCards(2, "span-2") + renderSkeletonCards(1, "span-4");
+  }
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/smart/config-doctor`, {
       headers: { 'Authorization': 'Bearer ' + authToken }
     });
     if (!res.ok) throw new Error('Failed');
     const data = await res.json();
+
+    const signature = JSON.stringify(data);
+    if (el.dataset.signature === signature) return;
+    el.dataset.signature = signature;
 
     let html = `
       <!-- Card 1: Score Gauge -->
@@ -9076,7 +9129,7 @@ async function loadConfigDoctor() {
 
     html += '</div></div>';
     el.innerHTML = html;
-  } catch (err) { el.innerHTML = '<div class="text-center py-4 span-4" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Failed to run diagnostics.</div>'; }
+  } catch (err) { if (!el.children.length) el.innerHTML = '<div class="text-center py-4 span-4" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Failed to run diagnostics.</div>'; }
 }
 
 // ==========================================================================
@@ -10818,56 +10871,64 @@ async function loadIntelModeration() {
   const slaEl = document.getElementById('intel-moderation-sla-content');
   const activityEl = document.getElementById('intel-moderation-activity-content');
 
-  if (slaEl) slaEl.innerHTML = '<div class="text-center py-3"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading SLAs...</div>';
-  if (activityEl) activityEl.innerHTML = '<div class="text-center py-3"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading...</div>';
+  if (slaEl && !slaEl.children.length) slaEl.innerHTML = '<div class="text-center py-3"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading SLAs...</div>';
+  if (activityEl && !activityEl.children.length) activityEl.innerHTML = '<div class="text-center py-3"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading...</div>';
 
   try {
     const data = await window.aegisCache.fetchWithCache(`/api/guilds/${activeGuildId}/ticket-sla`);
-    if (data && data.sla) {
-      slaEl.innerHTML = `
-        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px;">
-          <div class="glass-inner p-3 text-center">
-            <div style="font-size:1.5rem;font-weight:700;color:var(--primary);">${data.sla.avg_first_response || '0'}m</div>
-            <div style="font-size:0.75rem;color:var(--text-sub);">Avg First Response</div>
-          </div>
-          <div class="glass-inner p-3 text-center">
-            <div style="font-size:1.5rem;font-weight:700;color:var(--success);">${data.sla.avg_resolve_time || '0'}m</div>
-            <div style="font-size:0.75rem;color:var(--text-sub);">Avg Resolution Time</div>
-          </div>
-          <div class="glass-inner p-3 text-center">
-            <div style="font-size:1.5rem;font-weight:700;color:var(--info);">${data.sla.total_tickets || '0'}</div>
-            <div style="font-size:0.75rem;color:var(--text-sub);">Total Support Tickets</div>
-          </div>
-        </div>`;
-    } else {
-      slaEl.innerHTML = '<div class="text-center py-3" style="color:var(--text-sub);">No support ticket data found.</div>';
+    const signature = JSON.stringify(data || {});
+    if (slaEl && slaEl.dataset.signature !== signature) {
+      slaEl.dataset.signature = signature;
+      if (data && data.sla) {
+        slaEl.innerHTML = `
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:12px;">
+            <div class="glass-inner p-3 text-center">
+              <div style="font-size:1.5rem;font-weight:700;color:var(--primary);">${data.sla.avg_first_response || '0'}m</div>
+              <div style="font-size:0.75rem;color:var(--text-sub);">Avg First Response</div>
+            </div>
+            <div class="glass-inner p-3 text-center">
+              <div style="font-size:1.5rem;font-weight:700;color:var(--success);">${data.sla.avg_resolve_time || '0'}m</div>
+              <div style="font-size:0.75rem;color:var(--text-sub);">Avg Resolution Time</div>
+            </div>
+            <div class="glass-inner p-3 text-center">
+              <div style="font-size:1.5rem;font-weight:700;color:var(--info);">${data.sla.total_tickets || '0'}</div>
+              <div style="font-size:0.75rem;color:var(--text-sub);">Total Support Tickets</div>
+            </div>
+          </div>`;
+      } else {
+        slaEl.innerHTML = '<div class="text-center py-3" style="color:var(--text-sub);">No support ticket data found.</div>';
+      }
     }
   } catch (e) {
-    if (slaEl) slaEl.innerHTML = '<div class="text-center py-3" style="color:var(--text-sub);">No support ticket data found.</div>';
+    if (slaEl && !slaEl.children.length) slaEl.innerHTML = '<div class="text-center py-3" style="color:var(--text-sub);">No support ticket data found.</div>';
   }
 
   try {
     const data = await window.aegisCache.fetchWithCache(`/api/guilds/${activeGuildId}/command-center`);
-    const timeline = data ? data.timeline || [] : [];
-    const modEvents = timeline.filter(t => t.type === 'mod' || t.action?.toLowerCase().includes('ban') || t.action?.toLowerCase().includes('kick') || t.action?.toLowerCase().includes('mute'));
-    
-    if (modEvents.length > 0) {
-      let html = '<div style="display:flex;flex-direction:column;gap:8px;">';
-      modEvents.forEach(e => {
-        const timeStr = new Date(e.timestamp).toLocaleString();
-        html += `
-          <div class="glass-inner p-2" style="display:flex;justify-content:space-between;align-items:center;font-size:0.82rem;">
-            <span><i class="fa-solid fa-gavel" style="color:var(--warning);margin-right:8px;"></i>${escapeHtml(e.action)}</span>
-            <span style="font-size:0.75rem;color:var(--text-sub);">${timeStr}</span>
-          </div>`;
-      });
-      html += '</div>';
-      activityEl.innerHTML = html;
-    } else {
-      activityEl.innerHTML = '<div class="text-center py-3" style="color:var(--text-sub);">No recent moderation actions recorded.</div>';
+    const actSignature = JSON.stringify(data || {});
+    if (activityEl && activityEl.dataset.signature !== actSignature) {
+      activityEl.dataset.signature = actSignature;
+      const timeline = data ? data.timeline || [] : [];
+      const modEvents = timeline.filter(t => t.type === 'mod' || t.action?.toLowerCase().includes('ban') || t.action?.toLowerCase().includes('kick') || t.action?.toLowerCase().includes('mute'));
+      
+      if (modEvents.length > 0) {
+        let html = '<div style="display:flex;flex-direction:column;gap:8px;">';
+        modEvents.forEach(e => {
+          const timeStr = new Date(e.timestamp).toLocaleString();
+          html += `
+            <div class="glass-inner p-2" style="display:flex;justify-content:space-between;align-items:center;font-size:0.82rem;">
+              <span><i class="fa-solid fa-gavel" style="color:var(--warning);margin-right:8px;"></i>${escapeHtml(e.action)}</span>
+              <span style="font-size:0.75rem;color:var(--text-sub);">${timeStr}</span>
+            </div>`;
+        });
+        html += '</div>';
+        activityEl.innerHTML = html;
+      } else {
+        activityEl.innerHTML = '<div class="text-center py-3" style="color:var(--text-sub);">No recent moderation actions recorded.</div>';
+      }
     }
   } catch (e) {
-    if (activityEl) activityEl.innerHTML = '<div class="text-center py-3" style="color:var(--text-sub);">No recent moderation actions recorded.</div>';
+    if (activityEl && !activityEl.children.length) activityEl.innerHTML = '<div class="text-center py-3" style="color:var(--text-sub);">No recent moderation actions recorded.</div>';
   }
 }
 
