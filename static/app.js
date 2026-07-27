@@ -8898,12 +8898,15 @@ async function loadAutomationRules() {
     } else {
       data.rules.forEach(rule => {
         const statusColor = rule.enabled ? 'var(--success)' : 'var(--text-sub)';
+        const ruleId = rule.id || rule.name;
         html += `
           <div class="glass-inner p-3" style="border-left:4px solid ${statusColor};display:flex;flex-direction:column;justify-content:space-between;min-height:110px;">
             <div>
               <div style="display:flex;justify-content:space-between;align-items:center;">
                 <span style="font-weight:600;font-size:0.9rem;">${escapeHtml(rule.name)}</span>
-                <span class="badge" style="background:${statusColor}1c;color:${statusColor};border:1px solid ${statusColor}33;">${rule.enabled ? 'Active' : 'Disabled'}</span>
+                <button type="button" class="btn btn-sm ${rule.enabled ? 'btn-success' : 'btn-secondary'}" onclick="toggleAutomationRule('${escapeHtml(ruleId)}', ${!rule.enabled})" style="padding:3px 10px;font-size:0.75rem;border-radius:12px;cursor:pointer;">
+                  <i class="fa-solid ${rule.enabled ? 'fa-toggle-on' : 'fa-toggle-off'}"></i> ${rule.enabled ? 'Active' : 'Disabled'}
+                </button>
               </div>
               <div style="font-size:0.8rem;color:var(--text-sub);margin-top:6px;">
                 <span style="font-weight:500;color:var(--text-main);">Trigger:</span> ${escapeHtml(rule.trigger)}
@@ -8920,6 +8923,25 @@ async function loadAutomationRules() {
     el.innerHTML = html;
   } catch (err) {
     if (!el.children.length) el.innerHTML = '<div class="text-center py-4 span-4" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation"></i> Failed to load automation rules.</div>';
+  }
+}
+
+async function toggleAutomationRule(ruleId, enabled) {
+  if (!activeGuildId) return;
+  try {
+    showToast(`Updating rule status...`, 'info');
+    const res = await fetch(`/api/guilds/${activeGuildId}/intelligence/automation/rules/${encodeURIComponent(ruleId)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+      body: JSON.stringify({ enabled: enabled })
+    });
+    if (!res.ok) throw new Error('Failed to update rule');
+    showToast(`Rule ${enabled ? 'activated' : 'deactivated'} successfully`, 'success');
+    const el = document.getElementById('automation-rules-content');
+    if (el) delete el.dataset.signature;
+    await loadAutomationRules();
+  } catch (err) {
+    showToast('Error toggling rule status: ' + err.message, 'error');
   }
 }
 
@@ -9534,15 +9556,24 @@ async function executeSmartFix(action, params = {}) {
     const data = await res.json();
     if (data.success) {
       showToast(data.details, 'success');
-      // Reload the current sub-tab
-      const activeSub = document.querySelector('#tab-smart .sub-tab-btn[data-sub-tab].active')?.getAttribute('data-sub-tab');
-      if (activeSub === 'recommendations-sub') loadSmartRecommendations();
-      else if (activeSub === 'backup-advisor-sub') loadBackupAdvisor();
+      if (typeof addLiveActivity === 'function') {
+        addLiveActivity('Fix', `Executed auto-fix: ${action}`, '+2 Health');
+      }
+      if (window.aegisCache) window.aegisCache.invalidate();
+      
+      const selector = document.getElementById('smart-module-selector');
+      const activeSub = selector ? selector.value : 'command-center-sub';
+      if (activeSub === 'command-center-sub') refreshCommandCenter();
+      else if (activeSub === 'intel-security') loadRaidMonitor();
+      else if (activeSub === 'intel-community') loadCommunityHealth();
+      else if (activeSub === 'intel-moderation') loadIntelModeration();
+      else if (activeSub === 'intel-activity') loadIntelActivity();
+      else if (activeSub === 'automation-rules-sub') loadAutomationRules();
     } else {
       showToast('Fix failed: ' + (data.error || data.details), 'error');
     }
   } catch (err) {
-    showToast('Failed to execute fix', 'error');
+    showToast('Failed to execute fix: ' + err.message, 'error');
   }
 }
 
