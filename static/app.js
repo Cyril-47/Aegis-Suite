@@ -1407,26 +1407,41 @@ async function loadHealthTimeline() {
     const data = await res.json();
     const ctx = document.getElementById('chart-health-timeline');
     if (!ctx || !data.length) return;
-    if (healthTimelineChart) healthTimelineChart.destroy();
-      const isChartLight = document.body.classList.contains('light-theme');
-      const gridColor = isChartLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)';
-      const tickColor = isChartLight ? '#64748b' : '#94a3b8';
-      healthTimelineChart = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels: data.map(d => d.date),
-          datasets: [
-            { label: 'Messages', data: data.map(d => d.total_messages), borderColor: '#818cf8', tension: 0.4, pointRadius: 2 },
-            { label: 'Active Users', data: data.map(d => d.unique_active_users), borderColor: '#34d399', tension: 0.4, pointRadius: 2 },
-            { label: 'Mod Actions', data: data.map(d => d.mod_actions), borderColor: '#f87171', tension: 0.4, pointRadius: 2 },
-          ]
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { labels: { color: tickColor } } },
-          scales: {
-            x: { ticks: { color: tickColor, maxTicksLimit: 10 }, grid: { color: gridColor } },
-            y: { ticks: { color: tickColor }, grid: { color: gridColor } }
+    
+    const isChartLight = document.body.classList.contains('light-theme');
+    const gridColor = isChartLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)';
+    const tickColor = isChartLight ? '#64748b' : '#94a3b8';
+    
+    const signature = JSON.stringify({ data, isChartLight });
+    if (ctx.dataset.signature === signature && healthTimelineChart) return;
+    ctx.dataset.signature = signature;
+
+    if (healthTimelineChart) {
+      healthTimelineChart.data.labels = data.map(d => d.date);
+      healthTimelineChart.data.datasets[0].data = data.map(d => d.total_messages);
+      healthTimelineChart.data.datasets[1].data = data.map(d => d.unique_active_users);
+      healthTimelineChart.data.datasets[2].data = data.map(d => d.mod_actions);
+      healthTimelineChart.update('none');
+      return;
+    }
+
+    healthTimelineChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: data.map(d => d.date),
+        datasets: [
+          { label: 'Messages', data: data.map(d => d.total_messages), borderColor: '#818cf8', tension: 0.4, pointRadius: 2 },
+          { label: 'Active Users', data: data.map(d => d.unique_active_users), borderColor: '#34d399', tension: 0.4, pointRadius: 2 },
+          { label: 'Mod Actions', data: data.map(d => d.mod_actions), borderColor: '#f87171', tension: 0.4, pointRadius: 2 },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        animation: { duration: 600 },
+        plugins: { legend: { labels: { color: tickColor } } },
+        scales: {
+          x: { ticks: { color: tickColor, maxTicksLimit: 10 }, grid: { color: gridColor } },
+          y: { ticks: { color: tickColor }, grid: { color: gridColor } }
         }
       }
     });
@@ -8004,6 +8019,10 @@ async function loadPermissionHeatmap() {
     if (!res.ok) throw new Error('Failed');
     const data = await res.json();
 
+    const signature = JSON.stringify(data);
+    if (el.dataset.signature === signature) return;
+    el.dataset.signature = signature;
+
     const DANGER_PERMS = ['Administrator', 'Manage Server', 'Manage Roles', 'Manage Channels', 'Ban Members', 'Kick Members', 'Manage Messages', 'Timeout'];
 
     let html = `
@@ -9206,13 +9225,19 @@ async function loadRaidDetector() {
   if (!activeGuildId) return;
   const el = document.getElementById('intel-raid-content') || document.getElementById('raid-detector-content');
   if (!el) return;
-  el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Analyzing join patterns...</div>';
+  if (!el.children.length) {
+    el.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Analyzing join patterns...</div>';
+  }
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/smart/raid-detector`, {
       headers: { 'Authorization': 'Bearer ' + authToken }
     });
     if (!res.ok) throw new Error('Failed');
     const data = await res.json();
+
+    const signature = JSON.stringify(data);
+    if (el.dataset.signature === signature) return;
+    el.dataset.signature = signature;
 
     const threatColor = data.threat_level === 'critical' ? 'var(--danger)' : data.threat_level === 'high' ? 'var(--warning)' : data.threat_level === 'medium' ? 'var(--primary)' : 'var(--success)';
     const threatIcon = data.threat_level === 'critical' ? 'fa-skull-crossbones' : data.threat_level === 'high' ? 'fa-shield-virus' : data.threat_level === 'medium' ? 'fa-exclamation-triangle' : 'fa-check-circle';
@@ -10820,7 +10845,7 @@ function loadIntelSecurity() {
   loadRaidDetector();
   loadPermissionHeatmap();
   const comp = document.getElementById('intel-security-compromised');
-  if (comp) {
+  if (comp && !comp.children.length) {
     comp.innerHTML = '<div class="text-center py-4" style="color: var(--text-sub);">All active accounts passed verification.</div>';
   }
 }
@@ -11144,19 +11169,37 @@ async function loadIntelTrends() {
     const gridColor = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)';
     const tickColor = isLight ? '#64748b' : '#94a3b8';
 
-    if (intelTrendsChart) intelTrendsChart.destroy();
+    const labels = data.history.map(h => h.timestamp ? new Date(h.timestamp).toLocaleDateString() : '');
+    const overallData = data.history.map(h => h.overall);
+    const securityData = data.history.map(h => h.security);
+    const moderationData = data.history.map(h => h.moderation);
+
+    const signature = JSON.stringify({ labels, overallData, securityData, moderationData, isLight });
+    if (ctx.dataset.signature === signature && intelTrendsChart) return;
+    ctx.dataset.signature = signature;
+
+    if (intelTrendsChart) {
+      intelTrendsChart.data.labels = labels;
+      intelTrendsChart.data.datasets[0].data = overallData;
+      intelTrendsChart.data.datasets[1].data = securityData;
+      intelTrendsChart.data.datasets[2].data = moderationData;
+      intelTrendsChart.update('none');
+      return;
+    }
+
     intelTrendsChart = new Chart(ctx, {
       type: 'line',
       data: {
-        labels: data.history.map(h => h.timestamp ? new Date(h.timestamp).toLocaleDateString() : ''),
+        labels: labels,
         datasets: [
-          { label: 'Overall', data: data.history.map(h => h.overall), borderColor: '#818cf8', tension: 0.4, pointRadius: 2 },
-          { label: 'Security', data: data.history.map(h => h.security), borderColor: '#34d399', tension: 0.4, pointRadius: 2 },
-          { label: 'Moderation', data: data.history.map(h => h.moderation), borderColor: '#f59e0b', tension: 0.4, pointRadius: 2 },
+          { label: 'Overall', data: overallData, borderColor: '#818cf8', tension: 0.4, pointRadius: 2 },
+          { label: 'Security', data: securityData, borderColor: '#34d399', tension: 0.4, pointRadius: 2 },
+          { label: 'Moderation', data: moderationData, borderColor: '#f59e0b', tension: 0.4, pointRadius: 2 },
         ]
       },
       options: {
         responsive: true, maintainAspectRatio: false,
+        animation: { duration: 600 },
         plugins: { legend: { labels: { color: tickColor, font: { size: 11 } } } },
         scales: {
           x: { ticks: { color: tickColor, maxTicksLimit: 7 }, grid: { color: gridColor } },
