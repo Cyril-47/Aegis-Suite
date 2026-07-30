@@ -2175,6 +2175,11 @@ async def send_embed_message(guild_id: str, request: EmbedSendRequest):
                         member = await guild.fetch_member(user_id)
                     except Exception:
                         pass
+                if not member:
+                    try:
+                        member = await bot.fetch_user(user_id)
+                    except Exception:
+                        pass
             else:
                 member = guild.get_member_named(request.dm_user_id)
                 if not member:
@@ -2184,7 +2189,7 @@ async def send_embed_message(guild_id: str, request: EmbedSendRequest):
                     )
             
             if not member:
-                raise HTTPException(status_code=404, detail=f"User '{request.dm_user_id}' not found in this guild.")
+                raise HTTPException(status_code=404, detail=f"User '{request.dm_user_id}' not found.")
             if files:
                 msg = await member.send(content=request.content or None, embeds=discord_embeds, files=files)
             else:

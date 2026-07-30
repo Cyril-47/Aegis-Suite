@@ -129,6 +129,9 @@ let activeEmbedTabIndex = 0;
 
 function collectCurrentEmbedState() {
   return {
+    channelId: document.getElementById('embed-target-channel')?.value || '',
+    dmUserId: document.getElementById('embed-dm-user')?.value || '',
+    editMessageId: document.getElementById('embed-edit-message')?.value || '',
     plainText: document.getElementById('embed-plain-text')?.value || '',
     authorName: document.getElementById('embed-author-name')?.value || '',
     authorIcon: document.getElementById('embed-author-icon')?.value || '',
@@ -151,6 +154,9 @@ function loadEmbedStateIntoForm(state) {
     const el = document.getElementById(id);
     if (el) el.value = val || '';
   };
+  setVal('embed-target-channel', state.channelId);
+  setVal('embed-dm-user', state.dmUserId);
+  setVal('embed-edit-message', state.editMessageId);
   setVal('embed-plain-text', state.plainText);
   setVal('embed-author-name', state.authorName);
   setVal('embed-author-icon', state.authorIcon);
@@ -4599,6 +4605,21 @@ function setupEventListeners() {
   if (btnEmbedLoadDraft) {
     btnEmbedLoadDraft.addEventListener('click', loadEmbedDraft);
   }
+  const btnEmbedClear = document.getElementById('btn-embed-clear');
+  if (btnEmbedClear) {
+    btnEmbedClear.addEventListener('click', () => {
+      embedTabs[activeEmbedTabIndex] = {};
+      loadEmbedStateIntoForm({});
+      const targetSelect = document.getElementById('embed-target-channel');
+      if (targetSelect) targetSelect.value = '';
+      const dmInput = document.getElementById('embed-dm-user');
+      if (dmInput) dmInput.value = '';
+      const editInput = document.getElementById('embed-edit-message');
+      if (editInput) editInput.value = '';
+      updateEmbedPreview();
+      showToast('Embed form reset.', 'info');
+    });
+  }
   // Event listeners for embed preview live sync
   const embedSyncInputs = [
     'embed-plain-text', 'embed-author-name', 'embed-author-icon',
@@ -5467,9 +5488,7 @@ async function submitEmbedBuilder(e) {
         return;
       }
       
-      let successCount = 0;
-      let failCount = 0;
-      let totalSends = 0;
+      let lastErrorMessage = '';
       
       // Send DM if dmUserId is specified
       if (dmUserId) {
@@ -5485,8 +5504,15 @@ async function submitEmbedBuilder(e) {
               add_reactions: addReactions
             })
           });
-          if (res.ok) successCount++;
-          else failCount++;
+          if (res.ok) {
+            successCount++;
+          } else {
+            failCount++;
+            try {
+              const errData = await res.json();
+              if (errData && errData.detail) lastErrorMessage = errData.detail;
+            } catch(e) {}
+          }
         } catch(e) {
           failCount++;
         }
@@ -5507,8 +5533,15 @@ async function submitEmbedBuilder(e) {
               add_reactions: addReactions
             })
           });
-          if (res.ok) successCount++;
-          else failCount++;
+          if (res.ok) {
+            successCount++;
+          } else {
+            failCount++;
+            try {
+              const errData = await res.json();
+              if (errData && errData.detail) lastErrorMessage = errData.detail;
+            } catch(e) {}
+          }
         } catch(e) {
           failCount++;
         }
@@ -5516,9 +5549,10 @@ async function submitEmbedBuilder(e) {
       
       if (totalSends === 1) {
         if (successCount > 0) showToast(`${embeds.length} embed(s) sent successfully!`, 'success');
-        else showToast('Failed to send embed.', 'error');
+        else showToast(lastErrorMessage || 'Failed to send embed.', 'error');
       } else {
-        showToast(`Sent ${successCount}/${totalSends} messages successfully. ${failCount > 0 ? failCount + ' failed.' : ''}`, successCount > 0 ? 'success' : 'error');
+        const failText = failCount > 0 ? (lastErrorMessage || `${failCount} failed.`) : '';
+        showToast(`Sent ${successCount}/${totalSends} messages successfully. ${failText}`, successCount > 0 ? 'success' : 'error');
       }
     }
   } catch (err) {
