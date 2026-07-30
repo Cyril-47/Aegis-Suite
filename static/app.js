@@ -1001,20 +1001,10 @@ async function checkStatus() {
       }
     }
     
-    // Toggle Offline Notice when bot is not running (R3.1)
-    // Only show when definitively stopped — NOT during the initial
-    // 'connecting' phase which is normal on fresh startup. This prevents
-    // the "Dashboard Unavailable" overlay from blocking the hosting-mode
-    // selector and the main app during the first few seconds of boot.
+    // Ensure main application remains accessible whenever the web server is running
     const offlineNotice = document.getElementById('offline-notice-overlay');
-    if (data.status === 'stopped') {
-      if (offlineNotice) offlineNotice.classList.remove('hidden');
-      mainApp.classList.add('hidden');
-      return;
-    } else {
-      if (offlineNotice) offlineNotice.classList.add('hidden');
-      mainApp.classList.remove('hidden');
-    }
+    if (offlineNotice) offlineNotice.classList.add('hidden');
+    if (mainApp) mainApp.classList.remove('hidden');
     
     // Load config if not loaded
     if (!currentConfig) {
@@ -1040,10 +1030,9 @@ async function checkStatus() {
     }
   } catch (err) {
     console.error('Error checking status:', err);
-    // Show offline notice on network failure/server down
+    // Show offline notice ONLY on network failure (web server down)
     const offlineNotice = document.getElementById('offline-notice-overlay');
     if (offlineNotice) offlineNotice.classList.remove('hidden');
-    if (mainApp) mainApp.classList.add('hidden');
   }
 }
 
@@ -1082,6 +1071,7 @@ function updateBotBadge(data) {
   const botUsername = document.getElementById('bot-username');
   const botStatus = document.getElementById('bot-status');
   const botAvatar = document.getElementById('bot-avatar');
+  const serverSelect = document.getElementById('server-select');
   
   if (data.status === 'running' && data.bot_user) {
     botUsername.textContent = `${data.bot_user.username}#${data.bot_user.discriminator || '0000'}`;
@@ -1097,21 +1087,20 @@ function updateBotBadge(data) {
       updateInviteLinks(effectiveClientId);
     }
 
-    // Enable/Unlock selector
-    document.getElementById('server-select').disabled = false;
+    if (serverSelect && data.role !== 'user') serverSelect.disabled = false;
   } else if (data.status === 'connecting') {
     botUsername.textContent = 'Connecting...';
     botStatus.textContent = 'Connecting';
     botStatus.className = 'status-connecting';
     botAvatar.src = '/static/bot_logo.png';
+    if (serverSelect && data.role !== 'user') serverSelect.disabled = false;
   } else {
     botUsername.textContent = 'Optimizer Bot';
     botStatus.textContent = 'Offline';
     botStatus.className = 'status-offline';
     botAvatar.src = '/static/bot_logo.png';
     
-    // Disable/Lock selector
-    document.getElementById('server-select').disabled = true;
+    if (serverSelect && data.role !== 'user') serverSelect.disabled = false;
     document.getElementById('btn-invite-bot').classList.add('hidden');
     document.getElementById('btn-invite-bot-prompt').classList.add('hidden');
   }
