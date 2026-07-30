@@ -3349,6 +3349,9 @@ async function populateGuildChannels(guildId) {
         milestoneSelect.appendChild(opt);
       });
     }
+
+    // Populate Embed Builder target channels
+    populateEmbedTargetChannels(guildId);
   } catch (err) {
     console.error('Error fetching guild channels:', err);
   }
@@ -5197,17 +5200,18 @@ function updateEmbedPreview() {
   saveEmbedBuilderState();
 }
 
-function compileEmbedJSON() {
-  const authorName = document.getElementById('embed-author-name')?.value || '';
-  const authorIcon = document.getElementById('embed-author-icon')?.value || '';
-  const title = document.getElementById('embed-title')?.value || '';
-  const desc = document.getElementById('embed-description-text')?.value || '';
-  const color = document.getElementById('embed-color-hex')?.value || '#6366F1';
-  const thumbnail = document.getElementById('embed-thumbnail')?.value || '';
-  const image = document.getElementById('embed-image')?.value || '';
-  const footerText = document.getElementById('embed-footer-text')?.value || '';
-  const footerIcon = document.getElementById('embed-footer-icon')?.value || '';
-  const includeTimestamp = document.getElementById('embed-timestamp')?.checked;
+function compileEmbedJSON(state = null) {
+  if (!state) state = collectCurrentEmbedState();
+  const authorName = state.authorName || '';
+  const authorIcon = state.authorIcon || '';
+  const title = state.title || '';
+  const desc = state.desc || '';
+  const color = state.color || '#6366F1';
+  const thumbnail = state.thumbnail || '';
+  const image = state.image || '';
+  const footerText = state.footerText || '';
+  const footerIcon = state.footerIcon || '';
+  const includeTimestamp = state.includeTimestamp || false;
   
   const helperNormalizeUrl = (url) => {
     if (!url) return '';
@@ -5244,7 +5248,8 @@ function compileEmbedJSON() {
   if (desc) embed.description = desc;
   if (color) {
     try {
-      embed.color = parseInt(color.replace("#", ""), 16);
+      const parsedColor = parseInt(color.replace("#", ""), 16);
+      if (!isNaN(parsedColor)) embed.color = parsedColor;
     } catch(e) {}
   }
   
@@ -5274,9 +5279,9 @@ function compileEmbedJSON() {
     embed.timestamp = new Date().toISOString();
   }
   
-  const fields = getEmbedFields();
+  const fields = state.fields || [];
   if (fields.length > 0) {
-    embed.fields = fields;
+    embed.fields = fields.filter(f => f && f.name && f.value);
   }
   
   return embed;
@@ -5418,13 +5423,7 @@ async function submitEmbedBuilder(e) {
   embedTabs[activeEmbedTabIndex] = collectCurrentEmbedState();
   const embeds = [];
   for (let i = 0; i < embedTabs.length; i++) {
-    const savedState = embedTabs[i];
-    const prevIndex = activeEmbedTabIndex;
-    activeEmbedTabIndex = i;
-    loadEmbedStateIntoForm(savedState);
-    const compiled = compileEmbedJSON();
-    activeEmbedTabIndex = prevIndex;
-    loadEmbedStateIntoForm(embedTabs[prevIndex]);
+    const compiled = compileEmbedJSON(embedTabs[i]);
     const hasContent = compiled.title || compiled.description || (compiled.fields && compiled.fields.length > 0) || 
                        (compiled.author && compiled.author.name) || (compiled.image && compiled.image.url) || 
                        (compiled.thumbnail && compiled.thumbnail.url) || (compiled.footer && compiled.footer.text);
@@ -6648,23 +6647,15 @@ function initGiveawaysTab() {
   function shouldOverwriteValue(currentVal) {
     if (!currentVal) return true;
     const val = currentVal.trim().toLowerCase();
-    if (val.startsWith('http://') || val.startsWith('https://')) {
-      return false;
-    }
-    return true;
-  }
-
-  // Setup click listeners for preset image URL badges in the Embed Builder
+    if (val.startsWith('http://') || val.startsWith('https://  // Setup click listeners for preset image URL badges in the Embed Builder
   document.querySelectorAll('.preset-link-thumb').forEach(badge => {
     badge.addEventListener('click', () => {
       const url = badge.getAttribute('data-url');
       const input = document.getElementById('embed-thumbnail');
-      if (input && shouldOverwriteValue(input.value)) {
+      if (input) {
         input.value = url;
         input.dispatchEvent(new Event('input'));
         showToast('Thumbnail preset loaded.', 'success');
-      } else {
-        showToast('Preserved custom HTTP/HTTPS URL.', 'info');
       }
     });
   });
@@ -6673,12 +6664,10 @@ function initGiveawaysTab() {
     badge.addEventListener('click', () => {
       const url = badge.getAttribute('data-url');
       const input = document.getElementById('embed-image');
-      if (input && shouldOverwriteValue(input.value)) {
+      if (input) {
         input.value = url;
         input.dispatchEvent(new Event('input'));
         showToast('Large image preset loaded.', 'success');
-      } else {
-        showToast('Preserved custom HTTP/HTTPS URL.', 'info');
       }
     });
   });
@@ -6858,13 +6847,15 @@ function initGiveawaysTab() {
         if (titleInput) titleInput.value = '📊 COMMUNITY POLL';
         if (descInput) descInput.value = 'We want your feedback! Vote by reacting with the corresponding emoji below.';
         if (colorPicker) colorPicker.value = '#5865f2';
-        if (colorHex) colorHex.value = '#22C55E';
+        if (colorHex) colorHex.value = '#5865F2';
         if (thumbnailInput && shouldOverwriteValue(thumbnailInput.value)) thumbnailInput.value = '';
         if (imageInput && shouldOverwriteValue(imageInput.value)) imageInput.value = '';
         if (footerInput) footerInput.value = 'Poll ends in 24 hours';
         if (footerIconInput && shouldOverwriteValue(footerIconInput.value)) footerIconInput.value = '';
         addEmbedFieldPreset('1️⃣ Option A', 'Description of option A', false);
         addEmbedFieldPreset('2️⃣ Option B', 'Description of option B', false);
+        addEmbedFieldPreset('3️⃣ Option C', 'Description of option C', false);
+      }dPreset('2️⃣ Option B', 'Description of option B', false);
         addEmbedFieldPreset('3️⃣ Option C', 'Description of option C', false);
       }
       else if (preset === 'partner') {
