@@ -1001,10 +1001,20 @@ async function checkStatus() {
       }
     }
     
-    // Ensure main application remains accessible whenever the web server is running
+    // Toggle Offline Notice when bot is not running (R3.1)
+    // Only show when definitively stopped — NOT during the initial
+    // 'connecting' phase which is normal on fresh startup. This prevents
+    // the "Dashboard Unavailable" overlay from blocking the hosting-mode
+    // selector and the main app during the first few seconds of boot.
     const offlineNotice = document.getElementById('offline-notice-overlay');
-    if (offlineNotice) offlineNotice.classList.add('hidden');
-    if (mainApp) mainApp.classList.remove('hidden');
+    if (data.status === 'stopped') {
+      if (offlineNotice) offlineNotice.classList.remove('hidden');
+      mainApp.classList.add('hidden');
+      return;
+    } else {
+      if (offlineNotice) offlineNotice.classList.add('hidden');
+      mainApp.classList.remove('hidden');
+    }
     
     // Load config if not loaded
     if (!currentConfig) {
@@ -1030,9 +1040,10 @@ async function checkStatus() {
     }
   } catch (err) {
     console.error('Error checking status:', err);
-    // Show offline notice ONLY on network failure (web server down)
+    // Show offline notice on network failure/server down
     const offlineNotice = document.getElementById('offline-notice-overlay');
     if (offlineNotice) offlineNotice.classList.remove('hidden');
+    if (mainApp) mainApp.classList.add('hidden');
   }
 }
 
@@ -1071,7 +1082,6 @@ function updateBotBadge(data) {
   const botUsername = document.getElementById('bot-username');
   const botStatus = document.getElementById('bot-status');
   const botAvatar = document.getElementById('bot-avatar');
-  const serverSelect = document.getElementById('server-select');
   
   if (data.status === 'running' && data.bot_user) {
     botUsername.textContent = `${data.bot_user.username}#${data.bot_user.discriminator || '0000'}`;
@@ -1087,20 +1097,21 @@ function updateBotBadge(data) {
       updateInviteLinks(effectiveClientId);
     }
 
-    if (serverSelect && data.role !== 'user') serverSelect.disabled = false;
+    // Enable/Unlock selector
+    document.getElementById('server-select').disabled = false;
   } else if (data.status === 'connecting') {
     botUsername.textContent = 'Connecting...';
     botStatus.textContent = 'Connecting';
     botStatus.className = 'status-connecting';
     botAvatar.src = '/static/bot_logo.png';
-    if (serverSelect && data.role !== 'user') serverSelect.disabled = false;
   } else {
     botUsername.textContent = 'Optimizer Bot';
     botStatus.textContent = 'Offline';
     botStatus.className = 'status-offline';
     botAvatar.src = '/static/bot_logo.png';
     
-    if (serverSelect && data.role !== 'user') serverSelect.disabled = false;
+    // Disable/Lock selector
+    document.getElementById('server-select').disabled = true;
     document.getElementById('btn-invite-bot').classList.add('hidden');
     document.getElementById('btn-invite-bot-prompt').classList.add('hidden');
   }
@@ -3339,7 +3350,7 @@ async function populateGuildChannels(guildId) {
       });
     }
 
-    // Populate Embed Builder target channels
+    // Pre-populate Embed Builder destination channels
     populateEmbedTargetChannels(guildId);
   } catch (err) {
     console.error('Error fetching guild channels:', err);
@@ -5190,17 +5201,16 @@ function updateEmbedPreview() {
 }
 
 function compileEmbedJSON(state = null) {
-  if (!state) state = collectCurrentEmbedState();
-  const authorName = state.authorName || '';
-  const authorIcon = state.authorIcon || '';
-  const title = state.title || '';
-  const desc = state.desc || '';
-  const color = state.color || '#6366F1';
-  const thumbnail = state.thumbnail || '';
-  const image = state.image || '';
-  const footerText = state.footerText || '';
-  const footerIcon = state.footerIcon || '';
-  const includeTimestamp = state.includeTimestamp || false;
+  const authorName = state ? (state.authorName || '') : (document.getElementById('embed-author-name')?.value || '');
+  const authorIcon = state ? (state.authorIcon || '') : (document.getElementById('embed-author-icon')?.value || '');
+  const title = state ? (state.title || '') : (document.getElementById('embed-title')?.value || '');
+  const desc = state ? (state.desc || '') : (document.getElementById('embed-description-text')?.value || '');
+  const color = state ? (state.color || '#6366F1') : (document.getElementById('embed-color-hex')?.value || '#6366F1');
+  const thumbnail = state ? (state.thumbnail || '') : (document.getElementById('embed-thumbnail')?.value || '');
+  const image = state ? (state.image || '') : (document.getElementById('embed-image')?.value || '');
+  const footerText = state ? (state.footerText || '') : (document.getElementById('embed-footer-text')?.value || '');
+  const footerIcon = state ? (state.footerIcon || '') : (document.getElementById('embed-footer-icon')?.value || '');
+  const includeTimestamp = state ? (!!state.includeTimestamp) : (document.getElementById('embed-timestamp')?.checked);
   
   const helperNormalizeUrl = (url) => {
     if (!url) return '';
@@ -5268,7 +5278,7 @@ function compileEmbedJSON(state = null) {
     embed.timestamp = new Date().toISOString();
   }
   
-  const fields = state.fields || [];
+  const fields = state ? (state.fields || []) : getEmbedFields();
   if (fields.length > 0) {
     embed.fields = fields.filter(f => f && f.name && f.value);
   }
@@ -6636,15 +6646,23 @@ function initGiveawaysTab() {
   function shouldOverwriteValue(currentVal) {
     if (!currentVal) return true;
     const val = currentVal.trim().toLowerCase();
-    if (val.startsWith('http://') || val.startsWith('https://  // Setup click listeners for preset image URL badges in the Embed Builder
+    if (val.startsWith('http://') || val.startsWith('https://')) {
+      return false;
+    }
+    return true;
+  }
+
+  // Setup click listeners for preset image URL badges in the Embed Builder
   document.querySelectorAll('.preset-link-thumb').forEach(badge => {
     badge.addEventListener('click', () => {
       const url = badge.getAttribute('data-url');
       const input = document.getElementById('embed-thumbnail');
-      if (input) {
+      if (input && shouldOverwriteValue(input.value)) {
         input.value = url;
         input.dispatchEvent(new Event('input'));
         showToast('Thumbnail preset loaded.', 'success');
+      } else {
+        showToast('Preserved custom HTTP/HTTPS URL.', 'info');
       }
     });
   });
@@ -6653,10 +6671,12 @@ function initGiveawaysTab() {
     badge.addEventListener('click', () => {
       const url = badge.getAttribute('data-url');
       const input = document.getElementById('embed-image');
-      if (input) {
+      if (input && shouldOverwriteValue(input.value)) {
         input.value = url;
         input.dispatchEvent(new Event('input'));
         showToast('Large image preset loaded.', 'success');
+      } else {
+        showToast('Preserved custom HTTP/HTTPS URL.', 'info');
       }
     });
   });
@@ -6836,15 +6856,13 @@ function initGiveawaysTab() {
         if (titleInput) titleInput.value = '📊 COMMUNITY POLL';
         if (descInput) descInput.value = 'We want your feedback! Vote by reacting with the corresponding emoji below.';
         if (colorPicker) colorPicker.value = '#5865f2';
-        if (colorHex) colorHex.value = '#5865F2';
+        if (colorHex) colorHex.value = '#22C55E';
         if (thumbnailInput && shouldOverwriteValue(thumbnailInput.value)) thumbnailInput.value = '';
         if (imageInput && shouldOverwriteValue(imageInput.value)) imageInput.value = '';
         if (footerInput) footerInput.value = 'Poll ends in 24 hours';
         if (footerIconInput && shouldOverwriteValue(footerIconInput.value)) footerIconInput.value = '';
         addEmbedFieldPreset('1️⃣ Option A', 'Description of option A', false);
         addEmbedFieldPreset('2️⃣ Option B', 'Description of option B', false);
-        addEmbedFieldPreset('3️⃣ Option C', 'Description of option C', false);
-      }dPreset('2️⃣ Option B', 'Description of option B', false);
         addEmbedFieldPreset('3️⃣ Option C', 'Description of option C', false);
       }
       else if (preset === 'partner') {

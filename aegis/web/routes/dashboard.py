@@ -418,50 +418,6 @@ async def create_moderator_session(request: Request, body: ModeratorSessionReque
     audit_log.log_action("system", "BOT_CONTROL", f"Admin created moderator session for guild: {body.guild_id}")
     return {"status": "success", "token": mod_token, "role": "moderator", "guild_id": body.guild_id}
 
-# Helper to get active bot (Tier 4.4)
-def get_active_bot():
-    # Use central AppCore reference (Req 18.2)
-    from aegis.core.app_core import _active_cores
-    if _active_cores:
-        for core in reversed(_active_cores):
-            if hasattr(core, "bot") and core.bot:
-                return core.bot
-    import aegis.bot.bot_manager as bot_manager
-    if getattr(bot_manager, "bot_instance", None) is not None:
-        return bot_manager.bot_instance
-    bot = bot_manager.get_bot()
-    if bot:
-        return bot
-    if os.environ.get("AEGIS_MOCK_ENV"):
-        try:
-            from aegis.bot.runner import get_mock_bot
-            return get_mock_bot()
-        except Exception:
-            pass
-    return None
-
-# Lifespan logic is handled by AppCore lifecycle state transitions
-
-router = APIRouter()
-
-# auth_middleware is defined in aegis/web/app.py
-# Ensure static folder exists in development
-if not getattr(sys, 'frozen', False):
-    os.makedirs(utils.get_writeable_path("static"), exist_ok=True)
-
-# Pydantic models for configuration
-from typing import Dict
-from aegis.config.schema import (
-    CommandPermissionRule,
-    PermissionRoles,
-    LevelingSettingsModel as LevelingConfigModel,
-    ConfigModel
-)
-
-class HostingModePutRequest(BaseModel):
-    hosting_mode: str
-
-
 @router.get("/api/stats")
 async def get_stats():
     return bot_manager.get_bot_stats()
@@ -474,6 +430,7 @@ async def get_status(request: Request):
     has_token = bool(utils.get_bot_token(config))
     ffmpeg_installed = bool(shutil.which("ffmpeg"))
     
+    # Check session role and guild_id using JWT explicit fields (Gap 1)
     role = "guest"
     guild_id = None
     
@@ -485,21 +442,18 @@ async def get_status(request: Request):
     if token and auth.validate_session(token):
         guild_id = auth.get_session_guild_id(token)
         role = auth.get_session_role(token) or "guest"
+        # Map tenant role to frontend expected "user" string
         if role == "tenant":
             role = "user"
         
+    # Normalize the persisted hosting_mode for the response payload — empty
+    # string, missing key, or any value other than the two valid enum values
+    # is reported as ``null`` (Requirement 8.6, 5.4).
     hosting_mode_raw = config.get("hosting_mode")
     hosting_mode_value = hosting_mode_raw if hosting_mode_raw in ("local_pc", "cloud") else None
 
-    # Check bot online status reliably
-    is_bot_online = False
-    if bot and getattr(bot, 'user', None) is not None and not getattr(bot, 'is_closed', lambda: True)():
-        is_bot_online = True
-    elif bot and getattr(bot, 'is_ready', lambda: False)():
-        is_bot_online = True
-
     status_data = {
-        "status": "running" if is_bot_online else ("connecting" if bot else "stopped"),
+        "status": "running" if bot and bot.is_ready() else ("connecting" if bot else "stopped"),
         "has_token": has_token,
         "ffmpeg_installed": ffmpeg_installed,
         "role": role,
@@ -509,24 +463,15 @@ async def get_status(request: Request):
         "hosting_mode": hosting_mode_value
     }
     
-    if is_bot_online and bot and bot.user:
-        avatar_url = "/static/bot_logo.png"
-        try:
-            if hasattr(bot.user, 'display_avatar') and bot.user.display_avatar:
-                avatar_url = bot.user.display_avatar.url
-            elif hasattr(bot.user, 'avatar') and bot.user.avatar:
-                avatar_url = bot.user.avatar.url
-        except Exception:
-            pass
-
+    if bot and bot.is_ready():
         status_data["bot_user"] = {
             "username": bot.user.name,
-            "discriminator": getattr(bot.user, 'discriminator', '0000'),
+            "discriminator": bot.user.discriminator,
             "id": str(bot.user.id),
-            "avatar_url": avatar_url,
-            "guilds_count": len(bot.guilds) if hasattr(bot, 'guilds') else 0
+            "avatar_url": str(bot.user.display_avatar.url) if bot.user.avatar else None,
+            "guilds_count": len(bot.guilds)
         }
-    
+        
     return status_data
 
 @router.get("/api/hosting-mode")
@@ -2201,8 +2146,6 @@ class EmbedSendRequest(BaseModel):
 @router.post("/api/guilds/{guild_id}/embeds/send")
 async def send_embed_message(guild_id: str, request: EmbedSendRequest):
     bot = get_active_bot()
-    if not bot:
-        raise HTTPException(status_code=503, detail="Bot not connected.")
     guild = bot.get_guild(parse_id(guild_id, "guild_id"))
     if not guild:
         raise HTTPException(status_code=404, detail="Guild not found.")
@@ -2216,15 +2159,10 @@ async def send_embed_message(guild_id: str, request: EmbedSendRequest):
     # Process base64 data URLs inside embeds
     processed_dicts, files = bot_manager.process_embed_data_urls(embed_dicts)
     
-    discord_embeds = []
-    for e in processed_dicts:
-        try:
-            discord_embeds.append(discord.Embed.from_dict(e))
-        except Exception as ex:
-            raise HTTPException(status_code=400, detail=f"Invalid embed format: {ex}")
+    discord_embeds = [discord.Embed.from_dict(e) for e in processed_dicts]
     
     if not discord_embeds:
-        raise HTTPException(status_code=400, detail="No valid embed data provided.")
+        raise HTTPException(status_code=400, detail="No embed data provided.")
     
     try:
         if request.dm_user_id:
@@ -2236,10 +2174,7 @@ async def send_embed_message(guild_id: str, request: EmbedSendRequest):
                     try:
                         member = await guild.fetch_member(user_id)
                     except Exception:
-                        try:
-                            member = await bot.fetch_user(user_id)
-                        except Exception:
-                            pass
+                        pass
             else:
                 member = guild.get_member_named(request.dm_user_id)
                 if not member:
@@ -2249,24 +2184,18 @@ async def send_embed_message(guild_id: str, request: EmbedSendRequest):
                     )
             
             if not member:
-                raise HTTPException(status_code=404, detail=f"User '{request.dm_user_id}' not found.")
+                raise HTTPException(status_code=404, detail=f"User '{request.dm_user_id}' not found in this guild.")
             if files:
                 msg = await member.send(content=request.content or None, embeds=discord_embeds, files=files)
             else:
                 msg = await member.send(content=request.content or None, embeds=discord_embeds)
-            audit_log.log_action("admin", "CONFIG_CHANGE", f"Sent embed via DM to {getattr(member, 'name', 'user')}", guild_id)
+            audit_log.log_action("admin", "CONFIG_CHANGE", f"Sent embed via DM to {member.name}", guild_id)
             if request.add_reactions:
                 await bot_manager.add_reactions_from_embeds(msg, discord_embeds)
         elif request.edit_message_id:
             if not request.channel_id:
                 raise HTTPException(status_code=400, detail="channel_id required for edit mode.")
-            ch_id = parse_id(request.channel_id, "channel_id")
-            channel = guild.get_channel(ch_id)
-            if not channel:
-                try:
-                    channel = await bot.fetch_channel(ch_id)
-                except Exception:
-                    pass
+            channel = guild.get_channel(parse_id(request.channel_id, "channel_id"))
             if not channel:
                 raise HTTPException(status_code=404, detail="Channel not found.")
             message = await channel.fetch_message(int(request.edit_message_id))
@@ -2274,36 +2203,26 @@ async def send_embed_message(guild_id: str, request: EmbedSendRequest):
                 await message.edit(content=request.content or None, embeds=discord_embeds, files=files)
             else:
                 await message.edit(content=request.content or None, embeds=discord_embeds)
-            audit_log.log_action("admin", "CONFIG_CHANGE", f"Edited embed message in #{getattr(channel, 'name', ch_id)}", guild_id)
+            audit_log.log_action("admin", "CONFIG_CHANGE", f"Edited embed message in #{channel.name}", guild_id)
             if request.add_reactions:
                 await bot_manager.add_reactions_from_embeds(message, discord_embeds)
         else:
             if not request.channel_id:
                 raise HTTPException(status_code=400, detail="channel_id or dm_user_id required.")
-            ch_id = parse_id(request.channel_id, "channel_id")
-            channel = guild.get_channel(ch_id)
-            if not channel:
-                try:
-                    channel = await bot.fetch_channel(ch_id)
-                except Exception:
-                    pass
+            channel = guild.get_channel(parse_id(request.channel_id, "channel_id"))
             if not channel:
                 raise HTTPException(status_code=404, detail="Channel not found.")
             if files:
                 msg = await channel.send(content=request.content or None, embeds=discord_embeds, files=files)
             else:
                 msg = await channel.send(content=request.content or None, embeds=discord_embeds)
-            audit_log.log_action("admin", "CONFIG_CHANGE", f"Sent {len(discord_embeds)} embed(s) in #{getattr(channel, 'name', ch_id)}", guild_id)
+            audit_log.log_action("admin", "CONFIG_CHANGE", f"Sent {len(discord_embeds)} embed(s) in #{channel.name}", guild_id)
             if request.add_reactions:
                 await bot_manager.add_reactions_from_embeds(msg, discord_embeds)
         
         return {"status": "success"}
     except HTTPException:
         raise
-    except discord.Forbidden:
-        raise HTTPException(status_code=403, detail="Bot lacks permission to send message/embed or DM target user.")
-    except discord.NotFound:
-        raise HTTPException(status_code=404, detail="Target channel or message not found.")
     except Exception as e:
         logger.error(f"Failed to send custom embed: {e}")
         raise HTTPException(status_code=500, detail=str(e))
