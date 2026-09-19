@@ -13,8 +13,8 @@
   <!-- Google Fonts: Outfit & Inter (local for offline support) -->
   <link rel="stylesheet" href="/static/css/google-fonts.css">
   <!-- Style Sheet -->
-  <link rel="stylesheet" href="/static/style.css?v=2.7.0">
-  <link rel="stylesheet" href="/static/responsive.css?v=2.7.0">
+  <link rel="stylesheet" href="/static/style.css?v=2.7.1">
+  <link rel="stylesheet" href="/static/responsive.css?v=2.7.1">
   <!-- FontAwesome Icons (local for offline support) -->
   <link rel="stylesheet" href="/static/css/all.min.css">
   <!-- Preload critical assets -->
@@ -348,9 +348,6 @@
       </nav>
 
       <div class="sidebar-footer-actions">
-        <button id="btn-fullscreen-toggle" class="sidebar-action-btn" title="Toggle Fullscreen (F11)">
-          <i class="fa-solid fa-expand"></i> <span id="btn-fullscreen-text">Fullscreen</span>
-        </button>
         <button id="btn-theme-toggle" class="sidebar-action-btn" title="Toggle Theme">
           <i class="fa-solid fa-circle-half-stroke"></i> Theme
         </button>
@@ -380,25 +377,14 @@
         </div>
 
         <div class="header-right">
-          <!-- Live Telemetry Pulse Pill (UI/UX Pro Max) -->
-          <div class="telemetry-pill glass-inner" id="header-telemetry-pill" title="Aegis Operations Status">
-            <span class="pulse-dot">
-              <span class="pulse-ring"></span>
-            </span>
-            <span class="telemetry-label">SYSTEM ONLINE</span>
-          </div>
-
-          <!-- Server Selector -->
+          <!-- Server Selector (Semantic Isolated Group) -->
           <div class="server-selector-wrapper">
             <label for="server-select">Target Server:</label>
             <select id="server-select" class="glass-input">
               <option value="">Select a server...</option>
             </select>
-            <button id="btn-refresh-guilds" class="btn btn-secondary btn-icon-only" title="Refresh Servers">
+            <button id="btn-refresh-guilds" class="btn btn-secondary btn-icon-only" title="Refresh Servers" aria-label="Refresh Servers">
               <i class="fa-solid fa-rotate"></i>
-            </button>
-            <button id="btn-header-fullscreen" class="btn btn-secondary btn-icon-only" title="Toggle Fullscreen (F11)" aria-label="Toggle Fullscreen">
-              <i class="fa-solid fa-expand"></i>
             </button>
           </div>
 
@@ -415,6 +401,24 @@
             <i class="fa-solid fa-circle-question"></i>
             <span id="hosting-mode-badge-text">Unconfigured</span>
           </button>
+
+          <!-- Global Utilities Cluster (UI/UX Pro Max) -->
+          <div class="header-global-actions">
+            <!-- Live Telemetry Pulse Pill -->
+            <div class="telemetry-pill glass-inner" id="header-telemetry-pill" title="Aegis Operations Status">
+              <span class="pulse-dot">
+                <span class="pulse-ring"></span>
+              </span>
+              <span class="telemetry-label">SYSTEM ONLINE</span>
+            </div>
+
+            <div class="header-action-divider" aria-hidden="true"></div>
+
+            <!-- Fullscreen Action Button -->
+            <button id="btn-header-fullscreen" class="btn-header-utility" title="Fullscreen (F11)" aria-label="Toggle Fullscreen (F11)">
+              <i class="fa-solid fa-expand"></i>
+            </button>
+          </div>
         </div>
       </header>
 
@@ -1085,29 +1089,46 @@
                 </div>
               </div>
 
-              <!-- Command Center Activity Feed -->
-              <div class="card glass span-2" style="border-top: 3px solid var(--warning);">
+              <!-- Command Center Activity Feed (UI/UX Pro Max Balanced Scroll) -->
+              <div class="card glass span-2 cc-scrollable-card" style="border-top: 3px solid var(--warning);">
                 <div class="card-header border-bottom">
                   <h2><i class="fa-solid fa-list-check"></i> Command Center Activity Feed</h2>
                   <p>Real-time log of security fixes, automations, and rollbacks</p>
                 </div>
-                <div class="card-body p-0" style="flex: 1; overflow-y: auto;">
+                <div class="card-body p-0 cc-scrollable-body" id="cc-activity-feed-container">
                   <div id="cc-activity-feed-list" class="checklist-list">
                     <div class="text-center py-4" style="color: var(--text-sub);">No actions recorded in this session.</div>
                   </div>
                 </div>
+                <div class="activity-feed-footer glass-inner">
+                  <span class="pulse-dot-sm"></span>
+                  <span>Aegis Real-Time Sentinel Active &bull; Continuous Telemetry</span>
+                </div>
               </div>
 
-              <!-- Priority Action Center (Fix Queue) -->
-              <div class="card glass span-2" style="border-top: 3px solid var(--danger);">
-                <div class="card-header border-bottom flex-header">
+              <!-- Priority Action Center (Fix Queue - UI/UX Pro Max Balanced Scroll) -->
+              <div class="card glass span-2 cc-scrollable-card" style="border-top: 3px solid var(--danger);">
+                <div class="card-header border-bottom flex-header" style="flex-wrap: wrap; gap: 8px;">
                   <div>
                     <h2><i class="fa-solid fa-circle-exclamation"></i> Priority Action Center</h2>
                     <p>Issues sorted by severity, projected health gain, and safety risk</p>
                   </div>
-                  <div id="fix-queue-summary" class="badge" style="font-size: 0.8rem; padding: 4px 10px; margin-left: auto;">0 Issues Detected</div>
+                  <div class="flex-center gap-2" style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+                    <button id="btn-fix-all-safe" type="button" class="btn btn-sm btn-primary btn-glow hidden" title="Fix all safe issues in one click">
+                      <i class="fa-solid fa-wand-magic-sparkles"></i> Fix All Safe
+                    </button>
+                    <div id="fix-queue-summary" class="badge" style="font-size: 0.8rem; padding: 4px 10px;">0 Issues Detected</div>
+                  </div>
                 </div>
-                <div class="card-body" id="cc-fix-queue-content">
+                <!-- Category Filter Chips -->
+                <div id="fix-queue-filter-bar" class="fix-queue-filter-bar border-bottom">
+                  <button type="button" class="fix-filter-chip active" data-filter="all">All <span class="chip-count" id="chip-count-all">0</span></button>
+                  <button type="button" class="fix-filter-chip" data-filter="security"><i class="fa-solid fa-shield-halved"></i> Security <span class="chip-count" id="chip-count-security">0</span></button>
+                  <button type="button" class="fix-filter-chip" data-filter="channels"><i class="fa-solid fa-hashtag"></i> Channels <span class="chip-count" id="chip-count-channels">0</span></button>
+                  <button type="button" class="fix-filter-chip" data-filter="roles"><i class="fa-solid fa-user-shield"></i> Roles <span class="chip-count" id="chip-count-roles">0</span></button>
+                  <button type="button" class="fix-filter-chip" data-filter="backups"><i class="fa-solid fa-database"></i> Backups <span class="chip-count" id="chip-count-backups">0</span></button>
+                </div>
+                <div class="card-body cc-scrollable-body" id="cc-fix-queue-content">
                   <div class="skeleton-card">
                     <div class="skeleton skeleton-heading"></div>
                     <div class="skeleton skeleton-text"></div>
@@ -4178,6 +4199,6 @@
       document.getElementById('analytics-msg-days')?.addEventListener('change', loadMessageChart);
     })();
   </script>
-  <script src="/static/app.js?v=2.7.0" defer></script>
+  <script src="/static/app.js?v=2.7.1" defer></script>
 </body>
 </html>

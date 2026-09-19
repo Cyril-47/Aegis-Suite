@@ -10924,64 +10924,173 @@ async function loadSmartCommandCenter(force = false) {
           No issues found! Your server is fully optimized and secure.
         </div>
       `;
+      const filterBar = document.getElementById('fix-queue-filter-bar');
+      if (filterBar) filterBar.style.display = 'none';
+      const fixAllSafeBtn = document.getElementById('btn-fix-all-safe');
+      if (fixAllSafeBtn) fixAllSafeBtn.classList.add('hidden');
       return;
     }
 
-    let html = '<div style="display:flex;flex-direction:column;gap:12px;">';
-    fixQueue.forEach(item => {
-      const riskBadge = item.requires_confirmation ? '<span class="badge" style="background:rgba(239,68,68,0.15);color:var(--danger);border:1px solid rgba(239,68,68,0.3);">DESTRUCTIVE</span>' :
-                        item.safe ? '<span class="badge" style="background:rgba(16,185,129,0.15);color:var(--success);border:1px solid rgba(16,185,129,0.3);">SAFE</span>' :
-                        '<span class="badge" style="background:rgba(245,158,11,0.15);color:var(--warning);border:1px solid rgba(245,158,11,0.3);">MEDIUM RISK</span>';
+    // Helper: Categorize item (UI/UX Pro Max categorization)
+    function getFixItemCategory(it) {
+      const t = (it.type || '').toLowerCase();
+      const title = (it.title || '').toLowerCase();
+      const desc = (it.description || '').toLowerCase();
+      if (t === 'permission-doctor' || title.includes('permission') || title.includes('verification') || title.includes('admin') || desc.includes('permission') || desc.includes('administrator')) {
+        return 'security';
+      }
+      if (t === 'channel-cleaner' || title.includes('channel') || desc.includes('channel')) {
+        return 'channels';
+      }
+      if (t === 'role-cleaner' || title.includes('role') || desc.includes('role')) {
+        return 'roles';
+      }
+      if (t === 'backup-advisor' || title.includes('backup') || desc.includes('backup')) {
+        return 'backups';
+      }
+      return 'security';
+    }
 
-      const fixButton = item.action ? `
-        <button class="btn btn-sm btn-primary btn-glow fix-queue-btn" 
-          onclick="handleFixQueueAction('${item.id}', '${item.action}', ${JSON.stringify(item.params).replace(/"/g, '&quot;')}, ${item.requires_confirmation})"
-          ${item.disabled ? 'disabled title="Aegis bot lacks required permissions"' : ''}>
-          <i class="fa-solid fa-wrench"></i> Fix
-        </button>` : '';
+    // Tally counts
+    const categoryCounts = { all: fixQueue.length, security: 0, channels: 0, roles: 0, backups: 0 };
+    fixQueue.forEach(it => {
+      it.category = getFixItemCategory(it);
+      if (categoryCounts[it.category] !== undefined) categoryCounts[it.category]++;
+      else categoryCounts.security++;
+    });
 
-      const permWarning = item.disabled ? `<div style="font-size:0.75rem;color:var(--danger);margin-top:4px;"><i class="fa-solid fa-triangle-exclamation"></i> Aegis bot lacks required permission: ${item.required_permissions.join(', ')}</div>` : '';
+    const filterBar = document.getElementById('fix-queue-filter-bar');
+    if (filterBar) {
+      filterBar.style.display = 'flex';
+      const setChip = (id, count) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = count;
+      };
+      setChip('chip-count-all', categoryCounts.all);
+      setChip('chip-count-security', categoryCounts.security);
+      setChip('chip-count-channels', categoryCounts.channels);
+      setChip('chip-count-roles', categoryCounts.roles);
+      setChip('chip-count-backups', categoryCounts.backups);
+    }
 
-      const toneClass = item.severity === 'critical' ? 'tone-highlight-crimson' :
-                        item.severity === 'warning' ? 'tone-highlight-amber' : 'tone-highlight-indigo';
+    // Safe batch action button
+    const safeItems = fixQueue.filter(it => it.safe && !it.disabled && it.action);
+    const fixAllSafeBtn = document.getElementById('btn-fix-all-safe');
+    if (fixAllSafeBtn) {
+      if (safeItems.length > 1) {
+        fixAllSafeBtn.classList.remove('hidden');
+        fixAllSafeBtn.innerHTML = `<i class="fa-solid fa-wand-magic-sparkles"></i> Fix All Safe (${safeItems.length})`;
+        fixAllSafeBtn.onclick = async () => {
+          if (!confirm(`Execute all ${safeItems.length} safe fixes automatically? This will resolve issues without risk of data loss.`)) return;
+          fixAllSafeBtn.disabled = true;
+          fixAllSafeBtn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> Applying ${safeItems.length} fixes...`;
+          let successCount = 0;
+          for (const it of safeItems) {
+            try {
+              const res = await fetch(`/api/guilds/${activeGuildId}/smart/fix`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+                body: JSON.stringify({ action: it.action, params: it.params })
+              });
+              if (res.ok) successCount++;
+            } catch (e) {
+              console.warn('Batch fix item failed:', it, e);
+            }
+          }
+          showToast(`Applied ${successCount} of ${safeItems.length} safe fixes successfully!`, 'success');
+          addLiveActivity('Fix', `Batch resolved ${successCount} safe issues`, `+${successCount * 2} Health`);
+          window.aegisCache.invalidate();
+          await loadSmartCommandCenter(true);
+        };
+      } else {
+        fixAllSafeBtn.classList.add('hidden');
+      }
+    }
 
-      html += `
-        <div class="bento-stat-chip sf-fix-card ${toneClass}" style="display:flex;align-items:center;gap:16px;padding:14px 18px;">
-          <div style="min-width:44px;text-align:center;font-weight:700;color:var(--success);font-size:1.15rem;font-family:'Outfit',sans-serif;">
-            +${item.health_gain}
+    let activeFilter = 'all';
+
+    function renderFixList() {
+      const filtered = activeFilter === 'all' ? fixQueue : fixQueue.filter(it => it.category === activeFilter);
+      if (filtered.length === 0) {
+        fixQueueContent.innerHTML = `
+          <div class="text-center py-5" style="color:var(--text-sub);">
+            <i class="fa-solid fa-check-double text-success" style="font-size:2rem;margin-bottom:8px;display:block;"></i>
+            No issues found in this category.
           </div>
-          <div style="flex:1;">
-            <div style="font-weight:600;font-size:0.95rem;display:flex;align-items:center;gap:8px;">
-              ${escapeHtml(item.title)}
-              ${riskBadge}
+        `;
+        return;
+      }
+
+      let html = '<div style="display:flex;flex-direction:column;gap:10px;">';
+      filtered.forEach(item => {
+        const riskBadge = item.requires_confirmation ? '<span class="badge" style="background:rgba(239,68,68,0.15);color:var(--danger);border:1px solid rgba(239,68,68,0.3);">DESTRUCTIVE</span>' :
+                          item.safe ? '<span class="badge" style="background:rgba(16,185,129,0.15);color:var(--success);border:1px solid rgba(16,185,129,0.3);">SAFE</span>' :
+                          '<span class="badge" style="background:rgba(245,158,11,0.15);color:var(--warning);border:1px solid rgba(245,158,11,0.3);">MEDIUM RISK</span>';
+
+        const fixButton = item.action ? `
+          <button class="btn btn-sm btn-primary btn-glow fix-queue-btn" 
+            onclick="handleFixQueueAction('${item.id}', '${item.action}', ${JSON.stringify(item.params).replace(/"/g, '&quot;')}, ${item.requires_confirmation})"
+            ${item.disabled ? 'disabled title="Aegis bot lacks required permissions"' : ''}>
+            <i class="fa-solid fa-wrench"></i> Fix
+          </button>` : '';
+
+        const permWarning = item.disabled ? `<div style="font-size:0.75rem;color:var(--danger);margin-top:4px;"><i class="fa-solid fa-triangle-exclamation"></i> Aegis bot lacks required permission: ${item.required_permissions.join(', ')}</div>` : '';
+
+        const toneClass = item.severity === 'critical' ? 'tone-highlight-crimson' :
+                          item.severity === 'warning' ? 'tone-highlight-amber' : 'tone-highlight-indigo';
+
+        html += `
+          <div class="bento-stat-chip sf-fix-card ${toneClass}" style="display:flex;align-items:center;gap:14px;padding:12px 16px;">
+            <div style="min-width:40px;text-align:center;font-weight:700;color:var(--success);font-size:1.1rem;font-family:'Outfit',sans-serif;">
+              +${item.health_gain}
             </div>
-            <div style="font-size:0.8rem;color:var(--text-sub);margin-top:4px;">${escapeHtml(item.description)}</div>
-            <div class="collapsible-content" id="impact-${item.id}" style="margin-top:6px;">
-              <div style="font-size:0.75rem;color:var(--success);font-weight:500;display:flex;align-items:center;gap:6px;">
-                <i class="fa-solid fa-chart-line"></i> Projected Gain: +${item.health_gain} Health (Overall score will raise to ${Math.min(100, weightedScore + item.health_gain)}%)
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:600;font-size:0.92rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <span>${escapeHtml(item.title)}</span>
+                ${riskBadge}
               </div>
+              <div style="font-size:0.78rem;color:var(--text-sub);margin-top:2px;line-height:1.35;">${escapeHtml(item.description)}</div>
+              <div class="collapsible-content" id="impact-${item.id}" style="margin-top:4px;">
+                <div style="font-size:0.73rem;color:var(--success);font-weight:500;display:flex;align-items:center;gap:6px;">
+                  <i class="fa-solid fa-chart-line"></i> Projected Gain: +${item.health_gain} Health (Overall score will raise to ${Math.min(100, weightedScore + item.health_gain)}%)
+                </div>
+              </div>
+              ${permWarning}
             </div>
-            ${permWarning}
+            <div style="flex-shrink:0;">
+              ${fixButton}
+            </div>
           </div>
-          <div>
-            ${fixButton}
-          </div>
-        </div>
-      `;
-    });
-    html += '</div>';
-    fixQueueContent.innerHTML = html;
+        `;
+      });
+      html += '</div>';
+      fixQueueContent.innerHTML = html;
 
-    fixQueueContent.querySelectorAll('.sf-fix-card').forEach(card => {
-      card.addEventListener('mouseenter', () => {
-        const content = card.querySelector('.collapsible-content');
-        if (content) content.classList.add('expanded');
+      fixQueueContent.querySelectorAll('.sf-fix-card').forEach(card => {
+        card.addEventListener('mouseenter', () => {
+          const content = card.querySelector('.collapsible-content');
+          if (content) content.classList.add('expanded');
+        });
+        card.addEventListener('mouseleave', () => {
+          const content = card.querySelector('.collapsible-content');
+          if (content) content.classList.remove('expanded');
+        });
       });
-      card.addEventListener('mouseleave', () => {
-        const content = card.querySelector('.collapsible-content');
-        if (content) content.classList.remove('expanded');
+    }
+
+    renderFixList();
+
+    // Wire up filter chips
+    if (filterBar) {
+      filterBar.querySelectorAll('.fix-filter-chip').forEach(chip => {
+        chip.onclick = () => {
+          filterBar.querySelectorAll('.fix-filter-chip').forEach(c => c.classList.remove('active'));
+          chip.classList.add('active');
+          activeFilter = chip.dataset.filter || 'all';
+          renderFixList();
+        };
       });
-    });
+    }
   }
 }
 
@@ -12076,7 +12185,8 @@ function setupFullscreen() {
     if (headerBtn) {
       const icon = headerBtn.querySelector('i');
       if (icon) icon.className = isFull ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
-      headerBtn.title = isFull ? 'Exit Fullscreen (F11)' : 'Toggle Fullscreen (F11)';
+      headerBtn.title = isFull ? 'Exit Fullscreen (F11)' : 'Fullscreen (F11)';
+      headerBtn.setAttribute('aria-label', isFull ? 'Exit Fullscreen (F11)' : 'Toggle Fullscreen (F11)');
     }
   }
 

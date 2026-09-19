@@ -445,6 +445,30 @@ code.block-code {
     gap: 10px !important;
   }
 
+  .header-global-actions {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+    margin-left: 0 !important;
+    gap: 8px !important;
+  }
+
+  .btn-header-utility {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+  }
+
+  .cc-scrollable-card {
+    height: 480px !important;
+  }
+
+  .fix-queue-filter-bar {
+    padding: 6px 12px !important;
+    gap: 6px !important;
+  }
+
   .server-selector-wrapper {
     flex-direction: column !important;
     align-items: stretch !important;

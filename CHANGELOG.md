@@ -5,6 +5,23 @@ All notable changes to the Aegis Suite project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.1] - 2026-09-19
+
+### Added
+- **Command Center Category Filter Chips**: Added interactive category filter tabs (`All`, `Security`, `Channels`, `Roles`, `Backups`) in Priority Action Center, allowing admins to instantly filter 20+ issues by category with dynamic item counters.
+- **1-Click "Fix All Safe" Batch Action**: Added automated batch remediation button in Priority Action Center header (`Fix All Safe (N)`), enabling server administrators to resolve all zero-risk issues in a single click with real-time toast tracking and automatic health score recalibration.
+- **Header Global Utility Actions Cluster**: Created `.header-global-actions` container on the far top-right of the dashboard header, housing the live System Telemetry indicator and a dedicated Fullscreen toggle button separated by an elegant glass divider.
+- **Aegis Real-Time Sentinel Footer**: Added live continuous telemetry pulse status to the Command Center Activity Feed, maintaining visual symmetry with the adjacent Priority Action Center.
+
+### Fixed
+- **Dashboard Long Scroll & Blank Half-Page Layout Flaw**: Resolved asymmetric multi-column grid stretch in Command Center where 24 unpaginated issue cards (~2,100px) forced the adjacent Activity Feed (~150px) to stretch over 2,000px of desolate blank whitespace; introduced `.cc-scrollable-card` and `.cc-scrollable-body` (`height: 580px; overflow-y: auto;`) to equalize both columns into compact, balanced bento cards with smooth internal scrolling and pinned headers.
+- **Sub-Optimal Fullscreen Button Placement**: Decoupled the Fullscreen toggle button from inside `.server-selector-wrapper` (where it was mistakenly grouped with Discord guild options) and relocated it to the far top-right window action cluster (`#btn-header-fullscreen`).
+- **Sidebar Footer De-congestion**: Removed cramped 3rd button from `.sidebar-footer-actions`, restoring the sidebar footer to a spacious, balanced 2-button layout (`Theme` and `Log Out`) with optimal 44px touch targets.
+- **Light & Liquid Glass Theme Fullscreen Affordance**: Added theme-specific styling for the new `.btn-header-utility` button with active glowing borders, micro-press scaling (`scale(0.95)`), and smooth icon transitions (`fa-expand` ↔ `fa-compress`).
+
+### Changed
+- Bumped asset cache busters to `v=2.7.1` in `index.html`.
+
 ## [2.7.0] - 2026-09-19
 
 ### Added
