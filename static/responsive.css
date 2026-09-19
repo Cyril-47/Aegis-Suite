@@ -60,7 +60,9 @@ html, body {
 }
 
 .top-header {
-  padding: 0 var(--content-padding-x) !important;
+  padding: 14px var(--content-padding-x) !important;
+  min-height: var(--header-height);
+  height: auto !important;
   box-sizing: border-box;
 }
 
@@ -220,7 +222,13 @@ code.block-code {
   }
 
   .top-header {
-    padding: 0 24px !important;
+    padding: 12px var(--content-padding-x) !important;
+    min-height: var(--header-height);
+    height: auto !important;
+  }
+
+  .server-selector-wrapper label {
+    display: none;
   }
 }
 
@@ -304,11 +312,25 @@ code.block-code {
   }
 
   .top-header {
-    padding: 0 16px !important;
+    padding: 12px var(--content-padding-x) !important;
+    min-height: var(--header-height);
+    height: auto !important;
+    gap: 12px;
   }
 
   .top-header .header-left h1 {
     font-size: 1.25rem !important;
+    margin: 0 0 2px 0;
+  }
+
+  .top-header .header-left p {
+    font-size: 0.78rem !important;
+    line-height: 1.3;
+    margin: 0;
+  }
+
+  .server-selector-wrapper label {
+    display: none;
   }
 
   .server-selector-wrapper select {
@@ -544,7 +566,9 @@ code.block-code {
   }
 
   .top-header {
-    height: 56px !important;
+    min-height: 56px !important;
+    height: auto !important;
+    padding: 8px var(--content-padding-x) !important;
   }
 
   .wizard-box {
