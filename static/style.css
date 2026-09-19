@@ -1253,6 +1253,7 @@ body.light-theme .sidebar-action-btn:focus-visible {
 .span-2 { grid-column: span 2; }
 .span-3 { grid-column: span 3; }
 .span-4 { grid-column: span 4; }
+.span-full { grid-column: 1 / -1; }
 
 /* ==========================================================================
    Card Styling
@@ -1298,8 +1299,8 @@ body.light-theme .sidebar-action-btn:focus-visible {
    ========================================================================== */
 .bot-details-grid {
   display: grid;
-  grid-template-columns: auto 1fr 1fr;
-  gap: 24px;
+  grid-template-columns: auto minmax(200px, 1fr) minmax(240px, 1.2fr);
+  gap: clamp(16px, 2vw, 28px);
   align-items: center;
 }
 
@@ -1311,10 +1312,10 @@ body.light-theme .sidebar-action-btn:focus-visible {
 }
 
 .large-avatar {
-  width: 100px;
-  height: 100px;
+  width: 90px;
+  height: 90px;
   border-radius: 50%;
-  box-shadow: 0 0 20px rgba(88, 101, 242, 0.25);
+  box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
   border: 3px solid var(--primary);
   object-fit: cover;
   display: block;
@@ -1330,14 +1331,14 @@ body.light-theme .sidebar-action-btn:focus-visible {
   font-weight: 700;
   letter-spacing: 0.05em;
   background-color: var(--inner-bg);
-  padding: 5px 10px;
+  padding: 5px 12px;
   border-radius: 20px;
   border: 1px solid var(--card-border);
 }
 
 .bot-ping-status .status-indicator {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background-color: var(--danger);
   display: inline-block;
@@ -1346,7 +1347,7 @@ body.light-theme .sidebar-action-btn:focus-visible {
 .status-online + .bot-overview-status-text,
 .bot-ping-status.online .status-indicator {
   background-color: var(--success);
-  box-shadow: 0 0 6px var(--success);
+  box-shadow: 0 0 8px var(--success);
 }
 
 .bot-info-details {
@@ -1355,30 +1356,42 @@ body.light-theme .sidebar-action-btn:focus-visible {
   flex-direction: column;
   gap: 10px;
   min-width: 0;
-  overflow: hidden;
+  background: var(--inner-bg);
+  padding: 16px 20px;
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
 }
 
 .info-row {
   display: flex;
   justify-content: space-between;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
-  padding-bottom: 6px;
-  gap: 10px;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  padding-bottom: 8px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.info-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
 }
 
 .info-row .label {
   color: var(--text-sub);
   font-size: 0.85rem;
+  font-weight: 500;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .info-row .value {
   font-weight: 600;
   font-size: 0.9rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: var(--text-main);
   text-align: right;
+  word-break: break-word;
+  max-width: 100%;
 }
 
 .select-helper-card {
