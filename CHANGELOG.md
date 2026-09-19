@@ -5,6 +5,36 @@ All notable changes to the Aegis Suite project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0] - 2026-09-19
+
+### Added
+- **Fullscreen Mode Architecture**: Dual-engine fullscreen controller supporting native PyWebView desktop fullscreen and HTML5 Web Fullscreen API fallback, with dedicated sidebar toggle (`#btn-fullscreen-toggle`), header quick-action (`#btn-header-fullscreen`), and global `F11` keyboard shortcut.
+- **Ultrawide & High-Resolution Display Support**: Responsive container containment (`max-width: 2200px; margin: 0 auto;`) and fluid grid scaling for 2K, 4K, and 21:9 / 32:9 ultrawide monitors.
+- **Living Micro-Interactions & Animation Suite**: Hardware-accelerated cursor spotlight tracking, zero-CPU spring press physics (`transform: scale(0.95)`), SVG circular gauge spring-draw animations, self-terminating requestAnimationFrame KPI odometer counters, and ambient background auroras.
+- **Neon Synthwave Cyberpunk Theme**: Added high-energy retro-futuristic synthwave theme with hot magenta glows, cyan accents, dark grid background, and custom analytics card styling.
+- **Apple-Grade Alabaster Quartz (Light Theme) Overhaul**: Complete redesign of Light Quartz theme featuring luminous alabaster canvas (`#f8fafc` to `#f1f5f9`), specular white rim glints (`inset 0 1px 0 #ffffff`), dual-stop luminous cursor hover glow with `mix-blend-mode: multiply`, high-contrast white toast cards, and high-visibility toggle switches.
+- **Native Desktop Branding**: Stamped `AegisOptimizer.exe` binary with `logo.ico` and bundled high-resolution assets into PyInstaller package.
+
+### Fixed
+- **System Tray Icon ("Blue Block" Bug)**: Fixed asset path resolution in `SystemTrayManager` which previously looked inside `%APPDATA%\Aegis` data directory; upgraded `tray_icon.png` to a crisp 64x64 RGBA icon with Lanczos filtering, eliminating the fallback blue rectangle.
+- **Window Title Bar Icon**: Resolved issue where WinForms defaulted to generic Windows application icon; dynamically bound `window_ref.native.Icon` to bundled `logo.ico`.
+- **Top Header Text & Border Overlap**: Replaced fixed header heights and zero vertical padding with `min-height: var(--header-height); height: auto !important; padding: 14px var(--content-padding-x) !important;` so multi-line subtitle descriptions never clip or intersect `border-bottom`.
+- **Macro Gutter Alignment**: Synchronized `.top-header` padding directly with `--content-padding-x` across all responsive breakpoints (`48px`, `32px`, `24px`, `16px`), eliminating the horizontal offset between header controls and bento content cards.
+- **Header Controls Baseline Mismatch**: Standardized server selector dropdown and `#btn-refresh-guilds` icon button to matching 36px heights and flex-centered alignments.
+- **KPI Stat Card Bottom Axis Alignment**: Converted `.stat-card-clean` to flex column layout with `margin-top: auto` on `.stat-sub` so status badges align along the exact same horizontal baseline across the grid.
+- **Bot Connection Details Height Discrepancy**: Applied `align-items: stretch` and matching internal padding (16px 20px) to `.health-metrics` and `.bot-info-details`.
+- **Backup CTA Button Baseline**: Structured `.backup-action-box` with flex column layouts and `margin-top: auto` on action buttons to prevent vertical drift from differing description copy.
+- **Sidebar Active Nav Indicator Anchoring**: Re-anchored `.nav-item.active::before` flush to the item edge (`left: 0; width: 3.5px; border-radius: 9px 0 0 9px;`) to eliminate clipping on compact sidebars and hover translation drift.
+- **Smart Module Pills Grid Distortion**: Refactored `.smart-mod-grid` from flexbox wrap to responsive CSS grid `repeat(auto-fit, minmax(130px, 1fr))`, preventing orphan pills from stretching.
+- **Sub-Tab Layout Jump**: Removed rogue `mb-4` from line 760 of `index.html` to establish an identical 20px spacing cadence across all sub-tab views.
+- **Dashboard De-congestion & Anti-Flicker**: Eliminated layout flicker during page loads, removed "Live Stream" header text, and added comfortable breathing room across cards.
+
+### Changed
+- Updated stylesheet and script cache busters to `v2.7.0` in `index.html`.
+- Automatically hide "Target Server:" text label on displays $\le$ 1200px to free up horizontal space for header titles.
+
+---
+
 ## [2.4.0] - 2026-07-26
 
 ### Added
