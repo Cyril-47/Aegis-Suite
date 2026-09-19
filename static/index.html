@@ -458,31 +458,51 @@
           </div>
 
           <div class="grid-layout">
-            <!-- Analytics Cards Row -->
+            <!-- Analytics Cards Row (UI/UX Pro Max Bento KPIs) -->
             <div class="card glass span-4">
-              <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-chart-line"></i> Dashboard Activity</h2>
+              <div class="card-header border-bottom flex-header">
+                <h2><i class="fa-solid fa-chart-line text-primary"></i> Dashboard Activity</h2>
+                <span class="stat-badge badge-live">Live Stream Active</span>
               </div>
               <div class="card-body grid-4-col">
                 <div class="stat-card glass-inner">
-                  <h3>Bot Uptime</h3>
+                  <i class="fa-solid fa-heart-pulse stat-card-icon-bg"></i>
+                  <div class="stat-card-header">
+                    <h3><i class="fa-solid fa-server text-success"></i> Bot Uptime</h3>
+                    <span class="stat-badge badge-live">Live</span>
+                  </div>
                   <div class="stat-value" id="stat-uptime">0m</div>
-                  <div class="stat-sub">Uptime since boot</div>
+                  <div class="stat-sub"><i class="fa-solid fa-bolt-lightning text-warning"></i> Continuous since boot</div>
                 </div>
+
                 <div class="stat-card glass-inner">
-                  <h3>Messages Logged</h3>
+                  <i class="fa-solid fa-comments stat-card-icon-bg"></i>
+                  <div class="stat-card-header">
+                    <h3><i class="fa-solid fa-message text-primary"></i> Messages</h3>
+                    <span class="stat-badge badge-trend">Today</span>
+                  </div>
                   <div class="stat-value" id="stat-messages">0</div>
-                  <div class="stat-sub">Total messages today</div>
+                  <div class="stat-sub"><i class="fa-solid fa-chart-simple text-primary"></i> Total messages recorded</div>
                 </div>
+
                 <div class="stat-card glass-inner">
-                  <h3>Commands Run</h3>
+                  <i class="fa-solid fa-terminal stat-card-icon-bg"></i>
+                  <div class="stat-card-header">
+                    <h3><i class="fa-solid fa-code text-cyan"></i> Commands</h3>
+                    <span class="stat-badge badge-trend">Today</span>
+                  </div>
                   <div class="stat-value" id="stat-commands">0</div>
-                  <div class="stat-sub">Total commands today</div>
+                  <div class="stat-sub"><i class="fa-solid fa-check-double text-success"></i> Executed slash commands</div>
                 </div>
+
                 <div class="stat-card glass-inner">
-                  <h3>Joins / Tickets</h3>
+                  <i class="fa-solid fa-user-plus stat-card-icon-bg"></i>
+                  <div class="stat-card-header">
+                    <h3><i class="fa-solid fa-users-rays text-warning"></i> Joins / Tickets</h3>
+                    <span class="stat-badge badge-trend">24h</span>
+                  </div>
                   <div class="stat-value" id="stat-joins-tickets">0 / 0</div>
-                  <div class="stat-sub">Joins & Support tickets today</div>
+                  <div class="stat-sub"><i class="fa-solid fa-ticket text-sub"></i> New members & support tickets</div>
                 </div>
               </div>
             </div>
@@ -3880,32 +3900,61 @@
         if (!data || !data.length) return;
         const labels = data.map(d => d.date);
         const msgs = data.map(d => d.total_messages);
-        const ctx = document.getElementById('chart-messages');
-        if (!ctx) return;
+        const canvas = document.getElementById('chart-messages');
+        if (!canvas) return;
         if (analyticsCharts.messages) analyticsCharts.messages.destroy();
         
         const isLightTheme = document.body.classList.contains('light-theme');
         const tickColor = isLightTheme ? '#475569' : '#94a3b8';
         const gridColor = isLightTheme ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)';
 
-        analyticsCharts.messages = new Chart(ctx, {
+        const ctx = canvas.getContext('2d');
+        const gradient = ctx.createLinearGradient(0, 0, 0, 260);
+        gradient.addColorStop(0, isLightTheme ? 'rgba(99, 102, 241, 0.35)' : 'rgba(99, 102, 241, 0.45)');
+        gradient.addColorStop(0.65, isLightTheme ? 'rgba(99, 102, 241, 0.08)' : 'rgba(99, 102, 241, 0.08)');
+        gradient.addColorStop(1, 'rgba(99, 102, 241, 0)');
+
+        analyticsCharts.messages = new Chart(canvas, {
           type: 'line',
           data: {
             labels,
             datasets: [{
               label: 'Messages',
               data: msgs,
-              borderColor: '#818cf8',
-              backgroundColor: 'rgba(129, 140, 248, 0.1)',
+              borderColor: '#6366f1',
+              borderWidth: 2.5,
+              backgroundColor: gradient,
               fill: true,
-              tension: 0.4,
-              pointRadius: 2,
+              tension: 0.35,
+              pointRadius: 0,
+              pointHoverRadius: 6,
+              pointHoverBackgroundColor: '#6366f1',
+              pointHoverBorderColor: '#ffffff',
+              pointHoverBorderWidth: 2
             }]
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                backgroundColor: isLightTheme ? 'rgba(255, 255, 255, 0.96)' : 'rgba(15, 23, 42, 0.95)',
+                titleColor: isLightTheme ? '#0f172a' : '#f8fafc',
+                bodyColor: isLightTheme ? '#475569' : '#94a3b8',
+                borderColor: 'rgba(99, 102, 241, 0.35)',
+                borderWidth: 1,
+                padding: 10,
+                cornerRadius: 8,
+                displayColors: false,
+                callbacks: {
+                  label: function(context) {
+                    return `${context.parsed.y.toLocaleString()} messages`;
+                  }
+                }
+              }
+            },
             scales: {
               x: { ticks: { color: tickColor, maxTicksLimit: 10 }, grid: { color: gridColor } },
               y: { ticks: { color: tickColor }, grid: { color: gridColor } }
@@ -3918,20 +3967,20 @@
         const data = await fetchAnalytics('channels', { days: 7 });
         const el = document.getElementById('channel-activity-list');
         if (!data || !Object.keys(data).length) {
-          el.innerHTML = '<div class="text-center py-3" style="color:var(--text-sub);">No channel data</div>';
+          el.innerHTML = '<div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-hashtag" style="font-size:1.4rem;opacity:0.2;margin-bottom:6px;display:block;"></i>No channel activity data</div>';
           return;
         }
         const entries = Object.entries(data).slice(0, 10);
         const max = entries[0] ? entries[0][1] : 1;
         el.innerHTML = entries.map(([ch, count]) => {
           const pct = Math.round((count / max) * 100);
-          return `<div style="margin-bottom:10px;">
-            <div style="display:flex;justify-content:space-between;font-size:0.82rem;margin-bottom:3px;">
-              <span style="color:var(--text-main);">#${ch}</span>
-              <span style="color:var(--text-sub);">${count}</span>
+          return `<div style="margin-bottom:12px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,0.02);">
+            <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.84rem;margin-bottom:5px;">
+              <span style="color:var(--text-main);font-weight:600;"><span style="color:var(--accent-primary);margin-right:2px;">#</span>${ch}</span>
+              <span style="font-size:0.75rem;padding:1px 6px;border-radius:4px;background:rgba(99,102,241,0.12);color:var(--text-main);font-weight:600;font-variant-numeric:tabular-nums;">${count.toLocaleString()} msgs</span>
             </div>
-            <div style="height:6px;background:var(--card-border);border-radius:3px;overflow:hidden;">
-              <div style="height:100%;width:${pct}%;background:#818cf8;border-radius:3px;"></div>
+            <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;">
+              <div class="progress-bar-glow" style="height:100%;width:${pct}%;background:linear-gradient(90deg, #6366f1, #818cf8);border-radius:3px;"></div>
             </div>
           </div>`;
         }).join('');
@@ -3941,18 +3990,27 @@
         const data = await fetchAnalytics('top-users', { days: 7, limit: 10 });
         const el = document.getElementById('top-users-list');
         if (!data || !data.length) {
-          el.innerHTML = '<div class="text-center py-3" style="color:var(--text-sub);">No user data</div>';
+          el.innerHTML = '<div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-users" style="font-size:1.4rem;opacity:0.2;margin-bottom:6px;display:block;"></i>No user activity data</div>';
           return;
         }
-        el.innerHTML = data.map((u, i) => `
-          <div style="display:flex;align-items:center;gap:10px;padding:8px 0;${i < data.length - 1 ? 'border-bottom:1px solid var(--card-border);' : ''}">
-            <span style="font-size:0.78rem;color:var(--text-muted);width:20px;">#${i+1}</span>
-            <div style="flex:1;min-width:0;">
-              <div style="font-size:0.85rem;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${u.username || ('User ' + u.user_id)}</div>
-              <div style="font-size:0.72rem;color:var(--text-sub);">${u.message_count} messages</div>
+        el.innerHTML = data.map((u, i) => {
+          const rankClass = i === 0 ? 'user-rank-1' : (i === 1 ? 'user-rank-2' : (i === 2 ? 'user-rank-3' : ''));
+          const rankBadge = i < 3 
+            ? `<span class="user-rank-badge ${rankClass}"><i class="fa-solid fa-crown" style="font-size:0.65rem;"></i></span>` 
+            : `<span style="font-size:0.75rem;color:var(--text-muted);width:22px;text-align:center;font-weight:600;">#${i+1}</span>`;
+          return `
+            <div style="display:flex;align-items:center;gap:12px;padding:8px 6px;${i < data.length - 1 ? 'border-bottom:1px solid var(--card-border);' : ''}border-radius:6px;transition:background 0.15s ease;" onmouseover="this.style.background='rgba(255,255,255,0.03)'" onmouseout="this.style.background='transparent'">
+              ${rankBadge}
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:0.86rem;font-weight:600;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${u.username || ('User ' + u.user_id)}</div>
+                <div style="font-size:0.72rem;color:var(--text-sub);display:flex;align-items:center;gap:4px;">
+                  <i class="fa-solid fa-comment-dots" style="font-size:0.68rem;color:var(--accent-primary);"></i>
+                  <span style="font-variant-numeric:tabular-nums;">${(u.message_count || 0).toLocaleString()} messages</span>
+                </div>
+              </div>
             </div>
-          </div>
-        `).join('');
+          `;
+        }).join('');
       }
 
       async function loadModChart() {
@@ -3960,19 +4018,29 @@
         const ctx = document.getElementById('chart-mod');
         if (!ctx) return;
         if (!data || !Object.keys(data).length) {
-          ctx.parentElement.innerHTML = '<div class="text-center py-4" style="color:var(--text-sub);">No moderation data</div>';
+          ctx.parentElement.innerHTML = '<div class="text-center py-4" style="color:var(--text-sub);"><i class="fa-solid fa-shield-halved" style="font-size:1.4rem;opacity:0.2;margin-bottom:6px;display:block;"></i>No moderation data</div>';
           return;
         }
-        const labels = Object.keys(data).map(key => {
+
+        // Semantic Severity Palette mapping
+        const severityColors = {
+          'automod_block': '#f59e0b', // Amber (AutoMod)
+          'warning': '#eab308',       // Goldenrod (Warning)
+          'mute': '#8b5cf6',          // Violet (Mute)
+          'kick': '#f97316',          // Orange (Kick)
+          'ban': '#ef4444'            // Crimson (Ban)
+        };
+
+        const keys = Object.keys(data);
+        const labels = keys.map(key => {
           if (key === 'automod_block') return 'AutoMod Block';
-          return key
-            .replace(/_/g, ' ')
-            .replace(/\b\w/g, c => c.toUpperCase());
+          return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
         });
+        const bgColors = keys.map(k => severityColors[k] || '#6366f1');
 
         const isLightTheme = document.body.classList.contains('light-theme');
-        const legendColor = isLightTheme ? '#334155' : '#e2e8f0';
-        const doughnutBorder = isLightTheme ? '#ffffff' : '#111827';
+        const legendColor = isLightTheme ? '#334155' : '#f1f5f9';
+        const doughnutBorder = isLightTheme ? '#ffffff' : '#0f172a';
 
         if (analyticsCharts.mod) analyticsCharts.mod.destroy();
         analyticsCharts.mod = new Chart(ctx, {
@@ -3981,27 +4049,26 @@
             labels: labels,
             datasets: [{
               data: Object.values(data),
-              backgroundColor: ['#f87171', '#fbbf24', '#34d399', '#818cf8', '#a78bfa'],
+              backgroundColor: bgColors,
               borderWidth: 2,
               borderColor: doughnutBorder,
-              borderRadius: 4,
-              hoverOffset: 4
+              borderRadius: 5,
+              hoverOffset: 6
             }]
           },
           options: {
             responsive: true,
             maintainAspectRatio: false,
-            cutout: '70%',
+            cutout: '72%',
             plugins: {
               legend: {
                 position: 'right',
                 labels: {
                   color: legendColor,
-                  padding: 16,
-                  font: {
-                    family: "'Inter', sans-serif",
-                    size: 11
-                  }
+                  padding: 14,
+                  usePointStyle: true,
+                  pointStyle: 'circle',
+                  font: { family: "'Inter', sans-serif", size: 11, weight: '500' }
                 }
               }
             }
@@ -4018,24 +4085,24 @@
         }
         
         const isLightTheme = document.body.classList.contains('light-theme');
-        const posColor = isLightTheme ? '#059669' : '#34d399';
-        const negColor = isLightTheme ? '#dc2626' : '#f87171';
+        const posColor = isLightTheme ? '#059669' : '#10b981';
+        const negColor = isLightTheme ? '#dc2626' : '#ef4444';
         const growthColor = data.net >= 0 ? posColor : negColor;
         const arrow = data.net >= 0 ? '+' : '';
         
         el.innerHTML = `
-          <div style="display:flex;justify-content:center;gap:32px;flex-wrap:wrap;">
-            <div style="text-align:center;">
-              <div style="font-size:2rem;font-weight:700;color:${posColor};">${data.joins}</div>
-              <div style="font-size:0.82rem;color:var(--text-sub);">Joins (30d)</div>
+          <div style="display:flex;justify-content:center;gap:20px;flex-wrap:wrap;">
+            <div class="stat-card glass-inner text-center" style="flex:1;min-width:110px;padding:14px;">
+              <div style="font-size:1.8rem;font-weight:700;color:${posColor};font-family:'Outfit';font-variant-numeric:tabular-nums;">${data.joins}</div>
+              <div style="font-size:0.75rem;color:var(--text-sub);margin-top:2px;"><i class="fa-solid fa-arrow-down-long" style="color:${posColor};margin-right:4px;"></i>Joins (30d)</div>
             </div>
-            <div style="text-align:center;">
-              <div style="font-size:2rem;font-weight:700;color:${negColor};">${data.leaves}</div>
-              <div style="font-size:0.82rem;color:var(--text-sub);">Leaves (30d)</div>
+            <div class="stat-card glass-inner text-center" style="flex:1;min-width:110px;padding:14px;">
+              <div style="font-size:1.8rem;font-weight:700;color:${negColor};font-family:'Outfit';font-variant-numeric:tabular-nums;">${data.leaves}</div>
+              <div style="font-size:0.75rem;color:var(--text-sub);margin-top:2px;"><i class="fa-solid fa-arrow-up-long" style="color:${negColor};margin-right:4px;"></i>Leaves (30d)</div>
             </div>
-            <div style="text-align:center;">
-              <div style="font-size:2rem;font-weight:700;color:${growthColor};">${arrow}${data.net}</div>
-              <div style="font-size:0.82rem;color:var(--text-sub);">Net Growth</div>
+            <div class="stat-card glass-inner text-center" style="flex:1;min-width:110px;padding:14px;border:1px solid rgba(99,102,241,0.25);">
+              <div style="font-size:1.8rem;font-weight:700;color:${growthColor};font-family:'Outfit';font-variant-numeric:tabular-nums;">${arrow}${data.net}</div>
+              <div style="font-size:0.75rem;color:var(--text-sub);margin-top:2px;"><i class="fa-solid fa-chart-line" style="color:${growthColor};margin-right:4px;"></i>Net Growth</div>
             </div>
           </div>
         `;

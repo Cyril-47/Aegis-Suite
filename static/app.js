@@ -8433,14 +8433,15 @@ async function loadChannelHeatmap() {
         const r = Math.round(99 + intensity * 140);
         const g = Math.round(102 - intensity * 30);
         const b = Math.round(241 - intensity * 100);
-        const bg = val > 0 ? `rgba(${r},${g},${b},${0.2 + intensity * 0.8})` : 'rgba(255, 255, 255, 0.02)';
+        const bg = val > 0 ? `rgba(${r},${g},${b},${0.25 + intensity * 0.75})` : 'rgba(255, 255, 255, 0.02)';
         const borderStyle = val > 0 ? 'none' : '1px solid rgba(255, 255, 255, 0.04)';
-        html += `<div style="flex:1 1 0px;height:22px;background:${bg};border:${borderStyle};border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:0.65rem;color:${intensity > 0.5 ? '#fff' : 'var(--text-sub)'};" title="${days[d]} ${formatHour12(h)} — ${val} messages">${val || ''}</div>`;
+        const glowStyle = intensity > 0.8 ? 'box-shadow: 0 0 8px rgba(99, 102, 241, 0.4);' : '';
+        html += `<div class="heatmap-cell" style="flex:1 1 0px;height:22px;background:${bg};border:${borderStyle};border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:0.65rem;color:${intensity > 0.5 ? '#fff' : 'var(--text-sub)'};font-weight:${intensity > 0.5 ? '600' : '400'};${glowStyle}" title="${days[d]} ${formatHour12(h)} — ${val} messages">${val || ''}</div>`;
       }
       html += '</div>';
     }
     el.innerHTML = html;
-  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);">Failed to load heatmap.</div>'; }
+  } catch (err) { el.innerHTML = '<div class="text-center py-4" style="color:var(--danger);"><i class="fa-solid fa-triangle-exclamation" style="margin-right:6px;"></i>Failed to load heatmap.</div>'; }
 }
 
 // ==========================================================================
@@ -11117,6 +11118,14 @@ async function loadIntelActivity() {
 
     if (msgCtx) {
       if (messagesCenterChart) messagesCenterChart.destroy();
+      const msgCanvasCtx = msgCtx.getContext ? msgCtx.getContext('2d') : null;
+      let msgBg = 'rgba(99, 102, 241, 0.4)';
+      if (msgCanvasCtx) {
+        const g = msgCanvasCtx.createLinearGradient(0, 0, 0, 240);
+        g.addColorStop(0, 'rgba(99, 102, 241, 0.65)');
+        g.addColorStop(1, 'rgba(99, 102, 241, 0.08)');
+        msgBg = g;
+      }
       messagesCenterChart = new Chart(msgCtx, {
         type: 'bar',
         data: {
@@ -11124,9 +11133,10 @@ async function loadIntelActivity() {
           datasets: [{
             label: 'Messages',
             data: data.map(d => d.total_messages),
-            backgroundColor: 'rgba(99, 102, 241, 0.4)',
-            borderColor: '#818cf8',
-            borderWidth: 1
+            backgroundColor: msgBg,
+            borderColor: '#6366f1',
+            borderWidth: 1.5,
+            borderRadius: 6
           }]
         },
         options: {
@@ -11142,6 +11152,14 @@ async function loadIntelActivity() {
 
     if (modCtx) {
       if (modCenterChart) modCenterChart.destroy();
+      const modCanvasCtx = modCtx.getContext ? modCtx.getContext('2d') : null;
+      let modBg = 'rgba(239, 68, 68, 0.1)';
+      if (modCanvasCtx) {
+        const gm = modCanvasCtx.createLinearGradient(0, 0, 0, 240);
+        gm.addColorStop(0, 'rgba(239, 68, 68, 0.35)');
+        gm.addColorStop(1, 'rgba(239, 68, 68, 0)');
+        modBg = gm;
+      }
       modCenterChart = new Chart(modCtx, {
         type: 'line',
         data: {
@@ -11149,10 +11167,15 @@ async function loadIntelActivity() {
           datasets: [{
             label: 'Mod Actions',
             data: data.map(d => d.mod_actions),
-            borderColor: '#f87171',
-            tension: 0.4,
-            fill: false,
-            pointRadius: 2
+            borderColor: '#ef4444',
+            borderWidth: 2,
+            backgroundColor: modBg,
+            tension: 0.35,
+            fill: true,
+            pointRadius: 3,
+            pointBackgroundColor: '#ef4444',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 1.5
           }]
         },
         options: {
