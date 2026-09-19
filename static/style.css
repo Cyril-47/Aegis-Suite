@@ -2,28 +2,28 @@
    Base & Root Variables
    ========================================================================== */
 :root {
-  /* Discord Dashboard Dark Mode */
-  --bg-primary: #313338;
-  --bg-secondary: #2b2d31;
-  --card-bg: rgba(43, 45, 49, 0.85);
-  --card-border: rgba(255, 255, 255, 0.06);
-  --inner-bg: rgba(30, 31, 34, 0.9);
+  /* Obsidian Cyber-Glassmorphism Dark Mode (UI/UX Pro Max) */
+  --bg-primary: #090d16;
+  --bg-secondary: #101626;
+  --card-bg: rgba(17, 24, 39, 0.75);
+  --card-border: rgba(255, 255, 255, 0.08);
+  --inner-bg: rgba(15, 23, 42, 0.65);
   
-  --text-main: #f2f3f5;
-  --text-sub: #b5bac1;
-  --text-muted: #949ba4;
+  --text-main: #f8fafc;
+  --text-sub: #94a3b8;
+  --text-muted: #64748b;
   
-  --primary: #5865f2;
-  --primary-glow: rgba(88, 101, 242, 0.4);
-  --discord-purple: #5865F2;
+  --primary: #6366f1;
+  --primary-glow: rgba(99, 102, 241, 0.4);
+  --discord-purple: #6366f1;
   
-  --success: #23a559;
-  --success-glow: rgba(88, 101, 242, 0.3);
-  --warning: #f0b232;
-  --warning-glow: rgba(240, 178, 50, 0.3);
-  --danger: #da373c;
-  --danger-glow: rgba(218, 55, 60, 0.3);
-  --pink: #eb459e;
+  --success: #10b981;
+  --success-glow: rgba(16, 185, 129, 0.3);
+  --warning: #f59e0b;
+  --warning-glow: rgba(245, 158, 11, 0.3);
+  --danger: #ef4444;
+  --danger-glow: rgba(239, 68, 68, 0.3);
+  --pink: #ec4899;
   
   --sidebar-width: 270px;
   --header-height: 80px;
@@ -226,30 +226,86 @@ a:hover {
 .font-weight-500 { font-weight: 500; }
 
 /* ==========================================================================
-   Background Aurora Glows
+   Background Aurora Glows & Motion
    ========================================================================== */
 .glow-aurora {
   position: fixed;
   width: 55vw;
   height: 55vw;
   border-radius: 50%;
-  filter: blur(160px);
+  filter: blur(140px);
   z-index: -1;
   pointer-events: none;
-  opacity: 0.2;
+  opacity: 0.32;
   transition: all 1s ease;
 }
 
 .glow-indigo {
   top: -10%;
   left: -10%;
-  background: radial-gradient(circle, rgba(88, 101, 242, 0.5) 0%, rgba(88, 101, 242, 0) 70%);
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.55) 0%, rgba(99, 102, 241, 0) 70%);
+  animation: float-aurora-1 20s ease-in-out infinite alternate;
 }
 
 .glow-emerald {
   bottom: -15%;
   right: -10%;
-  background: radial-gradient(circle, rgba(88, 101, 242, 0.4) 0%, rgba(88, 101, 242, 0) 70%);
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.45) 0%, rgba(16, 185, 129, 0) 70%);
+  animation: float-aurora-2 24s ease-in-out infinite alternate;
+}
+
+@keyframes float-aurora-1 {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(60px, 35px) scale(1.12); }
+  100% { transform: translate(-30px, 50px) scale(0.96); }
+}
+
+@keyframes float-aurora-2 {
+  0% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-50px, -30px) scale(1.15); }
+  100% { transform: translate(40px, -45px) scale(0.92); }
+}
+
+/* UI/UX Pro Max Card Stagger & Motion */
+@keyframes cardEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.card {
+  animation: cardEntrance 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.grid-layout > .card:nth-child(1) { animation-delay: 0.04s; }
+.grid-layout > .card:nth-child(2) { animation-delay: 0.09s; }
+.grid-layout > .card:nth-child(3) { animation-delay: 0.14s; }
+.grid-layout > .card:nth-child(4) { animation-delay: 0.19s; }
+.grid-layout > .card:nth-child(5) { animation-delay: 0.24s; }
+
+.card.glass {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.25s ease,
+              box-shadow 0.25s ease;
+}
+
+.card.glass:hover {
+  border-color: rgba(99, 102, 241, 0.32);
+  box-shadow: 0 12px 36px -8px rgba(0, 0, 0, 0.5), 0 0 20px -4px rgba(99, 102, 241, 0.25);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glow-aurora,
+  .card,
+  .stat-card {
+    animation: none !important;
+    transition: none !important;
+  }
 }
 
 /* ==========================================================================
@@ -1424,6 +1480,23 @@ body.light-theme .sidebar-action-btn:focus-visible {
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
               border-color 0.2s ease,
               box-shadow 0.2s ease;
+}
+
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.8), transparent);
+  opacity: 0.5;
+  transition: opacity 0.3s ease, height 0.3s ease;
+}
+
+.stat-card:hover::before {
+  opacity: 1;
+  height: 3px;
 }
 
 .stat-card:hover {
