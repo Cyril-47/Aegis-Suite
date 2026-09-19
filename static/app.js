@@ -4007,6 +4007,31 @@ function setupEventListeners() {
     });
   }
 
+  // Reset Password Prompt Handler (Local desktop operator)
+  const btnResetPass = document.getElementById('btn-reset-password-prompt');
+  if (btnResetPass) {
+    btnResetPass.addEventListener('click', async () => {
+      if (!confirm('Are you sure you want to reset the administrator password? This will allow you to set a new password immediately.')) {
+        return;
+      }
+      try {
+        const res = await fetch('/api/auth/reset', { method: 'POST' });
+        if (res.ok) {
+          showToast('Admin password reset. Please enter your new password.', 'success');
+          document.getElementById('auth-login-overlay').classList.add('hidden');
+          document.getElementById('auth-setup-overlay').classList.remove('hidden');
+          const pInput = document.getElementById('setup-password');
+          if (pInput) pInput.focus();
+        } else {
+          const err = await res.json();
+          showToast(err.detail || 'Failed to reset password.', 'error');
+        }
+      } catch (e) {
+        showToast('Network error resetting password.', 'error');
+      }
+    });
+  }
+
   // Theme Toggle (Dark → Light Glass → Liquid Glass)
   const btnThemeToggle = document.getElementById('btn-theme-toggle');
   if (btnThemeToggle) {

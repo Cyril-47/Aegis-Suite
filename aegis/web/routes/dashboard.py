@@ -346,6 +346,16 @@ async def setup_auth(request: SetupRequest):
         with open(env_path, "w", encoding="utf-8") as f:
             for k, v in env_data.items():
                 f.write(f"{k}={v}\n")
+        # Keep DPAPI-encrypted .env.enc in sync on Windows desktop deployments
+        try:
+            from pathlib import Path
+            from aegis.core.secret_store import is_dpapi_available, encrypt_env_file
+            enc_path = utils.get_writeable_path(".env.enc")
+            if is_dpapi_available():
+                encrypt_env_file(Path(env_path), Path(enc_path))
+                logger.info("Synchronized admin password hash into .env.enc")
+        except Exception as enc_err:
+            logger.warning(f"Could not re-encrypt .env.enc: {enc_err}")
     except Exception as e:
         logger.error(f"Failed to write admin password hash to .env: {e}")
         raise HTTPException(status_code=500, detail="Failed to save credentials to environment.")
@@ -354,13 +364,52 @@ async def setup_auth(request: SetupRequest):
     audit_log.log_action("system", "BOT_CONTROL", "Admin password configured")
     return {"status": "success", "token": token}
 
+@router.post("/api/auth/reset")
+async def reset_auth(request: Request):
+    """Allows local operator (127.0.0.1) to reset admin credentials when locked out."""
+    client_ip = request.client.host if request.client else "unknown"
+    if client_ip not in ("127.0.0.1", "::1", "localhost", "testclient"):
+        raise HTTPException(status_code=403, detail="Password reset is only permitted from the local machine.")
+        
+    env_path = utils.get_writeable_path(".env")
+    enc_path = utils.get_writeable_path(".env.enc")
+    
+    os.environ.pop("ADMIN_PASSWORD_HASH", None)
+    
+    if os.path.exists(env_path):
+        try:
+            lines = []
+            with open(env_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if not line.strip().startswith("ADMIN_PASSWORD_HASH="):
+                        lines.append(line)
+            with open(env_path, "w", encoding="utf-8") as f:
+                f.writelines(lines)
+        except Exception as e:
+            logger.error(f"Failed to update .env during reset: {e}")
+            
+    try:
+        from pathlib import Path
+        from aegis.core.secret_store import is_dpapi_available, encrypt_env_file
+        if is_dpapi_available() and os.path.exists(env_path):
+            encrypt_env_file(Path(env_path), Path(enc_path))
+            logger.info("Re-encrypted .env.enc without ADMIN_PASSWORD_HASH")
+    except Exception as e:
+        logger.warning(f"Could not re-encrypt .env.enc during reset: {e}")
+        
+    with limiter_lock:
+        login_attempts.clear()
+        
+    audit_log.log_action("system", "BOT_CONTROL", "Admin password reset from localhost")
+    return {"status": "success", "message": "Admin password cleared. Please set up a new password."}
+
 @router.post("/api/auth/login")
 async def login_auth(request: Request, login_data: LoginRequest):
     hashed = os.environ.get("ADMIN_PASSWORD_HASH")
     
     ip = request.client.host if request.client else "unknown"
     if not check_login_rate_limit(ip):
-        raise HTTPException(status_code=429, detail="Too many login attempts. Please try again in 15 minutes.")
+        raise HTTPException(status_code=429, detail="Too many failed attempts. Rate limited for 15 minutes. Click 'Reset Password' below to reset.")
         
     input_code = login_data.password.upper().strip()
     
