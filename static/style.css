@@ -181,6 +181,65 @@ body.liquid-glass-theme {
   --glass-backdrop: blur(18px) saturate(190%);
 }
 
+body.synthwave-theme {
+  /* Neon Synthwave HUD Tokens (UI/UX Pro Max) */
+  --bg-primary: #0b0813;
+  --bg-secondary: #130b24;
+  --bg-tertiary: #1d1035;
+  --card-bg: rgba(19, 11, 36, 0.75);
+  --card-border: rgba(236, 72, 153, 0.28);
+  --inner-bg: rgba(12, 8, 24, 0.70);
+  
+  --text-main: #fdf4ff;
+  --text-sub: #c084fc;
+  --text-muted: #865d9c;
+  
+  --primary: #f43f5e;
+  --primary-hover: #e11d48;
+  --primary-glow: rgba(244, 63, 94, 0.45);
+  --discord-purple: #a855f7;
+  
+  --success: #10b981;
+  --success-glow: rgba(16, 185, 129, 0.35);
+  --warning: #fbbf24;
+  --warning-glow: rgba(251, 191, 36, 0.35);
+  --danger: #ff0055;
+  --danger-glow: rgba(255, 0, 85, 0.4);
+  --pink: #ff007f;
+
+  --input-bg: rgba(15, 9, 28, 0.9);
+  --input-border: rgba(236, 72, 153, 0.3);
+  --input-option-bg: #150d26;
+  --input-option-color: #fdf4ff;
+  --input-focus-bg: rgba(20, 12, 38, 1);
+  
+  --nav-active-color: #ff007f;
+  --nav-active-bg: rgba(244, 63, 94, 0.15);
+  --nav-active-border: rgba(244, 63, 94, 0.5);
+  
+  --btn-secondary-bg: rgba(236, 72, 153, 0.08);
+  --btn-secondary-border: rgba(236, 72, 153, 0.28);
+  --btn-secondary-hover-bg: rgba(236, 72, 153, 0.18);
+  --btn-secondary-hover-border: rgba(236, 72, 153, 0.5);
+  
+  --rating-none-bg: #150d26;
+  --rating-none-border: rgba(236, 72, 153, 0.15);
+
+  /* Synthwave Analytics Tokens */
+  --analytics-bg-canvas: #0b0813;
+  --analytics-surface-card: rgba(19, 11, 36, 0.75);
+  --analytics-surface-card-hover: rgba(28, 16, 52, 0.88);
+  --analytics-surface-border: rgba(236, 72, 153, 0.28);
+  --analytics-surface-border-hover: rgba(236, 72, 153, 0.6);
+  --accent-primary: #f43f5e;
+  --accent-primary-glow: rgba(244, 63, 94, 0.45);
+  --accent-success: #10b981;
+  --accent-warning: #fbbf24;
+  --accent-danger: #ff0055;
+  --accent-cyan: #06b6d4;
+  --glass-backdrop: blur(18px) saturate(190%);
+}
+
 * {
   box-sizing: border-box;
   margin: 0;
@@ -227,6 +286,14 @@ body {
 
 body.light-theme {
   background: linear-gradient(135deg, #f0f2f5 0%, #e8eaed 50%, #dde0e4 100%) !important;
+}
+
+body.synthwave-theme {
+  background-color: #0b0813 !important;
+  background-image:
+    radial-gradient(ellipse at 15% 15%, rgba(244, 63, 94, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 85%, rgba(168, 85, 247, 0.10) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(6, 182, 212, 0.05) 0%, transparent 70%) !important;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -3312,40 +3379,51 @@ span.hosting-mode-badge:focus-visible {
    Smart Features Module Navigation Cards
    ============================================================ */
 .smart-mod-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 6px;
+  backdrop-filter: var(--glass-backdrop);
+  margin-bottom: 16px;
 }
 
 .smart-mod-card {
-  background: var(--inner-bg);
-  border: 1px solid var(--card-border);
-  border-radius: 12px;
-  padding: 12px 14px;
+  flex: 1 1 auto;
+  min-width: 110px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 8px 14px;
   cursor: pointer;
   transition: all 0.18s ease;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   position: relative;
   user-select: none;
 }
 
 .smart-mod-card:hover {
-  border-color: rgba(88, 101, 242, 0.3);
-  background: var(--card-bg);
+  border-color: var(--card-border);
+  background: var(--inner-bg);
 }
 
 .smart-mod-card.active {
   background: var(--nav-active-bg);
   border-color: var(--nav-active-border);
-  border-top: 2px solid var(--primary);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
 }
 
 .smart-mod-card i {
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   color: var(--text-sub);
-  margin-bottom: 2px;
+  margin-bottom: 0;
   transition: color 0.18s;
 }
 
@@ -3354,10 +3432,11 @@ span.hosting-mode-badge:focus-visible {
 }
 
 .smart-mod-name {
-  font-size: 0.83rem;
+  font-size: 0.82rem;
   font-weight: 600;
   color: var(--text-main);
-  line-height: 1.2;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .smart-mod-card.active .smart-mod-name {
@@ -3365,27 +3444,18 @@ span.hosting-mode-badge:focus-visible {
 }
 
 .smart-mod-desc {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  line-height: 1.3;
+  display: none; /* De-congest into horizontal pill bar */
 }
 
 .smart-mod-live-dot {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 7px;
-  height: 7px;
+  top: 8px;
+  right: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--success);
-  box-shadow: 0 0 0 2px rgba(16,185,129,0.2);
-}
-
-/* Responsive: 4 → 2 columns on mobile */
-@media (max-width: 768px) {
-  .smart-mod-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
 }
 
 /* ==========================================================================
@@ -4845,4 +4915,147 @@ body.light-theme .dim-pill-track {
 .radio-card.active {
   border-color: var(--primary) !important;
   box-shadow: 0 0 16px var(--primary-glow) !important;
+}
+
+/* ==========================================================================
+   UI/UX Pro Max Suite Enhancements: Telemetry, Specular Glint & Motion
+   ========================================================================== */
+
+/* 1. Live Telemetry Pulse Pill */
+.telemetry-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  border: 1px solid var(--card-border);
+  background: var(--inner-bg);
+  backdrop-filter: var(--glass-backdrop);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  user-select: none;
+}
+.telemetry-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-main);
+  font-family: 'Outfit', sans-serif;
+  text-transform: uppercase;
+}
+.pulse-dot {
+  position: relative;
+  display: inline-flex;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+}
+.pulse-ring {
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1.5px solid var(--success);
+  animation: radarPing 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  opacity: 0.8;
+}
+@keyframes radarPing {
+  0% { transform: scale(0.6); opacity: 0.9; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+/* 2. Specular Glint Top-Border */
+.card.glass, .bento-stat-chip {
+  position: relative;
+}
+.card.glass::before, .bento-stat-chip::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 15%;
+  right: 15%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+  pointer-events: none;
+  border-radius: 2px;
+  z-index: 1;
+}
+body.liquid-glass-theme .card.glass::before,
+body.liquid-glass-theme .bento-stat-chip::before {
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.45), transparent);
+}
+body.synthwave-theme .card.glass::before,
+body.synthwave-theme .bento-stat-chip::before {
+  background: linear-gradient(90deg, transparent, rgba(244, 63, 94, 0.5), transparent);
+}
+body.light-theme .card.glass::before,
+body.light-theme .bento-stat-chip::before {
+  background: linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.3), transparent);
+}
+
+/* 3. Tabular Numerals (Anti-Jitter for Real-Time Stats) */
+.stat-value, .stat-number, .bento-stat-chip .stat-value, .score-circle-number, [font-variant-numeric] {
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: "tnum" 1 !important;
+}
+
+/* 4. Resilient CC Win Tile Spacing (Prevents Text Truncation / Collisions) */
+.cc-win-tile {
+  padding: 14px !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 110px;
+}
+.cc-win-tile .stat-card-header {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 8px !important;
+  margin-bottom: 6px !important;
+  min-width: 0;
+}
+.cc-win-tile .stat-card-header h3 {
+  font-size: 0.82rem !important;
+  margin: 0 !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.cc-win-tile .stat-badge {
+  flex-shrink: 0 !important;
+  font-size: 0.68rem !important;
+  padding: 2px 8px !important;
+  white-space: nowrap !important;
+}
+
+/* 5. Staggered Bento Entrances (UI/UX Pro Max Motion) */
+@keyframes bentoStaggerIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.tab-pane.active .grid-layout > .card:nth-child(1) { animation: bentoStaggerIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) 0.02s both; }
+.tab-pane.active .grid-layout > .card:nth-child(2) { animation: bentoStaggerIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both; }
+.tab-pane.active .grid-layout > .card:nth-child(3) { animation: bentoStaggerIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) 0.08s both; }
+.tab-pane.active .grid-layout > .card:nth-child(4) { animation: bentoStaggerIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) 0.11s both; }
+.tab-pane.active .grid-layout > .card:nth-child(5) { animation: bentoStaggerIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) 0.14s both; }
+.tab-pane.active .grid-layout > .card:nth-child(6) { animation: bentoStaggerIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) 0.17s both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-pane.active .grid-layout > .card {
+    animation: none !important;
+  }
 }

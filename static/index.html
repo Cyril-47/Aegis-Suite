@@ -13,8 +13,8 @@
   <!-- Google Fonts: Outfit & Inter (local for offline support) -->
   <link rel="stylesheet" href="/static/css/google-fonts.css">
   <!-- Style Sheet -->
-  <link rel="stylesheet" href="/static/style.css?v=2.2.0">
-  <link rel="stylesheet" href="/static/responsive.css?v=2.2.0">
+  <link rel="stylesheet" href="/static/style.css?v=2.3.0">
+  <link rel="stylesheet" href="/static/responsive.css?v=2.3.0">
   <!-- FontAwesome Icons (local for offline support) -->
   <link rel="stylesheet" href="/static/css/all.min.css">
   <!-- Preload critical assets -->
@@ -377,6 +377,14 @@
         </div>
 
         <div class="header-right">
+          <!-- Live Telemetry Pulse Pill (UI/UX Pro Max) -->
+          <div class="telemetry-pill glass-inner" id="header-telemetry-pill" title="Aegis Operations Status">
+            <span class="pulse-dot">
+              <span class="pulse-ring"></span>
+            </span>
+            <span class="telemetry-label">SYSTEM ONLINE</span>
+          </div>
+
           <!-- Server Selector -->
           <div class="server-selector-wrapper">
             <label for="server-select">Target Server:</label>
@@ -468,7 +476,6 @@
             <div class="card glass span-4">
               <div class="card-header border-bottom flex-header">
                 <h2><i class="fa-solid fa-chart-line text-primary"></i> Dashboard Activity</h2>
-                <span class="stat-badge badge-live">Live Stream Active</span>
               </div>
               <div class="card-body grid-4-col">
                 <div class="stat-card glass-inner">
@@ -4165,6 +4172,6 @@
       document.getElementById('analytics-msg-days')?.addEventListener('change', loadMessageChart);
     })();
   </script>
-  <script src="/static/app.js?v=2.2.0" defer></script>
+  <script src="/static/app.js?v=2.3.0" defer></script>
 </body>
 </html>

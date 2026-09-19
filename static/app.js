@@ -1416,18 +1416,31 @@ async function loadHealthTimeline() {
     
     const isChartLight = document.body.classList.contains('light-theme');
     const isLiquid = document.body.classList.contains('liquid-glass-theme');
-    const gridColor = isChartLight ? 'rgba(0,0,0,0.06)' : isLiquid ? 'rgba(56,189,248,0.08)' : 'rgba(255,255,255,0.05)';
-    const tickColor = isChartLight ? '#64748b' : isLiquid ? '#7dd3fc' : '#94a3b8';
+    const isSynthwave = document.body.classList.contains('synthwave-theme');
+    const gridColor = isChartLight ? 'rgba(0,0,0,0.06)' : isLiquid ? 'rgba(56,189,248,0.08)' : isSynthwave ? 'rgba(236,72,153,0.1)' : 'rgba(255,255,255,0.05)';
+    const tickColor = isChartLight ? '#64748b' : isLiquid ? '#7dd3fc' : isSynthwave ? '#c084fc' : '#94a3b8';
     
-    const signature = JSON.stringify({ data, isChartLight, isLiquid });
+    const signature = JSON.stringify({ data, isChartLight, isLiquid, isSynthwave });
     if (ctx.dataset.signature === signature && healthTimelineChart) return;
     ctx.dataset.signature = signature;
+
+    const messagesColor = isSynthwave ? '#f43f5e' : isLiquid ? '#06b6d4' : '#818cf8';
+    const usersColor = isSynthwave ? '#a855f7' : '#34d399';
+    const modColor = isSynthwave ? '#fbbf24' : '#f87171';
 
     if (healthTimelineChart) {
       healthTimelineChart.data.labels = data.map(d => d.date);
       healthTimelineChart.data.datasets[0].data = data.map(d => d.total_messages);
+      healthTimelineChart.data.datasets[0].borderColor = messagesColor;
       healthTimelineChart.data.datasets[1].data = data.map(d => d.unique_active_users);
+      healthTimelineChart.data.datasets[1].borderColor = usersColor;
       healthTimelineChart.data.datasets[2].data = data.map(d => d.mod_actions);
+      healthTimelineChart.data.datasets[2].borderColor = modColor;
+      healthTimelineChart.options.plugins.legend.labels.color = tickColor;
+      healthTimelineChart.options.scales.x.ticks.color = tickColor;
+      healthTimelineChart.options.scales.x.grid.color = gridColor;
+      healthTimelineChart.options.scales.y.ticks.color = tickColor;
+      healthTimelineChart.options.scales.y.grid.color = gridColor;
       healthTimelineChart.update('none');
       return;
     }
@@ -4042,21 +4055,24 @@ function setupEventListeners() {
     });
   }
 
-  // Theme Toggle (Dark → Light Glass → Liquid Glass)
+  // Theme Toggle (Dark Obsidian → Light Quartz → Liquid Glass → Neon Synthwave)
   const btnThemeToggle = document.getElementById('btn-theme-toggle');
   if (btnThemeToggle) {
     const savedTheme = localStorage.getItem('aegis_theme') || 'dark';
     
     function applyThemeUI(theme) {
-      document.body.classList.remove('light-theme', 'liquid-glass-theme', 'light-glass');
+      document.body.classList.remove('light-theme', 'liquid-glass-theme', 'synthwave-theme', 'light-glass');
       if (theme === 'light') {
         document.body.classList.add('light-theme');
-        btnThemeToggle.innerHTML = '<i class="fa-solid fa-sun"></i> Light';
+        btnThemeToggle.innerHTML = '<i class="fa-solid fa-sun"></i> Light Quartz';
       } else if (theme === 'liquid-glass') {
         document.body.classList.add('liquid-glass-theme');
         btnThemeToggle.innerHTML = '<i class="fa-solid fa-droplet"></i> Liquid Glass';
+      } else if (theme === 'synthwave') {
+        document.body.classList.add('synthwave-theme');
+        btnThemeToggle.innerHTML = '<i class="fa-solid fa-bolt"></i> Neon Synthwave';
       } else {
-        btnThemeToggle.innerHTML = '<i class="fa-solid fa-moon"></i> Dark';
+        btnThemeToggle.innerHTML = '<i class="fa-solid fa-moon"></i> Dark Obsidian';
       }
     }
 
@@ -4064,8 +4080,10 @@ function setupEventListeners() {
 
     btnThemeToggle.addEventListener('click', () => {
       let nextTheme = 'dark';
-      if (document.body.classList.contains('liquid-glass-theme')) {
+      if (document.body.classList.contains('synthwave-theme')) {
         nextTheme = 'dark';
+      } else if (document.body.classList.contains('liquid-glass-theme')) {
+        nextTheme = 'synthwave';
       } else if (document.body.classList.contains('light-theme')) {
         nextTheme = 'liquid-glass';
       } else {
@@ -9806,10 +9824,13 @@ async function loadTicketSetupStats() {
   const closedEl = document.getElementById('ticket-stat-closed');
   const avgEl = document.getElementById('ticket-stat-avg');
   
-  if (totalEl) totalEl.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin spinner" style="font-size: 1rem;"></i>';
-  if (openEl) openEl.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin spinner" style="font-size: 1rem;"></i>';
-  if (closedEl) closedEl.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin spinner" style="font-size: 1rem;"></i>';
-  if (avgEl) avgEl.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin spinner" style="font-size: 1rem;"></i>';
+  const needsLoading = !totalEl || totalEl.textContent.trim() === '' || totalEl.textContent.trim() === '--' || totalEl.querySelector('.spinner');
+  if (needsLoading) {
+    if (totalEl) totalEl.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin spinner" style="font-size: 1rem;"></i>';
+    if (openEl) openEl.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin spinner" style="font-size: 1rem;"></i>';
+    if (closedEl) closedEl.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin spinner" style="font-size: 1rem;"></i>';
+    if (avgEl) avgEl.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin spinner" style="font-size: 1rem;"></i>';
+  }
   
   try {
     const [ticketRes, slaRes] = await Promise.all([
@@ -10603,9 +10624,12 @@ async function loadSmartCommandCenter(force = false) {
   if (ccLoading) ccLoading.classList.add('hidden');
   if (ccContent) ccContent.classList.remove('hidden');
 
-  if (healthContent) healthContent.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Analyzing server...</div>';
-  if (fixQueueContent) fixQueueContent.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Building fix queue...</div>';
-  if (winsContent) winsContent.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading wins...</div>';
+  const isInitialLoad = !healthContent || !healthContent.children.length || healthContent.querySelector('.skeleton-card');
+  if (isInitialLoad || force) {
+    if (healthContent) healthContent.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Analyzing server...</div>';
+    if (fixQueueContent) fixQueueContent.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Building fix queue...</div>';
+    if (winsContent) winsContent.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading wins...</div>';
+  }
 
   if (force) {
     window.aegisCache.invalidate();
@@ -10794,14 +10818,14 @@ async function loadSmartCommandCenter(force = false) {
     const fixesApplied = liveActivity.filter(a => a.type === 'Fix').length;
 
     winsContent.innerHTML = `
-      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:12px;height:100%;align-content:center;">
+      <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:14px;height:100%;align-content:center;">
         <div class="stat-card glass-inner cc-win-tile">
           <i class="fa-solid fa-shield-halved stat-card-icon-bg"></i>
           <div class="stat-card-header">
             <h3><i class="fa-solid fa-shield-halved text-success"></i> Safeguards</h3>
             <span class="stat-badge badge-live">Active</span>
           </div>
-          <div class="stat-value" style="font-size:1.8rem;">${activeRulesCount}</div>
+          <div class="stat-value" style="font-size:1.65rem;">${activeRulesCount}</div>
           <div class="stat-sub"><i class="fa-solid fa-lock text-success"></i> Active security rules</div>
         </div>
         <div class="stat-card glass-inner cc-win-tile">
@@ -10810,7 +10834,7 @@ async function loadSmartCommandCenter(force = false) {
             <h3><i class="fa-solid fa-bolt text-primary"></i> Auto-Fixes</h3>
             <span class="stat-badge badge-trend">Live</span>
           </div>
-          <div class="stat-value text-primary" style="font-size:1.8rem;">${fixesApplied}</div>
+          <div class="stat-value text-primary" style="font-size:1.65rem;">${fixesApplied}</div>
           <div class="stat-sub"><i class="fa-solid fa-check-double text-primary"></i> Issues resolved</div>
         </div>
         <div class="stat-card glass-inner cc-win-tile">
@@ -10819,7 +10843,7 @@ async function loadSmartCommandCenter(force = false) {
             <h3><i class="fa-solid fa-database text-cyan"></i> Snapshots</h3>
             <span class="stat-badge badge-trend">Saved</span>
           </div>
-          <div class="stat-value" style="font-size:1.8rem;">${backupsCount}</div>
+          <div class="stat-value" style="font-size:1.65rem;">${backupsCount}</div>
           <div class="stat-sub"><i class="fa-solid fa-clock-rotate-left text-cyan"></i> Restorable points</div>
         </div>
         <div class="stat-card glass-inner cc-win-tile">
@@ -10828,7 +10852,7 @@ async function loadSmartCommandCenter(force = false) {
             <h3><i class="fa-solid fa-circle-check text-success"></i> Protection</h3>
             <span class="stat-badge badge-live">100%</span>
           </div>
-          <div class="stat-value text-success" style="font-size:1.8rem;">Active</div>
+          <div class="stat-value text-success" style="font-size:1.65rem;">Active</div>
           <div class="stat-sub"><i class="fa-solid fa-shield-heart text-success"></i> 24/7 Defense layer</div>
         </div>
       </div>
@@ -11856,9 +11880,9 @@ async function loadHistoryProgress() {
   const snapshotsEl = document.getElementById('history-config-snapshots');
   const timelineEl = document.getElementById('timeline-content');
 
-  if (maturityEl) maturityEl.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading maturity score...</div>';
-  if (snapshotsEl) snapshotsEl.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading snapshots...</div>';
-  if (timelineEl) timelineEl.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading incident timeline...</div>';
+  if (maturityEl && !maturityEl.children.length) maturityEl.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading maturity score...</div>';
+  if (snapshotsEl && !snapshotsEl.children.length) snapshotsEl.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading snapshots...</div>';
+  if (timelineEl && !timelineEl.children.length) timelineEl.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading incident timeline...</div>';
 
   // Load all three in parallel
   const [maturityResult, snapshotsResult, timelineResult] = await Promise.allSettled([
