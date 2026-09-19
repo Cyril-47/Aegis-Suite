@@ -157,7 +157,6 @@ def main():
         "--hidden-import", "aegis.db.analytics_models",
         "--hidden-import", "aegis.web.routes.smart_features",
         "--hidden-import", "aegis.web.routes.intelligence_engine",
-        "--hidden-import", "aegis.web.routes.slowmode",
         "--hidden-import", "aegis.web.routes.security",
         "--hidden-import", "aegis.web.routes.command_center",
         "--hidden-import", "aegis.web.routes.incidents",

@@ -13,8 +13,8 @@
   <!-- Google Fonts: Outfit & Inter (local for offline support) -->
   <link rel="stylesheet" href="/static/css/google-fonts.css">
   <!-- Style Sheet -->
-  <link rel="stylesheet" href="/static/style.css?v=2.7.1">
-  <link rel="stylesheet" href="/static/responsive.css?v=2.7.1">
+  <link rel="stylesheet" href="/static/style.css?v=2.7.2">
+  <link rel="stylesheet" href="/static/responsive.css?v=2.7.2">
   <!-- FontAwesome Icons (local for offline support) -->
   <link rel="stylesheet" href="/static/css/all.min.css">
   <!-- Preload critical assets -->
@@ -1089,13 +1089,13 @@
                 </div>
               </div>
 
-              <!-- Command Center Activity Feed (UI/UX Pro Max Balanced Scroll) -->
-              <div class="card glass span-2 cc-scrollable-card" style="border-top: 3px solid var(--warning);">
+              <!-- Command Center Activity Feed (UI/UX Pro Max Balanced Layout) -->
+              <div class="card glass span-2 cc-triage-card" style="border-top: 3px solid var(--warning);">
                 <div class="card-header border-bottom">
                   <h2><i class="fa-solid fa-list-check"></i> Command Center Activity Feed</h2>
                   <p>Real-time log of security fixes, automations, and rollbacks</p>
                 </div>
-                <div class="card-body p-0 cc-scrollable-body" id="cc-activity-feed-container">
+                <div class="card-body p-0 cc-activity-feed-body" id="cc-activity-feed-container">
                   <div id="cc-activity-feed-list" class="checklist-list">
                     <div class="text-center py-4" style="color: var(--text-sub);">No actions recorded in this session.</div>
                   </div>
@@ -1106,12 +1106,12 @@
                 </div>
               </div>
 
-              <!-- Priority Action Center (Fix Queue - UI/UX Pro Max Balanced Scroll) -->
-              <div class="card glass span-2 cc-scrollable-card" style="border-top: 3px solid var(--danger);">
+              <!-- Priority Action Center (Fix Queue - Triage Cockpit Pattern) -->
+              <div class="card glass span-2 cc-triage-card" style="border-top: 3px solid var(--danger);">
                 <div class="card-header border-bottom flex-header" style="flex-wrap: wrap; gap: 8px;">
                   <div>
                     <h2><i class="fa-solid fa-circle-exclamation"></i> Priority Action Center</h2>
-                    <p>Issues sorted by severity, projected health gain, and safety risk</p>
+                    <p>Highest-impact issues ranked by severity and safety risk</p>
                   </div>
                   <div class="flex-center gap-2" style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
                     <button id="btn-fix-all-safe" type="button" class="btn btn-sm btn-primary btn-glow hidden" title="Fix all safe issues in one click">
@@ -1120,20 +1120,18 @@
                     <div id="fix-queue-summary" class="badge" style="font-size: 0.8rem; padding: 4px 10px;">0 Issues Detected</div>
                   </div>
                 </div>
-                <!-- Category Filter Chips -->
-                <div id="fix-queue-filter-bar" class="fix-queue-filter-bar border-bottom">
-                  <button type="button" class="fix-filter-chip active" data-filter="all">All <span class="chip-count" id="chip-count-all">0</span></button>
-                  <button type="button" class="fix-filter-chip" data-filter="security"><i class="fa-solid fa-shield-halved"></i> Security <span class="chip-count" id="chip-count-security">0</span></button>
-                  <button type="button" class="fix-filter-chip" data-filter="channels"><i class="fa-solid fa-hashtag"></i> Channels <span class="chip-count" id="chip-count-channels">0</span></button>
-                  <button type="button" class="fix-filter-chip" data-filter="roles"><i class="fa-solid fa-user-shield"></i> Roles <span class="chip-count" id="chip-count-roles">0</span></button>
-                  <button type="button" class="fix-filter-chip" data-filter="backups"><i class="fa-solid fa-database"></i> Backups <span class="chip-count" id="chip-count-backups">0</span></button>
-                </div>
-                <div class="card-body cc-scrollable-body" id="cc-fix-queue-content">
+                <div class="card-body cc-cockpit-body" id="cc-fix-queue-content">
                   <div class="skeleton-card">
                     <div class="skeleton skeleton-heading"></div>
                     <div class="skeleton skeleton-text"></div>
                     <div class="skeleton skeleton-text-sm"></div>
                   </div>
+                </div>
+                <div id="cc-fix-queue-footer" class="cockpit-footer glass-inner hidden">
+                  <span id="cc-fix-queue-footer-count" class="cockpit-footer-status">Showing top 4 issues</span>
+                  <button id="btn-open-action-drawer" type="button" class="btn-cockpit-drawer">
+                    <span>View All Issues in Queue</span> <i class="fa-solid fa-arrow-right"></i>
+                  </button>
                 </div>
               </div>
             </div>
@@ -4199,6 +4197,68 @@
       document.getElementById('analytics-msg-days')?.addEventListener('change', loadMessageChart);
     })();
   </script>
-  <script src="/static/app.js?v=2.7.1" defer></script>
+
+  <!-- Slide-Over Action Center Drawer (UI/UX Pro Max 2026 Triage Pattern) -->
+  <div id="action-drawer-backdrop" class="action-drawer-backdrop hidden" aria-hidden="true"></div>
+  <aside id="action-center-drawer" class="action-center-drawer hidden" role="dialog" aria-modal="true" aria-labelledby="action-drawer-title">
+    <div class="action-drawer-header">
+      <div class="action-drawer-title-group">
+        <div class="action-drawer-icon-wrap">
+          <i class="fa-solid fa-bolt-lightning text-primary"></i>
+        </div>
+        <div>
+          <h2 id="action-drawer-title">Priority Action Center</h2>
+          <p class="action-drawer-subtitle">Comprehensive remediation queue sorted by impact &amp; safety</p>
+        </div>
+      </div>
+      <div class="action-drawer-header-actions">
+        <button id="btn-drawer-fix-all-safe" type="button" class="btn btn-sm btn-primary btn-glow hidden" title="Fix all safe issues in one click">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Fix All Safe
+        </button>
+        <button id="btn-close-action-drawer" type="button" class="action-drawer-close-btn" aria-label="Close Action Drawer">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Drawer Search & Category Filters -->
+    <div class="action-drawer-toolbar">
+      <div class="action-drawer-search-wrap">
+        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+        <input type="text" id="action-drawer-search-input" class="action-drawer-search-input" placeholder="Search issues by title, category, or detail..." autocomplete="off">
+        <button id="btn-clear-drawer-search" type="button" class="action-drawer-search-clear hidden" aria-label="Clear search">
+          <i class="fa-solid fa-circle-xmark"></i>
+        </button>
+      </div>
+      <div id="action-drawer-filter-chips" class="action-drawer-chips-bar">
+        <button type="button" class="drawer-filter-chip active" data-filter="all">All <span class="chip-count" id="drawer-chip-count-all">0</span></button>
+        <button type="button" class="drawer-filter-chip" data-filter="security"><i class="fa-solid fa-shield-halved"></i> Security <span class="chip-count" id="drawer-chip-count-security">0</span></button>
+        <button type="button" class="drawer-filter-chip" data-filter="channels"><i class="fa-solid fa-hashtag"></i> Channels <span class="chip-count" id="drawer-chip-count-channels">0</span></button>
+        <button type="button" class="drawer-filter-chip" data-filter="roles"><i class="fa-solid fa-user-shield"></i> Roles <span class="chip-count" id="drawer-chip-count-roles">0</span></button>
+        <button type="button" class="drawer-filter-chip" data-filter="backups"><i class="fa-solid fa-database"></i> Backups <span class="chip-count" id="drawer-chip-count-backups">0</span></button>
+      </div>
+    </div>
+
+    <!-- Drawer Scrollable Issues List -->
+    <div class="action-drawer-body" id="action-drawer-items-list">
+      <div class="text-center py-5" style="color:var(--text-sub);">
+        <i class="fa-solid fa-circle-notch fa-spin spinner" style="font-size: 2rem; margin-bottom: 12px; display: block;"></i>
+        Loading issues...
+      </div>
+    </div>
+
+    <!-- Drawer Footer -->
+    <div class="action-drawer-footer">
+      <div class="action-drawer-footer-stats">
+        <span id="drawer-footer-impact" class="drawer-stat-pill"><i class="fa-solid fa-chart-line text-success"></i> +0 Health Gain</span>
+        <span id="drawer-footer-safe-count" class="drawer-stat-pill"><i class="fa-solid fa-check text-primary"></i> 0 Safe Fixes</span>
+      </div>
+      <button id="btn-drawer-refresh" type="button" class="btn btn-sm btn-secondary" title="Re-run security analysis">
+        <i class="fa-solid fa-arrows-rotate"></i> Re-Scan
+      </button>
+    </div>
+  </aside>
+
+  <script src="/static/app.js?v=2.7.2" defer></script>
 </body>
 </html>

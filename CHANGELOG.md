@@ -5,6 +5,26 @@ All notable changes to the Aegis Suite project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.2] - 2026-09-20
+
+### Added
+- **Triage Cockpit Dashboard Architecture (Linear / Snyk Style)**: Replaced cramped, nested column scrollbox with a modern 2026 SaaS Triage Cockpit on the Smart Command Center dashboard. The card highlights the top 4 highest-priority actionable issues ranked by severity, health impact, and safety risk.
+- **Slide-Over Action Center Drawer (`#action-center-drawer`)**: Introduced an enterprise slide-over drawer sliding in smoothly from the right with frosted glass backdrop (`#action-drawer-backdrop`), accessible via `"View All Issues in Queue →"`. Features include:
+  - **Live Search & Filter**: Real-time debounce search by issue title, category, type, or detail.
+  - **Category Filter Tabs**: Dynamic category chips (`All`, `Security`, `Channels`, `Roles`, `Backups`) with live issue counters.
+  - **Comprehensive Remediation View**: Scrollable view of all 20+ issues with full permission requirements, projected health gains, and direct remediation buttons.
+  - **Drawer Control Toolbar & Footer**: Quick-close triggers (backdrop click, close button, `Esc` keyboard shortcut), potential health gain summary, and one-click "Re-Scan" trigger.
+- **Synchronized Batch Safe Remediation**: Synced the `"⚡ Fix All Safe (N)"` one-click remediation action across both the dashboard cockpit header and the action drawer header.
+
+### Fixed
+- **"Constantly Moving" Card Jitter & Hover Thrashing**: Eliminated accordion-style dynamic height expansion (`.collapsible-content`) that fired on `mouseenter`/`mouseleave`, which previously caused the entire list of cards to bounce and jump when moving the cursor across cards. Replaced with static inline metadata pills (`+N Health • Score → N%`) with constant, stable card heights and subtle 2px vertical elevation.
+- **10-Second Destructive DOM Interval Wiping**: Introduced data-signature hashing (`queueSig = JSON.stringify(...)`) to cache the rendered fix queue. Skipping DOM destruction when telemetry data has not changed prevents the 10-second polling flicker and preserves UI interaction state.
+- **Nested Column Scroll-Trapping**: Removed fixed 580px nested scrollbox (`.cc-scrollable-card`) that trapped mouse wheel events on web dashboards. Upgraded to natural-height `.cc-triage-card` with balanced proportions matching the adjacent Command Center Activity Feed.
+- **Multi-Theme Action Drawer Styling**: Implemented specialized glassmorphism, border glows, search inputs, and contrast adjustments for Dark Obsidian, Light Quartz, Liquid Glass, and Neon Synthwave themes.
+
+### Changed
+- Bumped application cache busters to `v=2.7.2` in `index.html`.
+
 ## [2.7.1] - 2026-09-19
 
 ### Added
