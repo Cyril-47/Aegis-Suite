@@ -121,7 +121,7 @@ body.light-theme {
   --accent-danger: #dc2626;
   --accent-cyan: #0284c7;
   --glass-backdrop: blur(20px) saturate(190%);
-  --spotlight-color: rgba(79, 70, 229, 0.09);
+  --spotlight-color: rgba(79, 70, 229, 0.20);
 }
 
 body.liquid-glass-theme {
@@ -5395,17 +5395,17 @@ body.light-theme .bento-stat-chip::before {
 }
 
 /* 6. Interactive Cursor Spotlight (Hardware Accelerated via RAF) */
-.card.glass, .stat-card.glass-inner {
+.card.glass, .stat-card.glass-inner, .backup-action-box {
   position: relative;
   overflow: hidden;
 }
-.card.glass::after, .stat-card.glass-inner::after {
+.card.glass::after, .stat-card.glass-inner::after, .backup-action-box::after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
   background: radial-gradient(
-    340px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+    360px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
     var(--spotlight-color, rgba(99, 102, 241, 0.16)),
     transparent 75%
   );
@@ -5414,9 +5414,30 @@ body.light-theme .bento-stat-chip::before {
   pointer-events: none;
   z-index: 1;
 }
-.card.glass:hover::after, .stat-card.glass-inner:hover::after {
+.card.glass:hover::after, .stat-card.glass-inner:hover::after, .backup-action-box:hover::after {
   opacity: 1;
 }
+
+/* Light Theme Apple-Grade Spotlight (Linear & Vercel Luminous Glint) */
+body.light-theme .card.glass::after,
+body.light-theme .stat-card.glass-inner::after,
+body.light-theme .backup-action-box::after {
+  background: radial-gradient(
+    400px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
+    rgba(79, 70, 229, 0.22) 0%,
+    rgba(14, 165, 233, 0.14) 45%,
+    transparent 75%
+  );
+  mix-blend-mode: multiply;
+}
+
+body.light-theme .card.glass:hover {
+  border-color: rgba(99, 102, 241, 0.38) !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04),
+              0 14px 30px -4px rgba(79, 70, 229, 0.16),
+              inset 0 1px 0 #ffffff !important;
+}
+
 .card-header, .card-body, .stat-card-header, .stat-value, .stat-sub {
   position: relative;
   z-index: 2;
@@ -5446,4 +5467,41 @@ body.light-theme .bento-stat-chip::before {
 }
 .dim-pill-bar {
   transition: width 0.7s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* ==========================================================================
+   9. Fullscreen Mode Engineering (UI/UX Pro Max)
+   ========================================================================== */
+body.is-fullscreen,
+:fullscreen {
+  overflow: hidden;
+}
+
+body.is-fullscreen .content-area {
+  height: 100vh;
+  overflow-y: auto;
+}
+
+body.is-fullscreen .tab-content-container {
+  max-width: 2200px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+body.is-fullscreen .top-header {
+  padding-left: clamp(24px, 3vw, 64px) !important;
+  padding-right: clamp(24px, 3vw, 64px) !important;
+}
+
+body.is-fullscreen #btn-fullscreen-toggle {
+  background: var(--nav-active-bg);
+  color: var(--nav-active-color);
+  border-color: var(--nav-active-border);
+}
+
+body.is-fullscreen #btn-header-fullscreen {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+  box-shadow: 0 0 12px var(--primary-glow);
 }

@@ -12054,7 +12054,84 @@ async function rollbackConfigSnapshot(snapshotId) {
 // Check undo toast on initialization
 document.addEventListener('DOMContentLoaded', () => {
   checkPendingUndoOnLoad();
+  setupFullscreen();
 });
+
+// Fullscreen Mode Controller (Hardware-Accelerated Native PyWebView + Web Fullscreen API Fallback)
+function setupFullscreen() {
+  const toggleBtn = document.getElementById('btn-fullscreen-toggle');
+  const toggleText = document.getElementById('btn-fullscreen-text');
+  const headerBtn = document.getElementById('btn-header-fullscreen');
+
+  function updateFullscreenUI(isFull) {
+    document.body.classList.toggle('is-fullscreen', isFull);
+    if (toggleBtn) {
+      const icon = toggleBtn.querySelector('i');
+      if (icon) icon.className = isFull ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
+      toggleBtn.title = isFull ? 'Exit Fullscreen (F11)' : 'Toggle Fullscreen (F11)';
+    }
+    if (toggleText) {
+      toggleText.textContent = isFull ? 'Exit Full' : 'Fullscreen';
+    }
+    if (headerBtn) {
+      const icon = headerBtn.querySelector('i');
+      if (icon) icon.className = isFull ? 'fa-solid fa-compress' : 'fa-solid fa-expand';
+      headerBtn.title = isFull ? 'Exit Fullscreen (F11)' : 'Toggle Fullscreen (F11)';
+    }
+  }
+
+  async function toggleAppFullscreen() {
+    // 1. PyWebView Native Desktop Bridge
+    if (window.pywebview && window.pywebview.api && typeof window.pywebview.api.toggle_fullscreen === 'function') {
+      try {
+        const isFull = await window.pywebview.api.toggle_fullscreen();
+        updateFullscreenUI(Boolean(isFull));
+        return;
+      } catch (err) {
+        console.warn('PyWebView native fullscreen toggle failed, falling back to Web API:', err);
+      }
+    }
+
+    // 2. Web Fullscreen API Standard Fallback
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (err) {
+      console.warn('Web Fullscreen API error:', err);
+    }
+  }
+
+  // Event Listeners
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      toggleAppFullscreen();
+    });
+  }
+
+  if (headerBtn) {
+    headerBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      toggleAppFullscreen();
+    });
+  }
+
+  // Keyboard shortcut F11
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'F11') {
+      e.preventDefault();
+      toggleAppFullscreen();
+    }
+  });
+
+  // Sync state on Web Fullscreen changes (e.g. user pressed Esc)
+  document.addEventListener('fullscreenchange', () => {
+    updateFullscreenUI(Boolean(document.fullscreenElement));
+  });
+}
 
 // Interactive Cursor Spotlight Engine (Hardware-Accelerated RAF Throttled Dispatcher)
 (function initSpotlight() {
@@ -12063,7 +12140,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (rafId) return;
     rafId = requestAnimationFrame(() => {
       rafId = null;
-      const card = e.target.closest('.card.glass, .stat-card.glass-inner');
+      const card = e.target.closest('.card.glass, .stat-card.glass-inner, .backup-action-box');
       if (!card) return;
       const rect = card.getBoundingClientRect();
       card.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);

@@ -20,18 +20,55 @@ class SystemTrayManager:
         self._setup_icon()
 
     def _get_icon_image(self):
-        """Loads logo image for system tray."""
-        icon_paths = [
-            os.path.join(self.root_dir, "aegis", "core", "tray_icon.png"),
-            os.path.join(self.root_dir, "static", "bot_logo.png"),
-            os.path.join(self.root_dir, "logo.ico"),
-            os.path.join(self.root_dir, "bot_logo.png"),
-            os.path.join(self.root_dir, "static", "favicon.ico"),
-        ]
-        for path in icon_paths:
+        """Loads logo image for system tray with robust path resolution."""
+        candidates = []
+
+        # 1. PyInstaller bundled resources
+        meipass = getattr(sys, "_MEIPASS", None)
+        if meipass:
+            candidates.extend([
+                os.path.join(meipass, "aegis", "core", "tray_icon.png"),
+                os.path.join(meipass, "static", "bot_logo.png"),
+                os.path.join(meipass, "bot_logo.png"),
+                os.path.join(meipass, "logo.ico"),
+            ])
+
+        # 2. Module-relative directory (aegis/core)
+        module_dir = os.path.dirname(os.path.abspath(__file__))
+        candidates.extend([
+            os.path.join(module_dir, "tray_icon.png"),
+            os.path.join(module_dir, "..", "..", "static", "bot_logo.png"),
+            os.path.join(module_dir, "..", "..", "bot_logo.png"),
+            os.path.join(module_dir, "..", "..", "logo.ico"),
+        ])
+
+        # 3. Provided root_dir
+        if self.root_dir and os.path.isdir(self.root_dir):
+            candidates.extend([
+                os.path.join(self.root_dir, "aegis", "core", "tray_icon.png"),
+                os.path.join(self.root_dir, "static", "bot_logo.png"),
+                os.path.join(self.root_dir, "bot_logo.png"),
+                os.path.join(self.root_dir, "logo.ico"),
+            ])
+
+        # 4. Current working directory & Executable directory
+        candidates.extend([
+            os.path.join(os.getcwd(), "bot_logo.png"),
+            os.path.join(os.getcwd(), "static", "bot_logo.png"),
+            os.path.join(os.getcwd(), "logo.ico"),
+            os.path.join(os.path.dirname(sys.executable), "logo.ico"),
+        ])
+
+        for path in candidates:
             if os.path.exists(path):
                 try:
                     img = Image.open(path)
+                    if img.mode != "RGBA":
+                        img = img.convert("RGBA")
+                    if img.size != (64, 64):
+                        resample_filter = getattr(Image, "Resampling", Image).LANCZOS
+                        img = img.resize((64, 64), resample_filter)
+                    logger.info(f"Loaded system tray icon from: {path}")
                     return img
                 except Exception as e:
                     logger.warning(f"Could not load tray icon image from {path}: {e}")

@@ -156,12 +156,39 @@ def main() -> int:
                     except Exception:
                         pass
 
+            class DesktopBridge:
+                """Exposes native window capabilities to the dashboard web interface."""
+                def __init__(self):
+                    self._window = None
+
+                def set_window(self, win):
+                    self._window = win
+
+                def toggle_fullscreen(self):
+                    if self._window:
+                        try:
+                            self._window.toggle_fullscreen()
+                            return bool(getattr(self._window, "fullscreen", False))
+                        except Exception as err:
+                            logger.warning(f"Error toggling fullscreen: {err}")
+                    return False
+
+                def is_fullscreen(self):
+                    if self._window:
+                        return bool(getattr(self._window, "fullscreen", False))
+                    return False
+
+            desktop_bridge = DesktopBridge()
+
+            # Application assets directory (distinct from writable AppData paths.root)
+            app_base_dir = getattr(sys, "_MEIPASS", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
             # Initialize System Tray Manager
             tray_mgr = None
             try:
                 from aegis.core.tray import SystemTrayManager
                 tray_mgr = SystemTrayManager(
-                    root_dir=paths.root,
+                    root_dir=app_base_dir,
                     on_open_callback=on_restore,
                     on_exit_callback=on_full_exit
                 )
@@ -184,21 +211,33 @@ def main() -> int:
                 window_ref = webview.create_window(
                     title="Aegis Suite",
                     url=dash_url,
+                    js_api=desktop_bridge,
                     width=1280,
                     height=850,
                     min_size=(960, 640),
                     resizable=True
                 )
+                desktop_bridge.set_window(window_ref)
                 window_ref.events.closing += on_closing
 
                 def set_window_native_icon():
                     try:
                         base_dir = os.path.dirname(os.path.abspath(__file__))
-                        ico_candidates = [
+                        ico_candidates = []
+                        meipass = getattr(sys, "_MEIPASS", None)
+                        if meipass:
+                            ico_candidates.extend([
+                                os.path.join(meipass, "logo.ico"),
+                                os.path.join(meipass, "static", "bot_logo.png"),
+                                os.path.join(meipass, "bot_logo.png"),
+                            ])
+                        ico_candidates.extend([
                             os.path.join(base_dir, "..", "logo.ico"),
                             os.path.join(base_dir, "logo.ico"),
-                            os.path.join(os.getcwd(), "logo.ico")
-                        ]
+                            os.path.join(base_dir, "..", "bot_logo.png"),
+                            os.path.join(os.getcwd(), "logo.ico"),
+                            os.path.join(os.path.dirname(sys.executable), "logo.ico"),
+                        ])
                         target_ico = next((p for p in ico_candidates if os.path.exists(p)), None)
                         if target_ico and hasattr(window_ref, "native") and window_ref.native:
                             import clr

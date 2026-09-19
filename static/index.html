@@ -13,8 +13,8 @@
   <!-- Google Fonts: Outfit & Inter (local for offline support) -->
   <link rel="stylesheet" href="/static/css/google-fonts.css">
   <!-- Style Sheet -->
-  <link rel="stylesheet" href="/static/style.css?v=2.6.1">
-  <link rel="stylesheet" href="/static/responsive.css?v=2.6.1">
+  <link rel="stylesheet" href="/static/style.css?v=2.7.0">
+  <link rel="stylesheet" href="/static/responsive.css?v=2.7.0">
   <!-- FontAwesome Icons (local for offline support) -->
   <link rel="stylesheet" href="/static/css/all.min.css">
   <!-- Preload critical assets -->
@@ -348,6 +348,9 @@
       </nav>
 
       <div class="sidebar-footer-actions">
+        <button id="btn-fullscreen-toggle" class="sidebar-action-btn" title="Toggle Fullscreen (F11)">
+          <i class="fa-solid fa-expand"></i> <span id="btn-fullscreen-text">Fullscreen</span>
+        </button>
         <button id="btn-theme-toggle" class="sidebar-action-btn" title="Toggle Theme">
           <i class="fa-solid fa-circle-half-stroke"></i> Theme
         </button>
@@ -393,6 +396,9 @@
             </select>
             <button id="btn-refresh-guilds" class="btn btn-secondary btn-icon-only" title="Refresh Servers">
               <i class="fa-solid fa-rotate"></i>
+            </button>
+            <button id="btn-header-fullscreen" class="btn btn-secondary btn-icon-only" title="Toggle Fullscreen (F11)" aria-label="Toggle Fullscreen">
+              <i class="fa-solid fa-expand"></i>
             </button>
           </div>
 
@@ -4172,6 +4178,6 @@
       document.getElementById('analytics-msg-days')?.addEventListener('change', loadMessageChart);
     })();
   </script>
-  <script src="/static/app.js?v=2.6.1" defer></script>
+  <script src="/static/app.js?v=2.7.0" defer></script>
 </body>
 </html>

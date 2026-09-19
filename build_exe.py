@@ -88,6 +88,7 @@ def main():
         "PyInstaller",
         "--onefile",
         "--noconsole",
+        f"--icon={logo_ico}",
         "--name=AegisOptimizer",
         "--add-data", "static;static",
         "--add-data", f"{discord_bin};discord/bin",
@@ -95,6 +96,8 @@ def main():
         "--add-data", "alembic.ini;.",
         "--add-data", "aegis/db/migrations;aegis/db/migrations",
         "--add-data", "aegis/core/tray_icon.png;aegis/core",
+        "--add-data", "logo.ico;.",
+        "--add-data", "bot_logo.png;.",
         # Hidden imports: uvicorn.run("web_server:app") does a dynamic import
         # that PyInstaller cannot trace statically. List every project module
         # and key third-party module that the app needs at runtime.
