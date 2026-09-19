@@ -13,8 +13,8 @@
   <!-- Google Fonts: Outfit & Inter (local for offline support) -->
   <link rel="stylesheet" href="/static/css/google-fonts.css">
   <!-- Style Sheet -->
-  <link rel="stylesheet" href="/static/style.css?v=2.4.0">
-  <link rel="stylesheet" href="/static/responsive.css?v=2.4.0">
+  <link rel="stylesheet" href="/static/style.css?v=2.5.0">
+  <link rel="stylesheet" href="/static/responsive.css?v=2.5.0">
   <!-- FontAwesome Icons (local for offline support) -->
   <link rel="stylesheet" href="/static/css/all.min.css">
   <!-- Preload critical assets -->
@@ -4026,12 +4026,12 @@
         const max = entries[0] ? entries[0][1] : 1;
         el.innerHTML = entries.map(([ch, count]) => {
           const pct = Math.round((count / max) * 100);
-          return `<div style="margin-bottom:12px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,0.02);">
+          return `<div class="channel-activity-row" style="margin-bottom:12px;padding:6px 8px;border-radius:8px;">
             <div style="display:flex;justify-content:space-between;align-items:center;font-size:0.84rem;margin-bottom:5px;">
               <span style="color:var(--text-main);font-weight:600;"><span style="color:var(--accent-primary);margin-right:2px;">#</span>${ch}</span>
               <span style="font-size:0.75rem;padding:1px 6px;border-radius:4px;background:rgba(99,102,241,0.12);color:var(--text-main);font-weight:600;font-variant-numeric:tabular-nums;">${count.toLocaleString()} msgs</span>
             </div>
-            <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:3px;overflow:hidden;">
+            <div class="channel-progress-track" style="height:6px;border-radius:3px;overflow:hidden;">
               <div class="progress-bar-glow" style="height:100%;width:${pct}%;background:linear-gradient(90deg, #6366f1, #818cf8);border-radius:3px;"></div>
             </div>
           </div>`;
@@ -4051,7 +4051,7 @@
             ? `<span class="user-rank-badge ${rankClass}"><i class="fa-solid fa-crown" style="font-size:0.65rem;"></i></span>` 
             : `<span style="font-size:0.75rem;color:var(--text-muted);width:22px;text-align:center;font-weight:600;">#${i+1}</span>`;
           return `
-            <div style="display:flex;align-items:center;gap:12px;padding:8px 6px;${i < data.length - 1 ? 'border-bottom:1px solid var(--card-border);' : ''}border-radius:6px;transition:background 0.15s ease;" onmouseover="this.style.background='rgba(255,255,255,0.03)'" onmouseout="this.style.background='transparent'">
+            <div class="top-user-row" style="display:flex;align-items:center;gap:12px;padding:8px 6px;${i < data.length - 1 ? 'border-bottom:1px solid var(--card-border);' : ''}border-radius:6px;transition:background 0.15s ease;">
               ${rankBadge}
               <div style="flex:1;min-width:0;">
                 <div style="font-size:0.86rem;font-weight:600;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${u.username || ('User ' + u.user_id)}</div>
@@ -4172,6 +4172,6 @@
       document.getElementById('analytics-msg-days')?.addEventListener('change', loadMessageChart);
     })();
   </script>
-  <script src="/static/app.js?v=2.4.0" defer></script>
+  <script src="/static/app.js?v=2.5.0" defer></script>
 </body>
 </html>
