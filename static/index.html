@@ -13,8 +13,8 @@
   <!-- Google Fonts: Outfit & Inter (local for offline support) -->
   <link rel="stylesheet" href="/static/css/google-fonts.css">
   <!-- Style Sheet -->
-  <link rel="stylesheet" href="/static/style.css?v=2.1.0">
-  <link rel="stylesheet" href="/static/responsive.css?v=2.1.0">
+  <link rel="stylesheet" href="/static/style.css?v=2.2.0">
+  <link rel="stylesheet" href="/static/responsive.css?v=2.2.0">
   <!-- FontAwesome Icons (local for offline support) -->
   <link rel="stylesheet" href="/static/css/all.min.css">
   <!-- Preload critical assets -->
@@ -1652,22 +1652,42 @@
                 <h2><i class="fa-solid fa-ticket"></i> Ticket System Overview</h2>
               </div>
               <div class="card-body">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
-                  <div class="glass-inner p-3 text-center">
-                    <div style="font-size: 1.4rem; font-weight: 700; color: var(--primary);" id="ticket-stat-total">--</div>
-                    <div style="font-size: 0.75rem; color: var(--text-sub);">Total Tickets</div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; margin-bottom: 20px;">
+                  <div class="stat-card glass-inner">
+                    <i class="fa-solid fa-ticket stat-card-icon-bg"></i>
+                    <div class="stat-card-header">
+                      <h3><i class="fa-solid fa-ticket text-primary"></i> Total</h3>
+                      <span class="stat-badge badge-trend">All</span>
+                    </div>
+                    <div class="stat-value text-primary" style="font-size: 1.6rem;" id="ticket-stat-total">--</div>
+                    <div class="stat-sub">Lifetime tickets</div>
                   </div>
-                  <div class="glass-inner p-3 text-center">
-                    <div style="font-size: 1.4rem; font-weight: 700; color: var(--warning);" id="ticket-stat-open">--</div>
-                    <div style="font-size: 0.75rem; color: var(--text-sub);">Open Now</div>
+                  <div class="stat-card glass-inner">
+                    <i class="fa-solid fa-envelope-open stat-card-icon-bg"></i>
+                    <div class="stat-card-header">
+                      <h3><i class="fa-solid fa-clock text-warning"></i> Open</h3>
+                      <span class="stat-badge badge-live">Live</span>
+                    </div>
+                    <div class="stat-value text-warning" style="font-size: 1.6rem;" id="ticket-stat-open">--</div>
+                    <div class="stat-sub">Pending staff</div>
                   </div>
-                  <div class="glass-inner p-3 text-center">
-                    <div style="font-size: 1.4rem; font-weight: 700; color: var(--success);" id="ticket-stat-closed">--</div>
-                    <div style="font-size: 0.75rem; color: var(--text-sub);">Closed (7d)</div>
+                  <div class="stat-card glass-inner">
+                    <i class="fa-solid fa-check-circle stat-card-icon-bg"></i>
+                    <div class="stat-card-header">
+                      <h3><i class="fa-solid fa-check text-success"></i> Closed</h3>
+                      <span class="stat-badge badge-trend">7d</span>
+                    </div>
+                    <div class="stat-value text-success" style="font-size: 1.6rem;" id="ticket-stat-closed">--</div>
+                    <div class="stat-sub">Resolved tickets</div>
                   </div>
-                  <div class="glass-inner p-3 text-center">
-                    <div style="font-size: 1.4rem; font-weight: 700; color: var(--primary);" id="ticket-stat-avg">--</div>
-                    <div style="font-size: 0.75rem; color: var(--text-sub);">Avg Response</div>
+                  <div class="stat-card glass-inner">
+                    <i class="fa-solid fa-bolt stat-card-icon-bg"></i>
+                    <div class="stat-card-header">
+                      <h3><i class="fa-solid fa-stopwatch text-cyan"></i> Speed</h3>
+                      <span class="stat-badge badge-trend">Avg</span>
+                    </div>
+                    <div class="stat-value text-cyan" style="font-size: 1.6rem;" id="ticket-stat-avg">--</div>
+                    <div class="stat-sub">Response time</div>
                   </div>
                 </div>
 
@@ -1895,31 +1915,45 @@
           </div>
 
           <div id="role-creator-sub" class="sub-tab-pane">
-          <!-- Role Analytics Bar -->
-          <div class="glass p-3 mb-4" style="display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <i class="fa-solid fa-users-gear" style="color: var(--primary);"></i>
-              <span style="font-weight: 600;">Total Roles:</span>
-              <span id="role-stat-total" style="font-weight: 700; color: var(--primary);">0</span>
+          <!-- Role Analytics Bar (Bento style) -->
+          <div class="grid-layout mb-4" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px;">
+            <div class="stat-card glass-inner">
+              <i class="fa-solid fa-users-gear stat-card-icon-bg"></i>
+              <div class="stat-card-header">
+                <h3><i class="fa-solid fa-users-gear text-primary"></i> Total Roles</h3>
+                <span class="stat-badge badge-trend">Count</span>
+              </div>
+              <div class="stat-value text-primary" id="role-stat-total" style="font-size: 1.8rem;">0</div>
+              <div class="stat-sub">Defined roles</div>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <i class="fa-solid fa-triangle-exclamation" style="color: var(--warning);"></i>
-              <span style="font-weight: 600;">Unused:</span>
-              <span id="role-stat-unused" style="font-weight: 700; color: var(--warning);">0</span>
+            <div class="stat-card glass-inner">
+              <i class="fa-solid fa-triangle-exclamation stat-card-icon-bg"></i>
+              <div class="stat-card-header">
+                <h3><i class="fa-solid fa-triangle-exclamation text-warning"></i> Unused</h3>
+                <span class="stat-badge badge-trend">Cleanable</span>
+              </div>
+              <div class="stat-value text-warning" id="role-stat-unused" style="font-size: 1.8rem;">0</div>
+              <div class="stat-sub">Assigned to 0 members</div>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <i class="fa-solid fa-crown" style="color: var(--success);"></i>
-              <span style="font-weight: 600;">Most Used:</span>
-              <span id="role-stat-most-used" style="font-weight: 700; color: var(--success);">-</span>
+            <div class="stat-card glass-inner">
+              <i class="fa-solid fa-crown stat-card-icon-bg"></i>
+              <div class="stat-card-header">
+                <h3><i class="fa-solid fa-crown text-success"></i> Most Used</h3>
+                <span class="stat-badge badge-live">Top</span>
+              </div>
+              <div class="stat-value text-success" id="role-stat-most-used" style="font-size: 1.25rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">-</div>
+              <div class="stat-sub">Dominant role</div>
             </div>
-            <div style="flex: 1;"></div>
+          </div>
+          <div class="glass p-3 mb-4" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; border-radius: 12px;">
+            <span style="font-weight: 600; font-size: 0.82rem; color: var(--text-sub); margin-right: 4px;"><i class="fa-solid fa-wrench text-primary" style="margin-right: 4px;"></i>Role Tools:</span>
             <button class="btn btn-secondary btn-small" data-action="open-role-compare-modal"><i class="fa-solid fa-code-compare"></i> Compare</button>
             <button class="btn btn-secondary btn-small" data-action="open-perm-simulator"><i class="fa-solid fa-flask"></i> Simulate</button>
             <button class="btn btn-secondary btn-small" data-action="open-role-templates-modal"><i class="fa-solid fa-wand-magic-sparkles"></i> Templates</button>
             <button class="btn btn-secondary btn-small" data-action="export-roles"><i class="fa-solid fa-download"></i> Export</button>
             <button class="btn btn-secondary btn-small" data-action="import-roles"><i class="fa-solid fa-upload"></i> Import</button>
             <input type="file" id="import-roles-file" accept=".json" class="hidden" onchange="importRoles(event)">
-                <button class="btn btn-secondary btn-small" id="btn-bulk-delete" style="display:none;" data-action="bulk-delete-selected"><i class="fa-solid fa-trash"></i> Delete Selected (<span id="bulk-count">0</span>)</button>
+            <button class="btn btn-secondary btn-small" id="btn-bulk-delete" style="display:none;" data-action="bulk-delete-selected"><i class="fa-solid fa-trash"></i> Delete Selected (<span id="bulk-count">0</span>)</button>
           </div>
           <div id="role-deps-warning" class="hidden" style="padding: 10px 16px; margin-bottom: 16px; background: rgba(239,68,68,0.08); border-left: 3px solid var(--danger); border-radius: 8px; font-size: 0.85rem;">
             <i class="fa-solid fa-link-slash" style="color: var(--danger);"></i> <strong>Role Dependencies Detected</strong>
@@ -3811,13 +3845,18 @@
         <section id="tab-logs" class="tab-pane hidden">
           <div class="card glass console-card">
             <div class="card-header border-bottom flex-header">
-              <div>
-                <h2>Live System Logs</h2>
-                <p>Real-time terminal feed from the local server and Discord bot processes.</p>
+              <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <div>
+                  <h2 style="display: flex; align-items: center; gap: 8px; margin: 0 0 4px;">
+                    <i class="fa-solid fa-terminal text-cyan"></i> Live System Logs
+                  </h2>
+                  <p style="margin: 0;">Real-time terminal feed from the local server and Discord bot processes.</p>
+                </div>
+                <span class="stat-badge badge-live" style="font-size: 0.75rem; padding: 3px 10px;">Live Stream</span>
               </div>
               <div class="console-actions" style="display: flex; gap: 8px; align-items: center;">
-                <input type="text" id="log-search-input" placeholder="Search logs..." class="console-input" style="width: 180px;">
-                <select id="log-level-filter" class="console-select">
+                <input type="text" id="log-search-input" placeholder="Search logs..." class="console-input glass-input" style="width: 180px;">
+                <select id="log-level-filter" class="console-select glass-input">
                   <option value="all">All Levels</option>
                   <option value="INFO">INFO</option>
                   <option value="WARNING">WARNING</option>
@@ -4126,6 +4165,6 @@
       document.getElementById('analytics-msg-days')?.addEventListener('change', loadMessageChart);
     })();
   </script>
-  <script src="/static/app.js?v=2.1.0" defer></script>
+  <script src="/static/app.js?v=2.2.0" defer></script>
 </body>
 </html>

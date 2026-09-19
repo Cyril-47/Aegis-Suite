@@ -1415,10 +1415,11 @@ async function loadHealthTimeline() {
     if (!ctx || !data.length) return;
     
     const isChartLight = document.body.classList.contains('light-theme');
-    const gridColor = isChartLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)';
-    const tickColor = isChartLight ? '#64748b' : '#94a3b8';
+    const isLiquid = document.body.classList.contains('liquid-glass-theme');
+    const gridColor = isChartLight ? 'rgba(0,0,0,0.06)' : isLiquid ? 'rgba(56,189,248,0.08)' : 'rgba(255,255,255,0.05)';
+    const tickColor = isChartLight ? '#64748b' : isLiquid ? '#7dd3fc' : '#94a3b8';
     
-    const signature = JSON.stringify({ data, isChartLight });
+    const signature = JSON.stringify({ data, isChartLight, isLiquid });
     if (ctx.dataset.signature === signature && healthTimelineChart) return;
     ctx.dataset.signature = signature;
 
@@ -1480,18 +1481,24 @@ function renderAuditResults(data) {
   const resultsDiv = document.getElementById('audit-results');
   if (!resultsDiv) return;
   const scoreColor = data.overall_score >= 80 ? 'var(--success)' : data.overall_score >= 60 ? 'var(--warning)' : 'var(--danger)';
+  const toneClass = data.overall_score >= 80 ? 'tone-highlight-emerald' : data.overall_score >= 60 ? 'tone-highlight-amber' : 'tone-highlight-crimson';
   
   let html = `
-    <div class="glass-inner p-4 mb-4" style="border-left: 4px solid ${scoreColor};">
-      <div style="display: flex; align-items: center; gap: 16px;">
-        <div style="font-size: 2.5rem; font-weight: 700; color: ${scoreColor};">${data.overall_score}</div>
+    <div class="bento-stat-chip ${toneClass} mb-4 p-4" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
+      <div style="display:flex;align-items:center;gap:20px;">
+        <div class="stat-value" style="font-size:3.2rem;font-family:'Outfit',sans-serif;color:${scoreColor};line-height:1;margin:0;">${data.overall_score}</div>
         <div>
-          <div style="font-weight: 600; font-size: 1.1rem;">Overall Health Score</div>
-          <div style="color: var(--text-sub); font-size: 0.85rem;">${data.member_count} members · ${data.channel_count} channels · ${data.role_count} roles</div>
+          <div style="font-weight:700;font-size:1.15rem;color:var(--text-main);">Overall Server Health Score</div>
+          <div style="color:var(--text-sub);font-size:0.85rem;margin-top:4px;display:flex;gap:12px;flex-wrap:wrap;">
+            <span><i class="fa-solid fa-users text-primary" style="margin-right:4px;"></i>${data.member_count} members</span>
+            <span><i class="fa-solid fa-hashtag text-cyan" style="margin-right:4px;"></i>${data.channel_count} channels</span>
+            <span><i class="fa-solid fa-id-badge text-warning" style="margin-right:4px;"></i>${data.role_count} roles</span>
+          </div>
         </div>
       </div>
+      <span class="stat-badge badge-live" style="font-size:0.8rem;padding:4px 12px;">Audit Complete</span>
     </div>
-    <div class="grid-layout" style="grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px;">
+    <div class="grid-layout mb-4" style="grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:12px;">
   `;
   
   const dimensions = [
@@ -1506,28 +1513,31 @@ function renderAuditResults(data) {
     const score = data.scores[dim.key] || 0;
     const color = score >= 80 ? 'var(--success)' : score >= 60 ? 'var(--warning)' : 'var(--danger)';
     html += `
-      <div class="glass-inner p-3 text-center" style="border-top: 3px solid ${color};">
-        <i class="fa-solid ${dim.icon}" style="font-size: 1.2rem; color: ${color}; margin-bottom: 8px;"></i>
-        <div style="font-size: 1.5rem; font-weight: 700; color: ${color};">${score}</div>
-        <div style="font-size: 0.8rem; color: var(--text-sub);">${dim.label}</div>
+      <div class="stat-card glass-inner text-center" style="border-top:3px solid ${color};padding:16px 12px;">
+        <i class="fa-solid ${dim.icon} stat-card-icon-bg" style="font-size:1.8rem;top:10px;right:10px;"></i>
+        <div style="font-size:0.75rem;color:var(--text-sub);text-transform:uppercase;font-weight:600;letter-spacing:0.05em;margin-bottom:4px;">${dim.label}</div>
+        <div class="stat-value" style="font-size:2rem;color:${color};line-height:1.1;margin:0;">${score}</div>
       </div>
     `;
   }
   html += '</div>';
   
   if (data.findings && data.findings.length > 0) {
-    html += '<h3 style="margin-bottom: 12px;">Findings</h3>';
+    html += '<h3 style="margin-bottom:14px;font-size:1.05rem;font-weight:700;display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-list-check text-primary"></i> Audit Findings</h3>';
+    html += '<div style="display:flex;flex-direction:column;gap:10px;">';
     for (const f of data.findings) {
       const icon = f.type === 'critical' ? 'fa-circle-exclamation' : f.type === 'warning' ? 'fa-triangle-exclamation' : 'fa-circle-info';
-      const color = f.type === 'critical' ? 'var(--danger)' : f.type === 'warning' ? 'var(--warning)' : 'var(--text-sub)';
+      const color = f.type === 'critical' ? 'var(--danger)' : f.type === 'warning' ? 'var(--warning)' : 'var(--primary)';
+      const findingTone = f.type === 'critical' ? 'tone-highlight-crimson' : f.type === 'warning' ? 'tone-highlight-amber' : 'tone-highlight-indigo';
       html += `
-        <div class="glass-inner p-3 mb-2" style="display: flex; align-items: center; gap: 12px; border-left: 3px solid ${color};">
-          <i class="fa-solid ${icon}" style="color: ${color};"></i>
-          <span style="flex: 1;">${f.message}</span>
-          <span style="font-size: 0.8rem; color: var(--text-sub);">${f.impact}</span>
+        <div class="bento-stat-chip ${findingTone} p-3" style="display:flex;align-items:center;gap:14px;border-radius:10px;">
+          <i class="fa-solid ${icon}" style="color:${color};font-size:1.1rem;flex-shrink:0;"></i>
+          <span style="flex:1;font-size:0.88rem;color:var(--text-main);font-weight:500;">${escapeHtml(f.message)}</span>
+          <span class="badge" style="font-size:0.75rem;color:var(--text-sub);border:1px solid var(--card-border);padding:3px 8px;border-radius:6px;flex-shrink:0;">${escapeHtml(f.impact)}</span>
         </div>
       `;
     }
+    html += '</div>';
   }
   
   resultsDiv.innerHTML = html;
@@ -8281,8 +8291,9 @@ async function loadScoreHistory() {
     if (!ctx) return;
 
     const isLight = document.body.classList.contains('light-theme');
-    const gridColor = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)';
-    const tickColor = isLight ? '#64748b' : '#94a3b8';
+    const isLiquid = document.body.classList.contains('liquid-glass-theme');
+    const gridColor = isLight ? 'rgba(0,0,0,0.06)' : isLiquid ? 'rgba(56,189,248,0.08)' : 'rgba(255,255,255,0.05)';
+    const tickColor = isLight ? '#64748b' : isLiquid ? '#7dd3fc' : '#94a3b8';
 
     if (scoreHistoryChart) scoreHistoryChart.destroy();
     scoreHistoryChart = new Chart(ctx, {
@@ -10703,41 +10714,41 @@ async function loadSmartCommandCenter(force = false) {
     const offset = circumference - (weightedScore / 100) * circumference;
 
     const dimensionsHtml = `
-      <div style="display:flex;flex-direction:column;gap:8px;width:100%;margin-top:15px;">
+      <div class="dim-pill-container" style="margin-top:16px;">
         <div>
-          <div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:2px;">
-            <span>Security (35%)</span>
-            <span style="font-weight:600;color:var(--primary);">${secScore}%</span>
+          <div class="dim-pill-header">
+            <span><i class="fa-solid fa-shield-halved" style="color:var(--primary);margin-right:6px;"></i>Security (35%)</span>
+            <span class="dim-pill-score" style="color:var(--primary);">${secScore}%</span>
           </div>
-          <div class="dimension-bar"><div class="dimension-bar-fill" style="width:${secScore}%;background:var(--primary);"></div></div>
+          <div class="dim-pill-track"><div class="dim-pill-fill" style="width:${secScore}%;background:linear-gradient(90deg, var(--primary), #818cf8);"></div></div>
         </div>
         <div>
-          <div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:2px;">
-            <span>Moderation (25%)</span>
-            <span style="font-weight:600;color:var(--success);">${modScore}%</span>
+          <div class="dim-pill-header">
+            <span><i class="fa-solid fa-gavel" style="color:var(--success);margin-right:6px;"></i>Moderation (25%)</span>
+            <span class="dim-pill-score" style="color:var(--success);">${modScore}%</span>
           </div>
-          <div class="dimension-bar"><div class="dimension-bar-fill" style="width:${modScore}%;background:var(--success);"></div></div>
+          <div class="dim-pill-track"><div class="dim-pill-fill" style="width:${modScore}%;background:linear-gradient(90deg, var(--success), #34d399);"></div></div>
         </div>
         <div>
-          <div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:2px;">
-            <span>Automation (15%)</span>
-            <span style="font-weight:600;color:var(--warning);">${autoScore}%</span>
+          <div class="dim-pill-header">
+            <span><i class="fa-solid fa-robot" style="color:var(--warning);margin-right:6px;"></i>Automation (15%)</span>
+            <span class="dim-pill-score" style="color:var(--warning);">${autoScore}%</span>
           </div>
-          <div class="dimension-bar"><div class="dimension-bar-fill" style="width:${autoScore}%;background:var(--warning);"></div></div>
+          <div class="dim-pill-track"><div class="dim-pill-fill" style="width:${autoScore}%;background:linear-gradient(90deg, var(--warning), #fbbf24);"></div></div>
         </div>
         <div>
-          <div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:2px;">
-            <span>Reliability (15%)</span>
-            <span style="font-weight:600;color:var(--info);">${relScore}%</span>
+          <div class="dim-pill-header">
+            <span><i class="fa-solid fa-server" style="color:var(--accent-cyan, #06b6d4);margin-right:6px;"></i>Reliability (15%)</span>
+            <span class="dim-pill-score" style="color:var(--accent-cyan, #06b6d4);">${relScore}%</span>
           </div>
-          <div class="dimension-bar"><div class="dimension-bar-fill" style="width:${relScore}%;background:var(--info);"></div></div>
+          <div class="dim-pill-track"><div class="dim-pill-fill" style="width:${relScore}%;background:linear-gradient(90deg, var(--accent-cyan, #06b6d4), #38bdf8);"></div></div>
         </div>
         <div>
-          <div style="display:flex;justify-content:space-between;font-size:0.78rem;margin-bottom:2px;">
-            <span>Growth (10%)</span>
-            <span style="font-weight:600;color:var(--secondary);">${groScore}%</span>
+          <div class="dim-pill-header">
+            <span><i class="fa-solid fa-chart-line" style="color:var(--pink);margin-right:6px;"></i>Growth (10%)</span>
+            <span class="dim-pill-score" style="color:var(--pink);">${groScore}%</span>
           </div>
-          <div class="dimension-bar"><div class="dimension-bar-fill" style="width:${groScore}%;background:var(--secondary);"></div></div>
+          <div class="dim-pill-track"><div class="dim-pill-fill" style="width:${groScore}%;background:linear-gradient(90deg, var(--pink), #f472b6);"></div></div>
         </div>
       </div>
     `;
@@ -10747,28 +10758,28 @@ async function loadSmartCommandCenter(force = false) {
         <div style="flex:1;min-width:140px;display:flex;justify-content:center;">
           <div class="sf-score-ring" style="width:140px;height:140px;">
             <svg viewBox="0 0 120 120" style="width:140px;height:140px;transform:rotate(-90deg);">
-              <circle cx="60" cy="60" r="${radius}" stroke="rgba(255,255,255,0.05)" stroke-width="8" fill="none"></circle>
-              <circle cx="60" cy="60" r="${radius}" stroke="${scoreColor}" stroke-width="8" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" stroke-linecap="round" fill="none" style="filter:drop-shadow(0 0 8px ${scoreColor}40);"></circle>
+              <circle cx="60" cy="60" r="${radius}" stroke="rgba(255,255,255,0.05)" stroke-width="9" fill="none"></circle>
+              <circle cx="60" cy="60" r="${radius}" stroke="${scoreColor}" stroke-width="9" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" stroke-linecap="round" fill="none" style="filter:drop-shadow(0 0 10px ${scoreColor}50);"></circle>
             </svg>
-            <div class="sf-score-text" style="color:${scoreColor};font-size:2rem;font-weight:700;">
-              ${weightedScore}<span class="sf-score-percent" style="font-size:0.9rem;">%</span>
-              <span style="font-size:0.7rem;color:var(--text-sub);text-transform:uppercase;margin-top:4px;font-weight:600;">Health</span>
+            <div class="sf-score-text" style="color:${scoreColor};font-size:2.2rem;font-weight:700;font-family:'Outfit',sans-serif;">
+              ${weightedScore}<span class="sf-score-percent" style="font-size:1rem;">%</span>
+              <span style="font-size:0.72rem;color:var(--text-sub);text-transform:uppercase;letter-spacing:0.06em;margin-top:2px;font-weight:600;">Health</span>
             </div>
           </div>
         </div>
         <div style="flex:2;min-width:200px;">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-            <div class="glass-inner p-2 text-center" style="border-radius:8px;">
-              <div style="font-size:1.4rem;font-weight:700;color:var(--danger);">${criticalCount}</div>
-              <div style="font-size:0.7rem;color:var(--text-sub);">Critical Issues</div>
+            <div class="bento-stat-chip text-center tone-highlight-crimson">
+              <div class="stat-value text-danger" style="font-size:1.6rem;margin:0;">${criticalCount}</div>
+              <div style="font-size:0.72rem;color:var(--text-sub);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;">Critical Issues</div>
             </div>
-            <div class="glass-inner p-2 text-center" style="border-radius:8px;">
-              <div style="font-size:1.4rem;font-weight:700;color:var(--warning);">${warningCount}</div>
-              <div style="font-size:0.7rem;color:var(--text-sub);">Warnings</div>
+            <div class="bento-stat-chip text-center tone-highlight-amber">
+              <div class="stat-value text-warning" style="font-size:1.6rem;margin:0;">${warningCount}</div>
+              <div style="font-size:0.72rem;color:var(--text-sub);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;">Warnings</div>
             </div>
-            <div class="glass-inner p-2 text-center" style="grid-column: span 2;border-radius:8px;border:1px solid ${potentialGain > 0 ? 'var(--success)' : 'transparent'};">
-              <div style="font-size:1.1rem;font-weight:700;color:var(--success);">+${potentialGain} Potential Gain</div>
-              <div style="font-size:0.65rem;color:var(--text-sub);">Fixing all issues raises score to ${Math.min(100, weightedScore + potentialGain)}%</div>
+            <div class="bento-stat-chip text-center tone-highlight-emerald" style="grid-column: span 2;">
+              <div class="stat-value text-success" style="font-size:1.25rem;margin:0;">+${potentialGain} Potential Gain</div>
+              <div style="font-size:0.72rem;color:var(--text-sub);margin-top:2px;">Fixing recommended issues elevates server score to ${Math.min(100, weightedScore + potentialGain)}%</div>
             </div>
           </div>
           ${dimensionsHtml}
@@ -10783,42 +10794,42 @@ async function loadSmartCommandCenter(force = false) {
     const fixesApplied = liveActivity.filter(a => a.type === 'Fix').length;
 
     winsContent.innerHTML = `
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;height:100%;align-content:center;">
-        <div class="glass-inner p-3" style="display:flex;align-items:center;gap:12px;border-radius:8px;">
-          <div style="width:36px;height:36px;border-radius:50%;background:rgba(16,185,129,0.1);display:flex;align-items:center;justify-content:center;color:var(--success);">
-            <i class="fa-solid fa-shield-halved" style="font-size:1.1rem;"></i>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));gap:12px;height:100%;align-content:center;">
+        <div class="stat-card glass-inner cc-win-tile">
+          <i class="fa-solid fa-shield-halved stat-card-icon-bg"></i>
+          <div class="stat-card-header">
+            <h3><i class="fa-solid fa-shield-halved text-success"></i> Safeguards</h3>
+            <span class="stat-badge badge-live">Active</span>
           </div>
-          <div>
-            <div style="font-size:1.2rem;font-weight:700;color:var(--text-main);">${activeRulesCount}</div>
-            <div style="font-size:0.7rem;color:var(--text-sub);">Active Safeguards</div>
-          </div>
+          <div class="stat-value" style="font-size:1.8rem;">${activeRulesCount}</div>
+          <div class="stat-sub"><i class="fa-solid fa-lock text-success"></i> Active security rules</div>
         </div>
-        <div class="glass-inner p-3" style="display:flex;align-items:center;gap:12px;border-radius:8px;">
-          <div style="width:36px;height:36px;border-radius:50%;background:rgba(99,102,241,0.1);display:flex;align-items:center;justify-content:center;color:var(--primary);">
-            <i class="fa-solid fa-bolt" style="font-size:1.1rem;"></i>
+        <div class="stat-card glass-inner cc-win-tile">
+          <i class="fa-solid fa-bolt stat-card-icon-bg"></i>
+          <div class="stat-card-header">
+            <h3><i class="fa-solid fa-bolt text-primary"></i> Auto-Fixes</h3>
+            <span class="stat-badge badge-trend">Live</span>
           </div>
-          <div>
-            <div style="font-size:1.2rem;font-weight:700;color:var(--text-main);">${fixesApplied}</div>
-            <div style="font-size:0.7rem;color:var(--text-sub);">Auto-Fixes Done</div>
-          </div>
+          <div class="stat-value text-primary" style="font-size:1.8rem;">${fixesApplied}</div>
+          <div class="stat-sub"><i class="fa-solid fa-check-double text-primary"></i> Issues resolved</div>
         </div>
-        <div class="glass-inner p-3" style="display:flex;align-items:center;gap:12px;border-radius:8px;">
-          <div style="width:36px;height:36px;border-radius:50%;background:rgba(6,182,212,0.1);display:flex;align-items:center;justify-content:center;color:var(--info);">
-            <i class="fa-solid fa-database" style="font-size:1.1rem;"></i>
+        <div class="stat-card glass-inner cc-win-tile">
+          <i class="fa-solid fa-database stat-card-icon-bg"></i>
+          <div class="stat-card-header">
+            <h3><i class="fa-solid fa-database text-cyan"></i> Snapshots</h3>
+            <span class="stat-badge badge-trend">Saved</span>
           </div>
-          <div>
-            <div style="font-size:1.2rem;font-weight:700;color:var(--text-main);">${backupsCount}</div>
-            <div style="font-size:0.7rem;color:var(--text-sub);">Config Snapshots</div>
-          </div>
+          <div class="stat-value" style="font-size:1.8rem;">${backupsCount}</div>
+          <div class="stat-sub"><i class="fa-solid fa-clock-rotate-left text-cyan"></i> Restorable points</div>
         </div>
-        <div class="glass-inner p-3" style="display:flex;align-items:center;gap:12px;border-radius:8px;">
-          <div style="width:36px;height:36px;border-radius:50%;background:rgba(16,185,129,0.1);display:flex;align-items:center;justify-content:center;color:var(--success);">
-            <i class="fa-solid fa-circle-check" style="font-size:1.1rem;"></i>
+        <div class="stat-card glass-inner cc-win-tile">
+          <i class="fa-solid fa-circle-check stat-card-icon-bg"></i>
+          <div class="stat-card-header">
+            <h3><i class="fa-solid fa-circle-check text-success"></i> Protection</h3>
+            <span class="stat-badge badge-live">100%</span>
           </div>
-          <div>
-            <div style="font-size:1.2rem;font-weight:700;color:var(--success);">Active</div>
-            <div style="font-size:0.7rem;color:var(--text-sub);">Uptime Protection</div>
-          </div>
+          <div class="stat-value text-success" style="font-size:1.8rem;">Active</div>
+          <div class="stat-sub"><i class="fa-solid fa-shield-heart text-success"></i> 24/7 Defense layer</div>
         </div>
       </div>
     `;
@@ -10843,24 +10854,27 @@ async function loadSmartCommandCenter(force = false) {
       return;
     }
 
-    let html = '<div style="display:flex;flex-direction:column;gap:10px;">';
+    let html = '<div style="display:flex;flex-direction:column;gap:12px;">';
     fixQueue.forEach(item => {
-      const riskBadge = item.requires_confirmation ? '<span class="badge" style="background:rgba(239,68,68,0.1);color:var(--danger);border:1px solid rgba(239,68,68,0.2);">DESTRUCTIVE</span>' :
-                        item.safe ? '<span class="badge" style="background:rgba(16,185,129,0.1);color:var(--success);border:1px solid rgba(16,185,129,0.2);">SAFE</span>' :
-                        '<span class="badge" style="background:rgba(245,158,11,0.1);color:var(--warning);border:1px solid rgba(245,158,11,0.2);">MEDIUM RISK</span>';
+      const riskBadge = item.requires_confirmation ? '<span class="badge" style="background:rgba(239,68,68,0.15);color:var(--danger);border:1px solid rgba(239,68,68,0.3);">DESTRUCTIVE</span>' :
+                        item.safe ? '<span class="badge" style="background:rgba(16,185,129,0.15);color:var(--success);border:1px solid rgba(16,185,129,0.3);">SAFE</span>' :
+                        '<span class="badge" style="background:rgba(245,158,11,0.15);color:var(--warning);border:1px solid rgba(245,158,11,0.3);">MEDIUM RISK</span>';
 
       const fixButton = item.action ? `
-        <button class="btn btn-sm btn-primary fix-queue-btn" 
+        <button class="btn btn-sm btn-primary btn-glow fix-queue-btn" 
           onclick="handleFixQueueAction('${item.id}', '${item.action}', ${JSON.stringify(item.params).replace(/"/g, '&quot;')}, ${item.requires_confirmation})"
           ${item.disabled ? 'disabled title="Aegis bot lacks required permissions"' : ''}>
-          Fix
+          <i class="fa-solid fa-wrench"></i> Fix
         </button>` : '';
 
       const permWarning = item.disabled ? `<div style="font-size:0.75rem;color:var(--danger);margin-top:4px;"><i class="fa-solid fa-triangle-exclamation"></i> Aegis bot lacks required permission: ${item.required_permissions.join(', ')}</div>` : '';
 
+      const toneClass = item.severity === 'critical' ? 'tone-highlight-crimson' :
+                        item.severity === 'warning' ? 'tone-highlight-amber' : 'tone-highlight-indigo';
+
       html += `
-        <div class="glass-inner p-3 sf-fix-card ${item.severity}" style="display:flex;align-items:center;gap:16px;">
-          <div style="min-width:40px;text-align:center;font-weight:700;color:var(--text-sub);font-size:1.1rem;">
+        <div class="bento-stat-chip sf-fix-card ${toneClass}" style="display:flex;align-items:center;gap:16px;padding:14px 18px;">
+          <div style="min-width:44px;text-align:center;font-weight:700;color:var(--success);font-size:1.15rem;font-family:'Outfit',sans-serif;">
             +${item.health_gain}
           </div>
           <div style="flex:1;">
@@ -11138,17 +11152,18 @@ async function loadIntelActivity() {
     }
 
     const isLight = document.body.classList.contains('light-theme');
-    const gridColor = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)';
-    const tickColor = isLight ? '#64748b' : '#94a3b8';
+    const isLiquid = document.body.classList.contains('liquid-glass-theme');
+    const gridColor = isLight ? 'rgba(0,0,0,0.06)' : isLiquid ? 'rgba(56,189,248,0.08)' : 'rgba(255,255,255,0.05)';
+    const tickColor = isLight ? '#64748b' : isLiquid ? '#7dd3fc' : '#94a3b8';
 
     if (msgCtx) {
       if (messagesCenterChart) messagesCenterChart.destroy();
       const msgCanvasCtx = msgCtx.getContext ? msgCtx.getContext('2d') : null;
-      let msgBg = 'rgba(99, 102, 241, 0.4)';
+      let msgBg = isLiquid ? 'rgba(6, 182, 212, 0.4)' : 'rgba(99, 102, 241, 0.4)';
       if (msgCanvasCtx) {
         const g = msgCanvasCtx.createLinearGradient(0, 0, 0, 240);
-        g.addColorStop(0, 'rgba(99, 102, 241, 0.65)');
-        g.addColorStop(1, 'rgba(99, 102, 241, 0.08)');
+        g.addColorStop(0, isLiquid ? 'rgba(6, 182, 212, 0.65)' : 'rgba(99, 102, 241, 0.65)');
+        g.addColorStop(1, isLiquid ? 'rgba(6, 182, 212, 0.08)' : 'rgba(99, 102, 241, 0.08)');
         msgBg = g;
       }
       messagesCenterChart = new Chart(msgCtx, {
@@ -11283,15 +11298,16 @@ async function loadIntelTrends() {
     }
 
     const isLight = document.body.classList.contains('light-theme');
-    const gridColor = isLight ? 'rgba(0,0,0,0.06)' : 'rgba(255,255,255,0.05)';
-    const tickColor = isLight ? '#64748b' : '#94a3b8';
+    const isLiquid = document.body.classList.contains('liquid-glass-theme');
+    const gridColor = isLight ? 'rgba(0,0,0,0.06)' : isLiquid ? 'rgba(56,189,248,0.08)' : 'rgba(255,255,255,0.05)';
+    const tickColor = isLight ? '#64748b' : isLiquid ? '#7dd3fc' : '#94a3b8';
 
     const labels = data.history.map(h => h.timestamp ? new Date(h.timestamp).toLocaleDateString() : '');
     const overallData = data.history.map(h => h.overall);
     const securityData = data.history.map(h => h.security);
     const moderationData = data.history.map(h => h.moderation);
 
-    const signature = JSON.stringify({ labels, overallData, securityData, moderationData, isLight });
+    const signature = JSON.stringify({ labels, overallData, securityData, moderationData, isLight, isLiquid });
     if (ctx.dataset.signature === signature && intelTrendsChart) return;
     ctx.dataset.signature = signature;
 
