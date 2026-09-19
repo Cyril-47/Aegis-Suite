@@ -544,6 +544,35 @@ function initApp() {
   }, 10000);
 }
 
+// ==========================================================================
+// 2025-2026 Micro-Interactions & Living Animation Engine (Zero CPU Overhead)
+// ==========================================================================
+
+// Odometer-style smooth numeric counter (easeOutCubic, zero idle CPU)
+function animateNumber(el, start, end, duration = 650, prefix = '', suffix = '') {
+  if (!el) return;
+  const startNum = typeof start === 'number' ? start : (parseInt(String(start).replace(/[^0-9.-]/g, ''), 10) || 0);
+  const endNum = typeof end === 'number' ? end : (parseInt(String(end).replace(/[^0-9.-]/g, ''), 10) || 0);
+  if (startNum === endNum) {
+    el.textContent = `${prefix}${endNum.toLocaleString()}${suffix}`;
+    return;
+  }
+  const startTime = performance.now();
+  function update(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 3);
+    const current = Math.round(startNum + (endNum - startNum) * ease);
+    el.textContent = `${prefix}${current.toLocaleString()}${suffix}`;
+    if (progress < 1) {
+      requestAnimationFrame(update);
+    } else {
+      el.textContent = `${prefix}${endNum.toLocaleString()}${suffix}`;
+    }
+  }
+  requestAnimationFrame(update);
+}
+
 async function fetchStats() {
   if (!isAuthenticated) return;
   try {
@@ -559,8 +588,14 @@ async function fetchStats() {
     const jt = document.getElementById('stat-joins-tickets');
     
     if (up) up.textContent = stats.uptime;
-    if (msg) msg.textContent = stats.messages_today;
-    if (cmd) cmd.textContent = stats.commands_today;
+    if (msg) {
+      const prev = parseInt(msg.textContent.replace(/[^0-9]/g, ''), 10) || 0;
+      animateNumber(msg, prev, stats.messages_today || 0);
+    }
+    if (cmd) {
+      const prev = parseInt(cmd.textContent.replace(/[^0-9]/g, ''), 10) || 0;
+      animateNumber(cmd, prev, stats.commands_today || 0);
+    }
     if (jt) jt.textContent = `${stats.joins_today} / ${stats.tickets_today}`;
   } catch (err) {
     console.error("Error fetching stats:", err);
@@ -1578,7 +1613,10 @@ function renderCommandCenter(data) {
     scoreCircle.style.strokeDashoffset = offset;
     scoreCircle.style.stroke = scoreColor;
   }
-  if (scoreValue) scoreValue.textContent = score;
+  if (scoreValue) {
+    const prev = parseInt(scoreValue.textContent.replace(/[^0-9]/g, ''), 10) || 0;
+    animateNumber(scoreValue, prev, score, 750);
+  }
   if (scoreLabel) {
     if (score >= 90) { scoreLabel.textContent = 'Excellent'; scoreLabel.style.color = 'var(--success)'; }
     else if (score >= 70) { scoreLabel.textContent = 'Good'; scoreLabel.style.color = 'var(--success)'; }
@@ -3245,8 +3283,14 @@ function connectWebSocket() {
         const msg = document.getElementById('stat-messages');
         const cmd = document.getElementById('stat-commands');
         const jt = document.getElementById('stat-joins-tickets');
-        if (msg && d.messages_today !== undefined) msg.textContent = d.messages_today;
-        if (cmd && d.commands_today !== undefined) cmd.textContent = d.commands_today;
+        if (msg && d.messages_today !== undefined) {
+          const prev = parseInt(msg.textContent.replace(/[^0-9]/g, ''), 10) || 0;
+          animateNumber(msg, prev, d.messages_today);
+        }
+        if (cmd && d.commands_today !== undefined) {
+          const prev = parseInt(cmd.textContent.replace(/[^0-9]/g, ''), 10) || 0;
+          animateNumber(cmd, prev, d.commands_today);
+        }
         if (jt && d.joins_today !== undefined) jt.textContent = `${d.joins_today} / 0`;
         return;
       }
@@ -10783,10 +10827,10 @@ async function loadSmartCommandCenter(force = false) {
           <div class="sf-score-ring" style="width:140px;height:140px;">
             <svg viewBox="0 0 120 120" style="width:140px;height:140px;transform:rotate(-90deg);">
               <circle cx="60" cy="60" r="${radius}" stroke="rgba(255,255,255,0.05)" stroke-width="9" fill="none"></circle>
-              <circle cx="60" cy="60" r="${radius}" stroke="${scoreColor}" stroke-width="9" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" stroke-linecap="round" fill="none" style="filter:drop-shadow(0 0 10px ${scoreColor}50);"></circle>
+              <circle class="cc-score-ring-circle" cx="60" cy="60" r="${radius}" stroke="${scoreColor}" stroke-width="9" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" stroke-linecap="round" fill="none" style="filter:drop-shadow(0 0 10px ${scoreColor}50);"></circle>
             </svg>
             <div class="sf-score-text" style="color:${scoreColor};font-size:2.2rem;font-weight:700;font-family:'Outfit',sans-serif;">
-              ${weightedScore}<span class="sf-score-percent" style="font-size:1rem;">%</span>
+              <span id="sf-score-val-animated">${weightedScore}</span><span class="sf-score-percent" style="font-size:1rem;">%</span>
               <span style="font-size:0.72rem;color:var(--text-sub);text-transform:uppercase;letter-spacing:0.06em;margin-top:2px;font-weight:600;">Health</span>
             </div>
           </div>
@@ -10810,6 +10854,11 @@ async function loadSmartCommandCenter(force = false) {
         </div>
       </div>
     `;
+
+    const sfScoreValEl = document.getElementById('sf-score-val-animated');
+    if (sfScoreValEl) {
+      animateNumber(sfScoreValEl, 0, weightedScore, 750);
+    }
   }
 
   if (winsContent) {
@@ -12006,3 +12055,19 @@ async function rollbackConfigSnapshot(snapshotId) {
 document.addEventListener('DOMContentLoaded', () => {
   checkPendingUndoOnLoad();
 });
+
+// Interactive Cursor Spotlight Engine (Hardware-Accelerated RAF Throttled Dispatcher)
+(function initSpotlight() {
+  let rafId = null;
+  document.addEventListener('pointermove', (e) => {
+    if (rafId) return;
+    rafId = requestAnimationFrame(() => {
+      rafId = null;
+      const card = e.target.closest('.card.glass, .stat-card.glass-inner');
+      if (!card) return;
+      const rect = card.getBoundingClientRect();
+      card.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
+      card.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
+    });
+  }, { passive: true });
+})();
