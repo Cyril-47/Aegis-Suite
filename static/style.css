@@ -1218,16 +1218,16 @@ body.light-theme .nav-item:focus-visible {
   border: 1px solid var(--nav-active-border);
 }
 
-/* Vertical active bar in sidebar */
+/* Vertical active bar in sidebar - inset and flush */
 .nav-item.active::before {
   content: "";
   position: absolute;
-  left: -20px;
-  top: 15%;
-  height: 70%;
-  width: 3px;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 3.5px;
   background-color: var(--nav-active-color);
-  border-radius: 0 4px 4px 0;
+  border-radius: 9px 0 0 9px;
   box-shadow: 0 0 10px var(--nav-active-color);
 }
 
@@ -1388,7 +1388,7 @@ body.light-theme .sidebar-action-btn:focus-visible {
 .server-selector-wrapper {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .server-selector-wrapper label {
@@ -1397,12 +1397,27 @@ body.light-theme .sidebar-action-btn:focus-visible {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  white-space: nowrap;
+  line-height: 1;
 }
 
 .server-selector-wrapper select {
   width: 180px;
-  padding: 8px 12px;
+  height: 36px;
+  padding: 0 12px;
   font-size: 0.85rem;
+  box-sizing: border-box;
+}
+
+.server-selector-wrapper .btn-icon-only {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 /* Tab Panels */
@@ -1474,13 +1489,14 @@ body.light-theme .sidebar-action-btn:focus-visible {
   display: grid;
   grid-template-columns: auto minmax(200px, 1fr) minmax(240px, 1.2fr);
   gap: clamp(16px, 2vw, 28px);
-  align-items: center;
+  align-items: stretch;
 }
 
 .bot-visual {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 12px;
 }
 
@@ -1523,16 +1539,28 @@ body.light-theme .sidebar-action-btn:focus-visible {
   box-shadow: 0 0 8px var(--success);
 }
 
+.health-metrics {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 16px 20px !important;
+  border-radius: 12px;
+  box-sizing: border-box;
+}
+
 .bot-info-details {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   gap: 10px;
   min-width: 0;
   background: var(--inner-bg);
   padding: 16px 20px;
   border-radius: 12px;
   border: 1px solid var(--card-border);
+  box-sizing: border-box;
 }
 
 .info-row {
@@ -1661,6 +1689,9 @@ body.light-theme .sidebar-action-btn:focus-visible {
   padding: 18px 20px;
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   backdrop-filter: var(--glass-backdrop, blur(16px));
   -webkit-backdrop-filter: var(--glass-backdrop, blur(16px));
   transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
@@ -1727,6 +1758,8 @@ body.light-theme .sidebar-action-btn:focus-visible {
   display: flex;
   align-items: center;
   gap: 6px;
+  margin-top: auto;
+  padding-top: 8px;
 }
 
 .stat-badge {
@@ -1840,6 +1873,10 @@ body.light-theme .sidebar-action-btn:focus-visible {
 .backup-action-box {
   padding: 25px;
   border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
   transition: all var(--transition-speed);
 }
 
@@ -1859,6 +1896,13 @@ body.light-theme .sidebar-action-btn:focus-visible {
 .backup-action-box p {
   font-size: 0.8rem;
   line-height: 1.4;
+  margin-bottom: 20px;
+  flex-grow: 1;
+}
+
+.backup-action-box .btn,
+.backup-action-box label.btn {
+  margin-top: auto;
 }
 
 /* ==========================================================================
@@ -3398,8 +3442,8 @@ span.hosting-mode-badge:focus-visible {
    Smart Features Module Navigation Cards
    ============================================================ */
 .smart-mod-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 8px;
   align-items: center;
   background: var(--card-bg);
@@ -3411,12 +3455,11 @@ span.hosting-mode-badge:focus-visible {
 }
 
 .smart-mod-card {
-  flex: 1 1 auto;
-  min-width: 110px;
+  width: 100%;
   background: transparent;
   border: 1px solid transparent;
   border-radius: 10px;
-  padding: 8px 14px;
+  padding: 8px 12px;
   cursor: pointer;
   transition: all 0.18s ease;
   display: flex;
@@ -3426,6 +3469,7 @@ span.hosting-mode-badge:focus-visible {
   gap: 8px;
   position: relative;
   user-select: none;
+  box-sizing: border-box;
 }
 
 .smart-mod-card:hover {

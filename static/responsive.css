@@ -11,7 +11,9 @@
    -------------------------------------------------------------------------- */
 :root {
   --sidebar-width: clamp(210px, 16vw, 260px);
-  --content-padding: clamp(16px, 2.5vw, 36px);
+  --content-padding-x: clamp(16px, 2.5vw, 36px);
+  --content-padding-y: clamp(16px, 2.5vw, 36px);
+  --content-padding: var(--content-padding-y) var(--content-padding-x);
   --header-height: 72px;
 }
 
@@ -57,6 +59,11 @@ html, body {
   box-sizing: border-box;
 }
 
+.top-header {
+  padding: 0 var(--content-padding-x) !important;
+  box-sizing: border-box;
+}
+
 /* Universal scroll protection for tables, code, pre, and charts */
 .table-container,
 .datatable-wrapper,
@@ -81,6 +88,8 @@ code.block-code {
 @media (min-width: 1600px) {
   :root {
     --sidebar-width: 260px;
+    --content-padding-x: 48px;
+    --content-padding-y: 36px;
     --content-padding: 36px 48px;
   }
 
@@ -107,6 +116,8 @@ code.block-code {
 @media (min-width: 1201px) and (max-width: 1599px) {
   :root {
     --sidebar-width: 240px;
+    --content-padding-x: 32px;
+    --content-padding-y: 28px;
     --content-padding: 28px 32px;
   }
 
@@ -137,7 +148,9 @@ code.block-code {
 @media (min-width: 992px) and (max-width: 1200px) {
   :root {
     --sidebar-width: 220px;
-    --content-padding: 22px;
+    --content-padding-x: 24px;
+    --content-padding-y: 22px;
+    --content-padding: 22px 24px;
   }
 
   .sidebar {
@@ -217,6 +230,8 @@ code.block-code {
 @media (min-width: 769px) and (max-width: 991px) {
   :root {
     --sidebar-width: 195px;
+    --content-padding-x: 16px;
+    --content-padding-y: 16px;
     --content-padding: 16px;
   }
 

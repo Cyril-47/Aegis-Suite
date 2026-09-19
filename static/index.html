@@ -13,8 +13,8 @@
   <!-- Google Fonts: Outfit & Inter (local for offline support) -->
   <link rel="stylesheet" href="/static/css/google-fonts.css">
   <!-- Style Sheet -->
-  <link rel="stylesheet" href="/static/style.css?v=2.5.0">
-  <link rel="stylesheet" href="/static/responsive.css?v=2.5.0">
+  <link rel="stylesheet" href="/static/style.css?v=2.6.0">
+  <link rel="stylesheet" href="/static/responsive.css?v=2.6.0">
   <!-- FontAwesome Icons (local for offline support) -->
   <link rel="stylesheet" href="/static/css/all.min.css">
   <!-- Preload critical assets -->
@@ -522,7 +522,7 @@
 
             <!-- Bot Status Card -->
             <div class="card glass span-4 bot-connection-card">
-              <div class="card-header">
+              <div class="card-header border-bottom flex-header">
                 <h2><i class="fa-solid fa-robot"></i> Bot Connection Info</h2>
               </div>
               <div class="card-body bot-details-grid">
@@ -757,7 +757,7 @@
         <section id="tab-auditor" class="tab-pane hidden">
 
           <!-- Auditor sub-tab navigation -->
-          <div class="sub-tab-container mb-4">
+          <div class="sub-tab-container">
             <button class="sub-tab-btn active" data-sub-tab="auditor-overview-sub">
               <i class="fa-solid fa-gauge-high"></i> Overview
             </button>
@@ -4172,6 +4172,6 @@
       document.getElementById('analytics-msg-days')?.addEventListener('change', loadMessageChart);
     })();
   </script>
-  <script src="/static/app.js?v=2.5.0" defer></script>
+  <script src="/static/app.js?v=2.6.0" defer></script>
 </body>
 </html>
