@@ -332,6 +332,7 @@ def admin_token(client, monkeypatch):
     test_password = "test-admin-password-T8-T10"
     test_hash = auth.hash_password(test_password)
     monkeypatch.setenv("ADMIN_PASSWORD_HASH", test_hash)
+    monkeypatch.setenv("JWT_SECRET", "test-managed-hosting-jwt-secret-key-12345")
 
     resp = client.post("/api/auth/login", json={"password": test_password})
     assert resp.status_code == 200, (

@@ -126,13 +126,27 @@ def main() -> int:
         bg_thread = threading.Thread(target=lambda: loop.run_until_complete(core.run()), daemon=True)
         bg_thread.start()
 
-        # Wait for web_port to be assigned
-        for _ in range(50):
+        # Wait for web server to start and become actively responsive via HTTP probe.
+        # Up to 30s ceiling allows cold starts (SQLite migrations, DB integrity, and analytics init)
+        # to complete safely without premature timeouts or connection-refused hangs in PyWebView.
+        server_ready = False
+        start_wait = time.time()
+        max_wait = 30.0
+        while time.time() - start_wait < max_wait:
             if core.web_port is not None:
-                break
-            time.sleep(0.1)
+                try:
+                    import urllib.request
+                    probe_url = f"http://127.0.0.1:{core.web_port}/api/health"
+                    req = urllib.request.Request(probe_url)
+                    with urllib.request.urlopen(req, timeout=0.5) as resp:
+                        if resp.status == 200:
+                            server_ready = True
+                            break
+                except Exception:
+                    pass
+            time.sleep(0.15)
 
-        if core.web_port is not None:
+        if server_ready and core.web_port is not None:
             dash_url = f"http://127.0.0.1:{core.web_port}"
             logger.info(f"Opening Standalone Desktop App Window at: {dash_url}")
             
@@ -228,17 +242,14 @@ def main() -> int:
                         if meipass:
                             ico_candidates.extend([
                                 os.path.join(meipass, "logo.ico"),
-                                os.path.join(meipass, "static", "bot_logo.png"),
-                                os.path.join(meipass, "bot_logo.png"),
                             ])
                         ico_candidates.extend([
                             os.path.join(base_dir, "..", "logo.ico"),
                             os.path.join(base_dir, "logo.ico"),
-                            os.path.join(base_dir, "..", "bot_logo.png"),
                             os.path.join(os.getcwd(), "logo.ico"),
                             os.path.join(os.path.dirname(sys.executable), "logo.ico"),
                         ])
-                        target_ico = next((p for p in ico_candidates if os.path.exists(p)), None)
+                        target_ico = next((p for p in ico_candidates if p.lower().endswith(".ico") and os.path.exists(p)), None)
                         if target_ico and hasattr(window_ref, "native") and window_ref.native:
                             import clr
                             clr.AddReference("System.Drawing")
@@ -259,7 +270,7 @@ def main() -> int:
                     tray_mgr.stop()
                 asyncio.run_coroutine_threadsafe(core.request_shutdown(), loop)
         else:
-            logger.error("Web server startup timed out.")
+            logger.error("Web server startup timed out after 30 seconds.")
             asyncio.run_coroutine_threadsafe(core.request_shutdown(), loop)
         
         guard.release()

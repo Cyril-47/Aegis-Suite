@@ -5,6 +5,23 @@ All notable changes to the Aegis Suite project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.3] - 2026-09-20
+
+### Added
+- **Direct GitHub Changelog Navigation**:
+  - Added clickable `Changelog-v2.7.3` shield badge in `README.md` header linking directly to `CHANGELOG.md`.
+  - Added a dedicated `## 📜 Release Notes & Changelog` section in `README.md` with direct relative markdown links that open `CHANGELOG.md` directly within GitHub's web interface.
+  - Added an interactive glass pill version badge (`.brand-version-badge`) next to the application title in the sidebar (`static/index.html`) with direct link to GitHub's changelog.
+
+### Fixed
+- **Startup Freeze & Windows "(Not Responding)" Hang**:
+  - Replaced the brittle 5.0-second blind sleep loop in `aegis/__main__.py` with a 30.0-second active HTTP 200 readiness probe (`http://127.0.0.1:{core.web_port}/api/health`).
+  - PyWebView window creation and Edge Chromium (WebView2) navigation are now deferred until Uvicorn has bound its socket, completed lifespan startup, and successfully responded with HTTP 200 OK. This eliminates `ERR_CONNECTION_REFUSED`, infinite loading spinners, and WinForms COM message-pump lockups.
+  - Guarded WinForms native window icon setter to strictly accept `.ico` files, preventing .NET `System.ArgumentException` when encountering PNG candidates.
+- **Frontend Cold-Start Resilience**:
+  - Added automatic single-retry fallback in `static/app.js` (`checkAuthentication()`) on cold startup, preventing initial fetch delays from locking the DOM in an uninitialized state with "Loading Bot...".
+  - Ensured graceful fallback to login overlay if auth setup encounters transient errors.
+
 ## [2.7.2] - 2026-09-20
 
 ### Added

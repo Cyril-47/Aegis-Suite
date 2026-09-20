@@ -1,6 +1,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Aegis-Server%20Optimizer-6366F1?style=for-the-badge&logo=shield-halved&logoColor=white" alt="Aegis"/>
   <br/>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/Changelog-v2.7.3-6366F1?style=for-the-badge&logo=gitbook&logoColor=white" alt="Changelog: v2.7.3"/></a>
   <img src="https://github.com/Cyril-47/Aegis-Suite/actions/workflows/release.yml/badge.svg" alt="Build & Publish Windows EXE Release"/>
   <img src="https://github.com/Cyril-47/Aegis-Suite/actions/workflows/verify.yml/badge.svg" alt="Verify Security Layering"/>
   <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"/>
@@ -402,6 +403,21 @@ Ensure `FFmpeg` is installed and in your PATH. Download from https://ffmpeg.org/
 | ⚡ **Reactive Only** | Guardian Mode fires on Discord events only — no periodic sweeps or cron scheduling |
 | 📄 **JSON Contention** | Concurrent writes on large multi-tenant servers can cause race conditions |
 | 🗄️ **SQLite Roadmap** | For SaaS scaling, migrate configs/stats to structured DB with transactional integrity |
+
+---
+
+## 📜 Release Notes & Changelog
+
+All version updates, architectural enhancements, UI/UX redesigns, and bug fixes are tracked in detail:
+
+👉 **[View Full CHANGELOG.md](CHANGELOG.md)**
+
+### Recent Releases
+- 🚀 **[v2.7.3 (2026-09-20)](CHANGELOG.md#273---2026-09-20)** — Cold Startup Reliability, Active HTTP 200 Ready Probe, "(Not Responding)" Fix & Direct GitHub Changelog Links
+- ⚡ **[v2.7.2 (2026-09-20)](CHANGELOG.md#272---2026-09-20)** — Triage Cockpit Architecture, Slide-Over Action Center Drawer (`#action-center-drawer`), and Zero-Jitter Card Elevation
+- 🎛️ **[v2.7.1 (2026-09-19)](CHANGELOG.md#271---2026-09-19)** — Category Filter Tabs (`All`, `Security`, `Channels`, `Roles`, `Backups`) & 1-Click "Fix All Safe" Batch Remediation
+- 🖥️ **[v2.7.0 (2026-09-19)](CHANGELOG.md#270---2026-09-19)** — Fullscreen Mode, Living Micro-Interactions, Tray Icon Fix & Apple-Grade Alabaster Light Quartz Theme Overhaul
+- 🛡️ **[v2.6.0 (2026-09-18)](CHANGELOG.md#260---2026-09-18)** — Guardian Mode Automation Engine & Real-Time Security Intelligence
 
 ---
 

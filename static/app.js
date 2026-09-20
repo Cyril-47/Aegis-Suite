@@ -709,7 +709,22 @@ async function checkAuthentication() {
     isAuthenticated = true;
     return true;
   } catch (err) {
-    console.error("Auth check error:", err);
+    console.warn("Auth check error, retrying once in 1s...", err);
+    try {
+      await new Promise(r => setTimeout(r, 1000));
+      const retryRes = await fetch('/api/auth/setup-status');
+      if (retryRes && retryRes.ok) {
+        return await checkAuthentication();
+      }
+    } catch (retryErr) {
+      console.error("Auth check retry failed:", retryErr);
+    }
+    const loginOverlay = document.getElementById('auth-login-overlay');
+    const setupOverlay = document.getElementById('auth-setup-overlay');
+    const mainApp = document.getElementById('main-content');
+    if (loginOverlay) loginOverlay.classList.remove('hidden');
+    if (setupOverlay) setupOverlay.classList.add('hidden');
+    if (mainApp) mainApp.classList.add('hidden');
     return false;
   }
 }
