@@ -4106,12 +4106,11 @@ input[type="range"].glass-slider::-webkit-slider-thumb:active {
    Command Center Redesign Styles
    ========================================================================== */
 
-/* Glass card hover glow */
+/* Glass card hover glow (solid & calm, zero layout flutter) */
 .card.glass {
-  transition: transform var(--transition-speed) ease, border-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+  transition: border-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
 }
 .card.glass:hover {
-  transform: translateY(-3px);
   border-color: rgba(88, 101, 242, 0.35);
   box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.45), 0 0 24px rgba(88, 101, 242, 0.12);
 }
@@ -5733,9 +5732,10 @@ body.light-theme .console-card::before {
 }
 
 /* 6. Interactive Cursor Spotlight (Hardware Accelerated via RAF) */
+/* 6. Hardware-Accelerated Ambient Card Hover & Specular Depth (Zero CPU / 100% GPU) */
 .card.glass,
 .stat-card.glass-inner,
-.backup-action-box,
+.bento-stat-chip,
 .template-card,
 .preset-card,
 .smart-mod-card,
@@ -5752,89 +5752,22 @@ body.light-theme .console-card::before {
 .radio-card,
 .console-card {
   position: relative;
-  overflow: hidden;
+  transition: border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.card.glass::after,
-.stat-card.glass-inner::after,
-.backup-action-box::after,
-.template-card::after,
-.preset-card::after,
-.smart-mod-card::after,
-.sf-stat-card::after,
-.sf-finding-card::after,
-.sf-fix-card::after,
-.cc-dim-card::after,
-.cc-win-tile::after,
-.cc-triage-card::after,
-.active-giveaway-card::after,
-.rule-card::after,
-.check-card::after,
-.option-card::after,
-.radio-card::after,
-.console-card::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: radial-gradient(
-    360px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
-    var(--spotlight-color, rgba(99, 102, 241, 0.16)),
-    transparent 75%
-  );
-  opacity: 0;
-  transition: opacity 0.25s ease;
-  pointer-events: none;
-  z-index: 1;
-}
-
-.card.glass:hover::after,
-.stat-card.glass-inner:hover::after,
-.backup-action-box:hover::after,
-.template-card:hover::after,
-.preset-card:hover::after,
-.smart-mod-card:hover::after,
-.sf-stat-card:hover::after,
-.sf-finding-card:hover::after,
-.sf-fix-card:hover::after,
-.cc-dim-card:hover::after,
-.cc-win-tile:hover::after,
-.cc-triage-card:hover::after,
-.active-giveaway-card:hover::after,
-.rule-card:hover::after,
-.check-card:hover::after,
-.option-card:hover::after,
-.radio-card:hover::after,
-.console-card:hover::after {
-  opacity: 1;
-}
-
-/* Light Theme Apple-Grade Spotlight (Linear & Vercel Luminous Glint) */
-body.light-theme .card.glass::after,
-body.light-theme .stat-card.glass-inner::after,
-body.light-theme .backup-action-box::after,
-body.light-theme .template-card::after,
-body.light-theme .preset-card::after,
-body.light-theme .smart-mod-card::after,
-body.light-theme .sf-stat-card::after,
-body.light-theme .sf-finding-card::after,
-body.light-theme .sf-fix-card::after,
-body.light-theme .cc-dim-card::after,
-body.light-theme .cc-win-tile::after,
-body.light-theme .cc-triage-card::after,
-body.light-theme .active-giveaway-card::after,
-body.light-theme .rule-card::after,
-body.light-theme .check-card::after,
-body.light-theme .option-card::after,
-body.light-theme .radio-card::after,
-body.light-theme .console-card::after {
-  background: radial-gradient(
-    400px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
-    rgba(79, 70, 229, 0.22) 0%,
-    rgba(14, 165, 233, 0.14) 45%,
-    transparent 75%
-  );
-  mix-blend-mode: multiply;
+.card.glass:hover,
+.bento-stat-chip:hover,
+.template-card:hover,
+.preset-card:hover,
+.smart-mod-card:hover,
+.sf-stat-card:hover,
+.cc-dim-card:hover,
+.cc-win-tile:hover,
+.active-giveaway-card:hover,
+.console-card:hover {
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow: 0 8px 30px -10px rgba(0, 0, 0, 0.5), 0 0 16px -4px var(--primary-glow, rgba(99, 102, 241, 0.25));
 }
 
 body.light-theme .card.glass:hover,
@@ -5856,27 +5789,21 @@ body.light-theme .backup-action-box:hover {
   z-index: 2;
 }
 
-/* 7. Tactile Spring Press Physics (100% CSS, Zero CPU) */
-.btn, .nav-item, .smart-mod-card, .sub-tab-btn, .btn-icon-only, .btn-secondary, .btn-discord {
-  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s ease, background 0.18s ease !important;
+/* 7. Snappy Tactile Press Feedback (100% CSS, Zero Layout Shift) */
+.btn, .btn-icon-only, .btn-secondary, .btn-discord {
+  transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
 }
 .btn:hover, .btn-secondary:hover, .btn-discord:hover {
-  transform: translateY(-1.5px);
+  transform: translateY(-1px);
 }
-.btn:active, .nav-item:active, .smart-mod-card:active, .sub-tab-btn:active, .btn-icon-only:active, .btn-secondary:active, .btn-discord:active {
-  transform: scale(0.95) translateY(1px) !important;
-  transition: transform 0.05s ease !important;
+.btn:active, .btn-secondary:active, .btn-discord:active, .btn-icon-only:active {
+  transform: translateY(1px);
 }
-
-/* 8. SVG Gauge & Dimension Spring Draw (Apple & Datadog Signature) */
-@keyframes drawGaugeCircle {
-  from {
-    stroke-dashoffset: 283;
-  }
+.nav-item, .sub-tab-btn {
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
 }
-.cc-score-ring-circle {
-  animation: drawGaugeCircle 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  will-change: stroke-dashoffset;
+.nav-item:active, .sub-tab-btn:active {
+  background-color: rgba(255, 255, 255, 0.08);
 }
 .dim-pill-bar {
   transition: width 0.7s cubic-bezier(0.16, 1, 0.3, 1) !important;

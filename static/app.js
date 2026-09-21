@@ -809,6 +809,7 @@ function refreshActiveTabContent() {
     
     if (activeSub === 'command-center-sub') {
       loadSmartCommandCenter();
+      setTimeout(() => triggerHealthGaugeSweep(container), 80);
     } else if (activeSub === 'intel-security') {
       loadIntelSecurity();
     } else if (activeSub === 'intel-community') {
@@ -854,7 +855,6 @@ function setupNavigation() {
 
   navItems.forEach(item => {
     item.addEventListener('click', () => {
-      if (typeof playUiSound === 'function') playUiSound('click');
       const targetTab = item.getAttribute('data-tab');
       localStorage.setItem('active_tab', targetTab);
       
@@ -870,6 +870,10 @@ function setupNavigation() {
           pane.classList.add('hidden');
         }
       });
+
+      if (targetTab === 'tab-smart') {
+        setTimeout(() => triggerHealthGaugeSweep(document.getElementById('tab-smart')), 60);
+      }
 
       // Update tab description in header
       if (TAB_DESCRIPTIONS[targetTab]) {
@@ -994,6 +998,7 @@ function setupSubTabs() {
       if (activeGuildId) {
         if (targetSub === 'command-center-sub') {
           loadSmartCommandCenter();
+          setTimeout(() => triggerHealthGaugeSweep(container), 80);
         } else if (targetSub === 'intel-security') {
           loadIntelSecurity();
         } else if (targetSub === 'intel-community') {
@@ -8577,14 +8582,77 @@ async function loadBenchmark() {
   }
 }
 
+function triggerHealthGaugeSweep(container) {
+  if (!container) container = document.getElementById('tab-smart');
+  if (!container) return;
+
+  const ring = container.querySelector('.cc-score-ring-circle');
+  const scoreValEl = container.querySelector('#sf-score-val-animated');
+  const dimFills = container.querySelectorAll('.dim-pill-fill');
+
+  if (ring && scoreValEl) {
+    const targetScore = parseInt(scoreValEl.dataset.targetScore || scoreValEl.textContent, 10) || 0;
+    scoreValEl.dataset.targetScore = targetScore;
+
+    const radius = 50;
+    const circumference = 2 * Math.PI * radius; // ~314.16
+    const targetOffset = circumference - (targetScore / 100) * circumference;
+
+    // Temporarily reset stroke to 0 progress without transition
+    ring.style.transition = 'none';
+    ring.style.strokeDasharray = `${circumference}`;
+    ring.style.strokeDashoffset = `${circumference}`;
+    scoreValEl.textContent = '0';
+    dimFills.forEach(fill => {
+      fill.style.transition = 'none';
+      fill.style.width = '0%';
+    });
+
+    // Force layout reflow
+    void ring.getBoundingClientRect();
+
+    // Re-enable transition and sweep to target values smoothly
+    requestAnimationFrame(() => {
+      ring.style.transition = 'stroke-dashoffset 1.1s cubic-bezier(0.16, 1, 0.3, 1)';
+      ring.style.strokeDashoffset = `${targetOffset}`;
+
+      dimFills.forEach(fill => {
+        fill.style.transition = 'width 0.9s cubic-bezier(0.16, 1, 0.3, 1)';
+        const targetWidth = fill.dataset.width || `${targetScore}%`;
+        fill.style.width = targetWidth;
+      });
+
+      animateNumber(scoreValEl, 0, targetScore, 950);
+    });
+  }
+
+  // Also support legacy CC circle if present
+  const legacyCircle = container.querySelector('#cc-score-circle') || document.getElementById('cc-score-circle');
+  const legacyVal = container.querySelector('#cc-score-value') || document.getElementById('cc-score-value');
+  if (legacyCircle && legacyVal) {
+    const legScore = parseInt(legacyVal.textContent.replace(/[^0-9]/g, ''), 10) || 0;
+    if (legScore > 0) {
+      legacyCircle.style.transition = 'none';
+      legacyCircle.style.strokeDashoffset = '314';
+      void legacyCircle.getBoundingClientRect();
+      requestAnimationFrame(() => {
+        legacyCircle.style.transition = 'stroke-dashoffset 1.1s cubic-bezier(0.16, 1, 0.3, 1)';
+        legacyCircle.style.strokeDashoffset = `${314 - (314 * legScore) / 100}`;
+        animateNumber(legacyVal, 0, legScore, 950);
+      });
+    }
+  }
+}
+
 async function refreshCommandCenter() {
   const btn = document.querySelector('#command-center-sub button[onclick="refreshCommandCenter()"]') ||
               document.querySelector('#cc-analyze-btn');
   const icon = btn ? btn.querySelector('i') : null;
   if (icon) icon.classList.add('fa-spin');
   try {
-    if (typeof playUiSound === 'function') playUiSound('tap');
+    if (typeof playUiSound === 'function') playUiSound('click');
     await loadSmartCommandCenter(true);
+    triggerHealthGaugeSweep(document.getElementById('tab-smart'));
   } finally {
     if (icon) icon.classList.remove('fa-spin');
   }
@@ -11131,6 +11199,7 @@ async function loadSmartCommandCenter(force = false) {
 
     if (existingScoreEl && existingCircle) {
       // In-place smooth update without layout shift
+      existingScoreEl.dataset.targetScore = weightedScore;
       const prevScore = parseInt(existingScoreEl.textContent, 10) || 0;
       animateNumber(existingScoreEl, prevScore, weightedScore, 1000);
       existingCircle.style.stroke = scoreColor;
@@ -11212,7 +11281,7 @@ async function loadSmartCommandCenter(force = false) {
                 <circle class="cc-score-ring-circle" cx="60" cy="60" r="${radius}" stroke="${scoreColor}" stroke-width="9" stroke-dasharray="${circumference}" stroke-dashoffset="${circumference}" stroke-linecap="round" fill="none" style="filter:drop-shadow(0 0 10px ${scoreColor}50);"></circle>
               </svg>
               <div class="sf-score-text" style="color:${scoreColor};font-size:2.2rem;font-weight:700;font-family:'Outfit',sans-serif;">
-                <span id="sf-score-val-animated">0</span><span class="sf-score-percent" style="font-size:1rem;">%</span>
+                <span id="sf-score-val-animated" data-target-score="${weightedScore}">0</span><span class="sf-score-percent" style="font-size:1rem;">%</span>
                 <span style="font-size:0.72rem;color:var(--text-sub);text-transform:uppercase;letter-spacing:0.06em;margin-top:2px;font-weight:600;">Health</span>
               </div>
             </div>
@@ -12533,21 +12602,3 @@ function setupFullscreen() {
     updateFullscreenUI(Boolean(document.fullscreenElement));
   });
 }
-
-// Interactive Cursor Spotlight Engine (Hardware-Accelerated RAF Throttled Dispatcher)
-(function initSpotlight() {
-  let rafId = null;
-  document.addEventListener('pointermove', (e) => {
-    if (rafId) return;
-    rafId = requestAnimationFrame(() => {
-      rafId = null;
-      const card = e.target.closest(
-        '.card, .stat-card, .backup-action-box, .template-card, .preset-card, .smart-mod-card, .sf-stat-card, .sf-finding-card, .sf-fix-card, .cc-dim-card, .cc-win-tile, .cc-triage-card, .active-giveaway-card, .rule-card, .check-card, .option-card, .radio-card, .bento-stat-chip, .console-card'
-      );
-      if (!card) return;
-      const rect = card.getBoundingClientRect();
-      card.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);
-      card.style.setProperty('--mouse-y', `${e.clientY - rect.top}px`);
-    });
-  }, { passive: true });
-})();
