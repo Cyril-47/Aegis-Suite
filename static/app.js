@@ -12467,7 +12467,9 @@ function setupFullscreen() {
     if (rafId) return;
     rafId = requestAnimationFrame(() => {
       rafId = null;
-      const card = e.target.closest('.card.glass, .stat-card.glass-inner, .backup-action-box');
+      const card = e.target.closest(
+        '.card, .stat-card, .backup-action-box, .template-card, .preset-card, .smart-mod-card, .sf-stat-card, .sf-finding-card, .sf-fix-card, .cc-dim-card, .cc-win-tile, .cc-triage-card, .active-giveaway-card, .rule-card, .check-card, .option-card, .radio-card, .bento-stat-chip, .console-card'
+      );
       if (!card) return;
       const rect = card.getBoundingClientRect();
       card.style.setProperty('--mouse-x', `${e.clientX - rect.left}px`);

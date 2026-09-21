@@ -3590,9 +3590,22 @@ span.hosting-mode-badge:focus-visible {
 
 .sub-tab-btn.active {
   background: var(--card-bg);        /* was: nav-active-bg — too light */
-  border: 1px solid var(--card-border);
+  border: 1px solid var(--primary);
   color: var(--text-main);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 0 12px var(--primary-glow);
+  position: relative;
+}
+
+.sub-tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 15%;
+  right: 15%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--primary), transparent);
+  border-radius: 2px;
+  box-shadow: 0 0 8px var(--primary-glow);
 }
 
 /* Light theme overrides */
@@ -5444,33 +5457,146 @@ body.light-theme .dim-pill-track {
   100% { transform: scale(2.4); opacity: 0; }
 }
 
-/* 2. Specular Glint Top-Border */
-.card.glass, .bento-stat-chip {
+/* 2. Specular Glint Top-Border (Universal Across All Cards) */
+.card.glass,
+.bento-stat-chip,
+.template-card,
+.preset-card,
+.smart-mod-card,
+.sf-stat-card,
+.sf-finding-card,
+.sf-fix-card,
+.cc-dim-card,
+.cc-win-tile,
+.cc-triage-card,
+.backup-action-box,
+.active-giveaway-card,
+.rule-card,
+.check-card,
+.option-card,
+.radio-card,
+.console-card {
   position: relative;
 }
-.card.glass::before, .bento-stat-chip::before {
+
+.card.glass::before,
+.bento-stat-chip::before,
+.template-card::before,
+.preset-card::before,
+.smart-mod-card::before,
+.sf-stat-card::before,
+.sf-finding-card::before,
+.sf-fix-card::before,
+.cc-dim-card::before,
+.cc-win-tile::before,
+.cc-triage-card::before,
+.backup-action-box::before,
+.active-giveaway-card::before,
+.rule-card::before,
+.check-card::before,
+.option-card::before,
+.radio-card::before,
+.console-card::before {
   content: "";
   position: absolute;
-  top: -1px;
-  left: 15%;
-  right: 15%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
-  pointer-events: none;
+  top: 0;
+  left: 8%;
+  right: 8%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--primary, rgba(99, 102, 241, 0.7)), transparent);
+  opacity: 0.45;
   border-radius: 2px;
+  pointer-events: none;
   z-index: 1;
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              height 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.3s ease;
 }
+
+.card.glass:hover::before,
+.bento-stat-chip:hover::before,
+.template-card:hover::before,
+.preset-card:hover::before,
+.smart-mod-card:hover::before,
+.sf-stat-card:hover::before,
+.sf-finding-card:hover::before,
+.sf-fix-card:hover::before,
+.cc-dim-card:hover::before,
+.cc-win-tile:hover::before,
+.cc-triage-card:hover::before,
+.backup-action-box:hover::before,
+.active-giveaway-card:hover::before,
+.rule-card:hover::before,
+.check-card:hover::before,
+.option-card:hover::before,
+.radio-card:hover::before,
+.console-card:hover::before {
+  opacity: 1;
+  height: 2.5px;
+  box-shadow: 0 0 10px var(--primary-glow, rgba(99, 102, 241, 0.45));
+}
+
 body.liquid-glass-theme .card.glass::before,
-body.liquid-glass-theme .bento-stat-chip::before {
-  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.45), transparent);
+body.liquid-glass-theme .bento-stat-chip::before,
+body.liquid-glass-theme .template-card::before,
+body.liquid-glass-theme .preset-card::before,
+body.liquid-glass-theme .smart-mod-card::before,
+body.liquid-glass-theme .sf-stat-card::before,
+body.liquid-glass-theme .sf-finding-card::before,
+body.liquid-glass-theme .sf-fix-card::before,
+body.liquid-glass-theme .cc-dim-card::before,
+body.liquid-glass-theme .cc-win-tile::before,
+body.liquid-glass-theme .cc-triage-card::before,
+body.liquid-glass-theme .backup-action-box::before,
+body.liquid-glass-theme .active-giveaway-card::before,
+body.liquid-glass-theme .rule-card::before,
+body.liquid-glass-theme .check-card::before,
+body.liquid-glass-theme .console-card::before {
+  background: linear-gradient(90deg, transparent, rgba(56, 189, 248, 0.85), transparent) !important;
+  height: 2px !important;
+  top: 0 !important;
 }
+
 body.synthwave-theme .card.glass::before,
-body.synthwave-theme .bento-stat-chip::before {
-  background: linear-gradient(90deg, transparent, rgba(244, 63, 94, 0.5), transparent);
+body.synthwave-theme .bento-stat-chip::before,
+body.synthwave-theme .template-card::before,
+body.synthwave-theme .preset-card::before,
+body.synthwave-theme .smart-mod-card::before,
+body.synthwave-theme .sf-stat-card::before,
+body.synthwave-theme .sf-finding-card::before,
+body.synthwave-theme .sf-fix-card::before,
+body.synthwave-theme .cc-dim-card::before,
+body.synthwave-theme .cc-win-tile::before,
+body.synthwave-theme .cc-triage-card::before,
+body.synthwave-theme .backup-action-box::before,
+body.synthwave-theme .active-giveaway-card::before,
+body.synthwave-theme .rule-card::before,
+body.synthwave-theme .check-card::before,
+body.synthwave-theme .console-card::before {
+  background: linear-gradient(90deg, transparent, rgba(244, 63, 94, 0.85), transparent) !important;
+  height: 2px !important;
+  top: 0 !important;
 }
+
 body.light-theme .card.glass::before,
-body.light-theme .bento-stat-chip::before {
-  background: linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.6), transparent);
+body.light-theme .bento-stat-chip::before,
+body.light-theme .template-card::before,
+body.light-theme .preset-card::before,
+body.light-theme .smart-mod-card::before,
+body.light-theme .sf-stat-card::before,
+body.light-theme .sf-finding-card::before,
+body.light-theme .sf-fix-card::before,
+body.light-theme .cc-dim-card::before,
+body.light-theme .cc-win-tile::before,
+body.light-theme .cc-triage-card::before,
+body.light-theme .backup-action-box::before,
+body.light-theme .active-giveaway-card::before,
+body.light-theme .rule-card::before,
+body.light-theme .check-card::before,
+body.light-theme .console-card::before {
+  background: linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.65), transparent) !important;
+  height: 2px !important;
+  top: 0 !important;
 }
 
 /* 3. Tabular Numerals (Anti-Jitter for Real-Time Stats) */
@@ -5539,11 +5665,46 @@ body.light-theme .bento-stat-chip::before {
 }
 
 /* 6. Interactive Cursor Spotlight (Hardware Accelerated via RAF) */
-.card.glass, .stat-card.glass-inner, .backup-action-box {
+.card.glass,
+.stat-card.glass-inner,
+.backup-action-box,
+.template-card,
+.preset-card,
+.smart-mod-card,
+.sf-stat-card,
+.sf-finding-card,
+.sf-fix-card,
+.cc-dim-card,
+.cc-win-tile,
+.cc-triage-card,
+.active-giveaway-card,
+.rule-card,
+.check-card,
+.option-card,
+.radio-card,
+.console-card {
   position: relative;
   overflow: hidden;
 }
-.card.glass::after, .stat-card.glass-inner::after, .backup-action-box::after {
+
+.card.glass::after,
+.stat-card.glass-inner::after,
+.backup-action-box::after,
+.template-card::after,
+.preset-card::after,
+.smart-mod-card::after,
+.sf-stat-card::after,
+.sf-finding-card::after,
+.sf-fix-card::after,
+.cc-dim-card::after,
+.cc-win-tile::after,
+.cc-triage-card::after,
+.active-giveaway-card::after,
+.rule-card::after,
+.check-card::after,
+.option-card::after,
+.radio-card::after,
+.console-card::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -5558,14 +5719,47 @@ body.light-theme .bento-stat-chip::before {
   pointer-events: none;
   z-index: 1;
 }
-.card.glass:hover::after, .stat-card.glass-inner:hover::after, .backup-action-box:hover::after {
+
+.card.glass:hover::after,
+.stat-card.glass-inner:hover::after,
+.backup-action-box:hover::after,
+.template-card:hover::after,
+.preset-card:hover::after,
+.smart-mod-card:hover::after,
+.sf-stat-card:hover::after,
+.sf-finding-card:hover::after,
+.sf-fix-card:hover::after,
+.cc-dim-card:hover::after,
+.cc-win-tile:hover::after,
+.cc-triage-card:hover::after,
+.active-giveaway-card:hover::after,
+.rule-card:hover::after,
+.check-card:hover::after,
+.option-card:hover::after,
+.radio-card:hover::after,
+.console-card:hover::after {
   opacity: 1;
 }
 
 /* Light Theme Apple-Grade Spotlight (Linear & Vercel Luminous Glint) */
 body.light-theme .card.glass::after,
 body.light-theme .stat-card.glass-inner::after,
-body.light-theme .backup-action-box::after {
+body.light-theme .backup-action-box::after,
+body.light-theme .template-card::after,
+body.light-theme .preset-card::after,
+body.light-theme .smart-mod-card::after,
+body.light-theme .sf-stat-card::after,
+body.light-theme .sf-finding-card::after,
+body.light-theme .sf-fix-card::after,
+body.light-theme .cc-dim-card::after,
+body.light-theme .cc-win-tile::after,
+body.light-theme .cc-triage-card::after,
+body.light-theme .active-giveaway-card::after,
+body.light-theme .rule-card::after,
+body.light-theme .check-card::after,
+body.light-theme .option-card::after,
+body.light-theme .radio-card::after,
+body.light-theme .console-card::after {
   background: radial-gradient(
     400px circle at var(--mouse-x, -999px) var(--mouse-y, -999px),
     rgba(79, 70, 229, 0.22) 0%,
@@ -5575,14 +5769,21 @@ body.light-theme .backup-action-box::after {
   mix-blend-mode: multiply;
 }
 
-body.light-theme .card.glass:hover {
+body.light-theme .card.glass:hover,
+body.light-theme .template-card:hover,
+body.light-theme .preset-card:hover,
+body.light-theme .sf-stat-card:hover,
+body.light-theme .cc-dim-card:hover,
+body.light-theme .backup-action-box:hover {
   border-color: rgba(99, 102, 241, 0.38) !important;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04),
               0 14px 30px -4px rgba(79, 70, 229, 0.16),
               inset 0 1px 0 #ffffff !important;
 }
 
-.card-header, .card-body, .stat-card-header, .stat-value, .stat-sub {
+.card-header, .card-body, .stat-card-header, .stat-value, .stat-sub,
+.template-card > *, .preset-card > *, .smart-mod-card > *,
+.sf-fix-card > *, .cc-win-tile > *, .active-giveaway-card > * {
   position: relative;
   z-index: 2;
 }
