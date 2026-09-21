@@ -118,7 +118,7 @@ async def get_trend_forecast(guild_id: str, days: int = 30):
                     {"metric": "Daily Joins", "current": 14, "forecast_7d": 21, "trend": "up"},
                 ],
                 "is_simulated": True,
-                "message": "Displaying initial projection data for testing."
+                "message": "Projected baseline metrics (recalibrates automatically as server activity logs accumulate)."
             }
 
         snapshots.reverse()

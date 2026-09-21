@@ -29,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - PyWebView background worker runs `AppCore` and active health probe asynchronously, seamlessly navigating to the dashboard (`window.load_url()`) once healthy.
 - **Offline Safe Mode Resilience (`aegis/web/recovery_ui.py`)**:
   - Replaced synchronous Google Fonts network request (`https://fonts.googleapis.com`) with local `/static/css/google-fonts.css` and system font fallbacks, preventing network latency or offline hangs during cold recovery boots.
+- **Production Asset & Artifact Cleanup**:
+  - Removed development "Automation Test & Forecast Trigger" action bar from the Automation Center interface.
+  - Purged leftover `*.bak` files, temporary backup folders (`static/backups/`, `backups/`), scratch test scripts, and test appdata from the distribution package.
+  - Updated `.gitignore` to prevent any test artifacts or agent directories from leaking into version control or application bundles.
 
 ## [2.7.3] - 2026-09-20
 
