@@ -8577,8 +8577,17 @@ async function loadBenchmark() {
   }
 }
 
-function refreshCommandCenter() {
-  loadSmartCommandCenter(true);
+async function refreshCommandCenter() {
+  const btn = document.querySelector('#command-center-sub button[onclick="refreshCommandCenter()"]') ||
+              document.querySelector('#cc-analyze-btn');
+  const icon = btn ? btn.querySelector('i') : null;
+  if (icon) icon.classList.add('fa-spin');
+  try {
+    if (typeof playUiSound === 'function') playUiSound('tap');
+    await loadSmartCommandCenter(true);
+  } finally {
+    if (icon) icon.classList.remove('fa-spin');
+  }
 }
 
 // ==========================================================================
@@ -11004,7 +11013,7 @@ async function loadSmartCommandCenter(force = false) {
   if (ccContent) ccContent.classList.remove('hidden');
 
   const isInitialLoad = !healthContent || !healthContent.children.length || healthContent.querySelector('.skeleton-card');
-  if (isInitialLoad || force) {
+  if (isInitialLoad) {
     if (healthContent) healthContent.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Analyzing server...</div>';
     if (fixQueueContent) fixQueueContent.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Building fix queue...</div>';
     if (winsContent) winsContent.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading wins...</div>';
@@ -11117,83 +11126,131 @@ async function loadSmartCommandCenter(force = false) {
     const circumference = 2 * Math.PI * radius;
     const offset = circumference - (weightedScore / 100) * circumference;
 
-    const dimensionsHtml = `
-      <div class="dim-pill-container" style="margin-top:16px;">
-        <div>
-          <div class="dim-pill-header">
-            <span><i class="fa-solid fa-shield-halved" style="color:var(--primary);margin-right:6px;"></i>Security (35%)</span>
-            <span class="dim-pill-score" style="color:var(--primary);">${secScore}%</span>
-          </div>
-          <div class="dim-pill-track"><div class="dim-pill-fill" style="width:${secScore}%;background:linear-gradient(90deg, var(--primary), #818cf8);"></div></div>
-        </div>
-        <div>
-          <div class="dim-pill-header">
-            <span><i class="fa-solid fa-gavel" style="color:var(--success);margin-right:6px;"></i>Moderation (25%)</span>
-            <span class="dim-pill-score" style="color:var(--success);">${modScore}%</span>
-          </div>
-          <div class="dim-pill-track"><div class="dim-pill-fill" style="width:${modScore}%;background:linear-gradient(90deg, var(--success), #34d399);"></div></div>
-        </div>
-        <div>
-          <div class="dim-pill-header">
-            <span><i class="fa-solid fa-robot" style="color:var(--warning);margin-right:6px;"></i>Automation (15%)</span>
-            <span class="dim-pill-score" style="color:var(--warning);">${autoScore}%</span>
-          </div>
-          <div class="dim-pill-track"><div class="dim-pill-fill" style="width:${autoScore}%;background:linear-gradient(90deg, var(--warning), #fbbf24);"></div></div>
-        </div>
-        <div>
-          <div class="dim-pill-header">
-            <span><i class="fa-solid fa-server" style="color:var(--accent-cyan, #06b6d4);margin-right:6px;"></i>Reliability (15%)</span>
-            <span class="dim-pill-score" style="color:var(--accent-cyan, #06b6d4);">${relScore}%</span>
-          </div>
-          <div class="dim-pill-track"><div class="dim-pill-fill" style="width:${relScore}%;background:linear-gradient(90deg, var(--accent-cyan, #06b6d4), #38bdf8);"></div></div>
-        </div>
-        <div>
-          <div class="dim-pill-header">
-            <span><i class="fa-solid fa-chart-line" style="color:var(--pink);margin-right:6px;"></i>Growth (10%)</span>
-            <span class="dim-pill-score" style="color:var(--pink);">${groScore}%</span>
-          </div>
-          <div class="dim-pill-track"><div class="dim-pill-fill" style="width:${groScore}%;background:linear-gradient(90deg, var(--pink), #f472b6);"></div></div>
-        </div>
-      </div>
-    `;
+    const existingScoreEl = document.getElementById('sf-score-val-animated');
+    const existingCircle = healthContent.querySelector('.cc-score-ring-circle');
 
-    healthContent.innerHTML = `
-      <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;">
-        <div style="flex:1;min-width:140px;display:flex;justify-content:center;">
-          <div class="sf-score-ring" style="width:140px;height:140px;">
-            <svg viewBox="0 0 120 120" style="width:140px;height:140px;transform:rotate(-90deg);">
-              <circle cx="60" cy="60" r="${radius}" stroke="rgba(255,255,255,0.05)" stroke-width="9" fill="none"></circle>
-              <circle class="cc-score-ring-circle" cx="60" cy="60" r="${radius}" stroke="${scoreColor}" stroke-width="9" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}" stroke-linecap="round" fill="none" style="filter:drop-shadow(0 0 10px ${scoreColor}50);"></circle>
-            </svg>
-            <div class="sf-score-text" style="color:${scoreColor};font-size:2.2rem;font-weight:700;font-family:'Outfit',sans-serif;">
-              <span id="sf-score-val-animated">${weightedScore}</span><span class="sf-score-percent" style="font-size:1rem;">%</span>
-              <span style="font-size:0.72rem;color:var(--text-sub);text-transform:uppercase;letter-spacing:0.06em;margin-top:2px;font-weight:600;">Health</span>
-            </div>
-          </div>
-        </div>
-        <div style="flex:2;min-width:200px;">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-            <div class="bento-stat-chip text-center tone-highlight-crimson">
-              <div class="stat-value text-danger" style="font-size:1.6rem;margin:0;">${criticalCount}</div>
-              <div style="font-size:0.72rem;color:var(--text-sub);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;">Critical Issues</div>
-            </div>
-            <div class="bento-stat-chip text-center tone-highlight-amber">
-              <div class="stat-value text-warning" style="font-size:1.6rem;margin:0;">${warningCount}</div>
-              <div style="font-size:0.72rem;color:var(--text-sub);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;">Warnings</div>
-            </div>
-            <div class="bento-stat-chip text-center tone-highlight-emerald" style="grid-column: span 2;">
-              <div class="stat-value text-success" style="font-size:1.25rem;margin:0;">+${potentialGain} Potential Gain</div>
-              <div style="font-size:0.72rem;color:var(--text-sub);margin-top:2px;">Fixing recommended issues elevates server score to ${Math.min(100, weightedScore + potentialGain)}%</div>
-            </div>
-          </div>
-          ${dimensionsHtml}
-        </div>
-      </div>
-    `;
+    if (existingScoreEl && existingCircle) {
+      // In-place smooth update without layout shift
+      const prevScore = parseInt(existingScoreEl.textContent, 10) || 0;
+      animateNumber(existingScoreEl, prevScore, weightedScore, 1000);
+      existingCircle.style.stroke = scoreColor;
+      existingCircle.style.strokeDashoffset = offset;
+      existingCircle.style.filter = `drop-shadow(0 0 12px ${scoreColor}60)`;
+      
+      const scoreTextEl = healthContent.querySelector('.sf-score-text');
+      if (scoreTextEl) scoreTextEl.style.color = scoreColor;
 
-    const sfScoreValEl = document.getElementById('sf-score-val-animated');
-    if (sfScoreValEl) {
-      animateNumber(sfScoreValEl, 0, weightedScore, 750);
+      // Update chips
+      const critEl = healthContent.querySelector('.stat-value.text-danger');
+      if (critEl) critEl.textContent = criticalCount;
+      const warnEl = healthContent.querySelector('.stat-value.text-warning');
+      if (warnEl) warnEl.textContent = warningCount;
+      const gainEl = healthContent.querySelector('.stat-value.text-success');
+      if (gainEl) gainEl.textContent = `+${potentialGain} Potential Gain`;
+
+      // Update dimension scores & bars smoothly
+      const dimMap = {
+        'Security': { score: secScore, el: healthContent.querySelector('.dim-pill-score-sec'), fill: healthContent.querySelector('.dim-pill-fill-sec') },
+        'Moderation': { score: modScore, el: healthContent.querySelector('.dim-pill-score-mod'), fill: healthContent.querySelector('.dim-pill-fill-mod') },
+        'Automation': { score: autoScore, el: healthContent.querySelector('.dim-pill-score-auto'), fill: healthContent.querySelector('.dim-pill-fill-auto') },
+        'Reliability': { score: relScore, el: healthContent.querySelector('.dim-pill-score-rel'), fill: healthContent.querySelector('.dim-pill-fill-rel') },
+        'Growth': { score: groScore, el: healthContent.querySelector('.dim-pill-score-gro'), fill: healthContent.querySelector('.dim-pill-fill-gro') }
+      };
+      for (const key in dimMap) {
+        const item = dimMap[key];
+        if (item.el) item.el.textContent = `${item.score}%`;
+        if (item.fill) item.fill.style.width = `${item.score}%`;
+      }
+    } else {
+      // First time render — Apple Health sweeping entrance
+      const dimensionsHtml = `
+        <div class="dim-pill-container" style="margin-top:16px;">
+          <div>
+            <div class="dim-pill-header">
+              <span><i class="fa-solid fa-shield-halved" style="color:var(--primary);margin-right:6px;"></i>Security (35%)</span>
+              <span class="dim-pill-score dim-pill-score-sec" style="color:var(--primary);">${secScore}%</span>
+            </div>
+            <div class="dim-pill-track"><div class="dim-pill-fill dim-pill-fill-sec" data-width="${secScore}%" style="width:0%;background:linear-gradient(90deg, var(--primary), #818cf8);"></div></div>
+          </div>
+          <div>
+            <div class="dim-pill-header">
+              <span><i class="fa-solid fa-gavel" style="color:var(--success);margin-right:6px;"></i>Moderation (25%)</span>
+              <span class="dim-pill-score dim-pill-score-mod" style="color:var(--success);">${modScore}%</span>
+            </div>
+            <div class="dim-pill-track"><div class="dim-pill-fill dim-pill-fill-mod" data-width="${modScore}%" style="width:0%;background:linear-gradient(90deg, var(--success), #34d399);"></div></div>
+          </div>
+          <div>
+            <div class="dim-pill-header">
+              <span><i class="fa-solid fa-robot" style="color:var(--warning);margin-right:6px;"></i>Automation (15%)</span>
+              <span class="dim-pill-score dim-pill-score-auto" style="color:var(--warning);">${autoScore}%</span>
+            </div>
+            <div class="dim-pill-track"><div class="dim-pill-fill dim-pill-fill-auto" data-width="${autoScore}%" style="width:0%;background:linear-gradient(90deg, var(--warning), #fbbf24);"></div></div>
+          </div>
+          <div>
+            <div class="dim-pill-header">
+              <span><i class="fa-solid fa-server" style="color:var(--accent-cyan, #06b6d4);margin-right:6px;"></i>Reliability (15%)</span>
+              <span class="dim-pill-score dim-pill-score-rel" style="color:var(--accent-cyan, #06b6d4);">${relScore}%</span>
+            </div>
+            <div class="dim-pill-track"><div class="dim-pill-fill dim-pill-fill-rel" data-width="${relScore}%" style="width:0%;background:linear-gradient(90deg, var(--accent-cyan, #06b6d4), #38bdf8);"></div></div>
+          </div>
+          <div>
+            <div class="dim-pill-header">
+              <span><i class="fa-solid fa-chart-line" style="color:var(--pink);margin-right:6px;"></i>Growth (10%)</span>
+              <span class="dim-pill-score dim-pill-score-gro" style="color:var(--pink);">${groScore}%</span>
+            </div>
+            <div class="dim-pill-track"><div class="dim-pill-fill dim-pill-fill-gro" data-width="${groScore}%" style="width:0%;background:linear-gradient(90deg, var(--pink), #f472b6);"></div></div>
+          </div>
+        </div>
+      `;
+
+      healthContent.innerHTML = `
+        <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;">
+          <div style="flex:1;min-width:140px;display:flex;justify-content:center;">
+            <div class="sf-score-ring" style="width:140px;height:140px;">
+              <svg viewBox="0 0 120 120" style="width:140px;height:140px;transform:rotate(-90deg);">
+                <circle cx="60" cy="60" r="${radius}" stroke="rgba(255,255,255,0.05)" stroke-width="9" fill="none"></circle>
+                <circle class="cc-score-ring-circle" cx="60" cy="60" r="${radius}" stroke="${scoreColor}" stroke-width="9" stroke-dasharray="${circumference}" stroke-dashoffset="${circumference}" stroke-linecap="round" fill="none" style="filter:drop-shadow(0 0 10px ${scoreColor}50);"></circle>
+              </svg>
+              <div class="sf-score-text" style="color:${scoreColor};font-size:2.2rem;font-weight:700;font-family:'Outfit',sans-serif;">
+                <span id="sf-score-val-animated">0</span><span class="sf-score-percent" style="font-size:1rem;">%</span>
+                <span style="font-size:0.72rem;color:var(--text-sub);text-transform:uppercase;letter-spacing:0.06em;margin-top:2px;font-weight:600;">Health</span>
+              </div>
+            </div>
+          </div>
+          <div style="flex:2;min-width:200px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <div class="bento-stat-chip text-center tone-highlight-crimson">
+                <div class="stat-value text-danger" style="font-size:1.6rem;margin:0;">${criticalCount}</div>
+                <div style="font-size:0.72rem;color:var(--text-sub);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;">Critical Issues</div>
+              </div>
+              <div class="bento-stat-chip text-center tone-highlight-amber">
+                <div class="stat-value text-warning" style="font-size:1.6rem;margin:0;">${warningCount}</div>
+                <div style="font-size:0.72rem;color:var(--text-sub);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;">Warnings</div>
+              </div>
+              <div class="bento-stat-chip text-center tone-highlight-emerald" style="grid-column: span 2;">
+                <div class="stat-value text-success" style="font-size:1.25rem;margin:0;">+${potentialGain} Potential Gain</div>
+                <div style="font-size:0.72rem;color:var(--text-sub);margin-top:2px;">Fixing recommended issues elevates server score to ${Math.min(100, weightedScore + potentialGain)}%</div>
+              </div>
+            </div>
+            ${dimensionsHtml}
+          </div>
+        </div>
+      `;
+
+      // Trigger animated sweep in next frame
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          const ring = healthContent.querySelector('.cc-score-ring-circle');
+          if (ring) ring.style.strokeDashoffset = offset;
+          healthContent.querySelectorAll('.dim-pill-fill').forEach(fill => {
+            if (fill.dataset.width) fill.style.width = fill.dataset.width;
+          });
+          const sfScoreValEl = document.getElementById('sf-score-val-animated');
+          if (sfScoreValEl) {
+            animateNumber(sfScoreValEl, 0, weightedScore, 1000);
+          }
+        }, 30);
+      });
     }
   }
 
@@ -11202,46 +11259,63 @@ async function loadSmartCommandCenter(force = false) {
     const activeRulesCount = 3;
     const fixesApplied = liveActivity.filter(a => a.type === 'Fix').length;
 
-    winsContent.innerHTML = `
-      <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:14px;height:100%;align-content:center;">
-        <div class="stat-card glass-inner cc-win-tile">
-          <i class="fa-solid fa-shield-halved stat-card-icon-bg"></i>
-          <div class="stat-card-header">
-            <h3><i class="fa-solid fa-shield-halved text-success"></i> Safeguards</h3>
-            <span class="stat-badge badge-live">Active</span>
+    const existingWins = winsContent.querySelector('#cc-win-safeguards');
+    if (existingWins) {
+      // In-place smooth numerical update
+      const prevSafeguards = parseInt(existingWins.textContent, 10) || 0;
+      animateNumber(existingWins, prevSafeguards, activeRulesCount, 800);
+      const fixEl = winsContent.querySelector('#cc-win-fixes');
+      if (fixEl) {
+        const prevFix = parseInt(fixEl.textContent, 10) || 0;
+        animateNumber(fixEl, prevFix, fixesApplied, 800);
+      }
+      const snapEl = winsContent.querySelector('#cc-win-snapshots');
+      if (snapEl) {
+        const prevSnap = parseInt(snapEl.textContent, 10) || 0;
+        animateNumber(snapEl, prevSnap, backupsCount, 800);
+      }
+    } else {
+      winsContent.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(2, 1fr);gap:14px;height:100%;align-content:center;">
+          <div class="stat-card glass-inner cc-win-tile">
+            <i class="fa-solid fa-shield-halved stat-card-icon-bg"></i>
+            <div class="stat-card-header">
+              <h3><i class="fa-solid fa-shield-halved text-success"></i> Safeguards</h3>
+              <span class="stat-badge badge-live">Active</span>
+            </div>
+            <div class="stat-value" id="cc-win-safeguards" style="font-size:1.65rem;">${activeRulesCount}</div>
+            <div class="stat-sub"><i class="fa-solid fa-lock text-success"></i> Active security rules</div>
           </div>
-          <div class="stat-value" style="font-size:1.65rem;">${activeRulesCount}</div>
-          <div class="stat-sub"><i class="fa-solid fa-lock text-success"></i> Active security rules</div>
-        </div>
-        <div class="stat-card glass-inner cc-win-tile">
-          <i class="fa-solid fa-bolt stat-card-icon-bg"></i>
-          <div class="stat-card-header">
-            <h3><i class="fa-solid fa-bolt text-primary"></i> Auto-Fixes</h3>
-            <span class="stat-badge badge-trend">Live</span>
+          <div class="stat-card glass-inner cc-win-tile">
+            <i class="fa-solid fa-bolt stat-card-icon-bg"></i>
+            <div class="stat-card-header">
+              <h3><i class="fa-solid fa-bolt text-primary"></i> Auto-Fixes</h3>
+              <span class="stat-badge badge-trend">Live</span>
+            </div>
+            <div class="stat-value text-primary" id="cc-win-fixes" style="font-size:1.65rem;">${fixesApplied}</div>
+            <div class="stat-sub"><i class="fa-solid fa-check-double text-primary"></i> Issues resolved</div>
           </div>
-          <div class="stat-value text-primary" style="font-size:1.65rem;">${fixesApplied}</div>
-          <div class="stat-sub"><i class="fa-solid fa-check-double text-primary"></i> Issues resolved</div>
-        </div>
-        <div class="stat-card glass-inner cc-win-tile">
-          <i class="fa-solid fa-database stat-card-icon-bg"></i>
-          <div class="stat-card-header">
-            <h3><i class="fa-solid fa-database text-cyan"></i> Snapshots</h3>
-            <span class="stat-badge badge-trend">Saved</span>
+          <div class="stat-card glass-inner cc-win-tile">
+            <i class="fa-solid fa-database stat-card-icon-bg"></i>
+            <div class="stat-card-header">
+              <h3><i class="fa-solid fa-database text-cyan"></i> Snapshots</h3>
+              <span class="stat-badge badge-trend">Saved</span>
+            </div>
+            <div class="stat-value" id="cc-win-snapshots" style="font-size:1.65rem;">${backupsCount}</div>
+            <div class="stat-sub"><i class="fa-solid fa-clock-rotate-left text-cyan"></i> Restorable points</div>
           </div>
-          <div class="stat-value" style="font-size:1.65rem;">${backupsCount}</div>
-          <div class="stat-sub"><i class="fa-solid fa-clock-rotate-left text-cyan"></i> Restorable points</div>
-        </div>
-        <div class="stat-card glass-inner cc-win-tile">
-          <i class="fa-solid fa-circle-check stat-card-icon-bg"></i>
-          <div class="stat-card-header">
-            <h3><i class="fa-solid fa-circle-check text-success"></i> Protection</h3>
-            <span class="stat-badge badge-live">100%</span>
+          <div class="stat-card glass-inner cc-win-tile">
+            <i class="fa-solid fa-circle-check stat-card-icon-bg"></i>
+            <div class="stat-card-header">
+              <h3><i class="fa-solid fa-circle-check text-success"></i> Protection</h3>
+              <span class="stat-badge badge-live">100%</span>
+            </div>
+            <div class="stat-value text-success" id="cc-win-protection" style="font-size:1.65rem;">Active</div>
+            <div class="stat-sub"><i class="fa-solid fa-shield-heart text-success"></i> 24/7 Defense layer</div>
           </div>
-          <div class="stat-value text-success" style="font-size:1.65rem;">Active</div>
-          <div class="stat-sub"><i class="fa-solid fa-shield-heart text-success"></i> 24/7 Defense layer</div>
         </div>
-      </div>
-    `;
+      `;
+    }
   }
 
   // Also populate the legacy auditor-overview-sub elements (cc-loading, cc-content, cc-score-circle)

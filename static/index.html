@@ -689,18 +689,30 @@
               </div>
               <div class="card-body grid-3-col">
                 <div class="stat-card glass-inner">
-                  <h3>Members</h3>
-                  <div class="stat-value" id="guild-stat-members">0</div>
+                  <i class="fa-solid fa-users stat-card-icon-bg"></i>
+                  <div class="stat-card-header">
+                    <h3><i class="fa-solid fa-users text-primary"></i> Members</h3>
+                    <span class="stat-badge badge-trend">Community</span>
+                  </div>
+                  <div class="stat-value text-primary" id="guild-stat-members">0</div>
                   <div class="stat-sub" id="guild-stat-online">0 Online</div>
                 </div>
                 <div class="stat-card glass-inner">
-                  <h3>Channels</h3>
-                  <div class="stat-value" id="guild-stat-channels">0</div>
+                  <i class="fa-solid fa-hashtag stat-card-icon-bg"></i>
+                  <div class="stat-card-header">
+                    <h3><i class="fa-solid fa-hashtag text-cyan"></i> Channels</h3>
+                    <span class="stat-badge badge-trend">Layout</span>
+                  </div>
+                  <div class="stat-value text-cyan" id="guild-stat-channels">0</div>
                   <div class="stat-sub" id="guild-stat-channels-split">0 Text / 0 Voice</div>
                 </div>
                 <div class="stat-card glass-inner">
-                  <h3>Roles</h3>
-                  <div class="stat-value" id="guild-stat-roles">0</div>
+                  <i class="fa-solid fa-shield-halved stat-card-icon-bg"></i>
+                  <div class="stat-card-header">
+                    <h3><i class="fa-solid fa-shield-halved text-warning"></i> Roles</h3>
+                    <span class="stat-badge badge-trend">Hierarchy</span>
+                  </div>
+                  <div class="stat-value text-warning" id="guild-stat-roles">0</div>
                   <div class="stat-sub">Fully Scan roles in Auditor</div>
                 </div>
               </div>
@@ -844,23 +856,43 @@
                         </div>
                       </div>
                     </div>
-                    <!-- Quick Stats -->
-                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;">
-                      <div class="glass-inner p-3 text-center">
-                        <div style="font-size: 1.4rem; font-weight: 700; color: var(--primary);" id="cc-members">0</div>
-                        <div style="font-size: 0.75rem; color: var(--text-sub);">Members</div>
+                    <!-- Quick Stats (Bento Grid) -->
+                    <div class="grid-4-col mb-4">
+                      <div class="stat-card glass-inner">
+                        <i class="fa-solid fa-users stat-card-icon-bg"></i>
+                        <div class="stat-card-header">
+                          <h3><i class="fa-solid fa-users text-primary"></i> Members</h3>
+                          <span class="stat-badge badge-trend">Guild</span>
+                        </div>
+                        <div class="stat-value text-primary" id="cc-members">0</div>
+                        <div class="stat-sub">Total registered</div>
                       </div>
-                      <div class="glass-inner p-3 text-center">
-                        <div style="font-size: 1.4rem; font-weight: 700; color: var(--primary);" id="cc-channels">0</div>
-                        <div style="font-size: 0.75rem; color: var(--text-sub);">Channels</div>
+                      <div class="stat-card glass-inner">
+                        <i class="fa-solid fa-hashtag stat-card-icon-bg"></i>
+                        <div class="stat-card-header">
+                          <h3><i class="fa-solid fa-hashtag text-cyan"></i> Channels</h3>
+                          <span class="stat-badge badge-trend">Layout</span>
+                        </div>
+                        <div class="stat-value text-cyan" id="cc-channels">0</div>
+                        <div class="stat-sub">Text & Voice channels</div>
                       </div>
-                      <div class="glass-inner p-3 text-center">
-                        <div style="font-size: 1.4rem; font-weight: 700; color: var(--primary);" id="cc-roles">0</div>
-                        <div style="font-size: 0.75rem; color: var(--text-sub);">Roles</div>
+                      <div class="stat-card glass-inner">
+                        <i class="fa-solid fa-user-shield stat-card-icon-bg"></i>
+                        <div class="stat-card-header">
+                          <h3><i class="fa-solid fa-user-shield text-warning"></i> Roles</h3>
+                          <span class="stat-badge badge-trend">Security</span>
+                        </div>
+                        <div class="stat-value text-warning" id="cc-roles">0</div>
+                        <div class="stat-sub">Permission tiers</div>
                       </div>
-                      <div class="glass-inner p-3 text-center">
-                        <div style="font-size: 1.4rem; font-weight: 700; color: var(--success);" id="cc-online">0</div>
-                        <div style="font-size: 0.75rem; color: var(--text-sub);">Online</div>
+                      <div class="stat-card glass-inner">
+                        <i class="fa-solid fa-circle-dot stat-card-icon-bg"></i>
+                        <div class="stat-card-header">
+                          <h3><i class="fa-solid fa-circle-dot text-success"></i> Online</h3>
+                          <span class="stat-badge badge-live">Live</span>
+                        </div>
+                        <div class="stat-value text-success" id="cc-online">0</div>
+                        <div class="stat-sub">Active members now</div>
                       </div>
                     </div>
                   </div>
@@ -1567,7 +1599,7 @@
             <!-- Add Command Form -->
             <div class="card glass span-2">
               <div class="card-header border-bottom">
-                <h2>Create Custom Command</h2>
+                <h2><i class="fa-solid fa-square-plus text-primary"></i> Create Custom Command</h2>
                 <p>Map triggers (e.g. <code>!ip</code>) to responses. When users type the trigger, the bot responds instantly.</p>
               </div>
               <div class="card-body">
@@ -1594,7 +1626,7 @@
             <!-- Commands List -->
             <div class="card glass span-2">
               <div class="card-header border-bottom">
-                <h2>Active Custom Commands</h2>
+                <h2><i class="fa-solid fa-terminal text-cyan"></i> Active Custom Commands</h2>
                 <p>List of all commands currently registered. Click save to upload changes to the bot.</p>
               </div>
               <div class="card-body p-0">
@@ -1602,9 +1634,9 @@
                   <table class="premium-table" id="table-commands">
                     <thead>
                       <tr>
-                        <th>Trigger</th>
-                        <th>Response</th>
-                        <th>Actions</th>
+                        <th><i class="fa-solid fa-bolt text-primary" style="margin-right: 4px;"></i> Trigger</th>
+                        <th><i class="fa-solid fa-message text-sub" style="margin-right: 4px;"></i> Response</th>
+                        <th><i class="fa-solid fa-gear text-sub" style="margin-right: 4px;"></i> Actions</th>
                       </tr>
                     </thead>
                     <tbody id="commands-list-body">
@@ -1641,7 +1673,7 @@
             <!-- Ticket Configuration Settings -->
             <div class="card glass span-2">
               <div class="card-header border-bottom">
-                <h2>Support Ticket Configuration</h2>
+                <h2><i class="fa-solid fa-ticket-simple text-primary"></i> Support Ticket Configuration</h2>
                 <p>Deploy a clickable ticketing panel in your server. When clicked, the bot creates private text channels for users to talk with staff.</p>
               </div>
               <div class="card-body">
@@ -1790,7 +1822,7 @@
             <!-- Configuration Settings -->
             <div class="card glass span-2">
               <div class="card-header border-bottom">
-                <h2>Welcome Greeting Settings</h2>
+                <h2><i class="fa-solid fa-door-open text-primary"></i> Welcome Greeting Settings</h2>
               </div>
               <div class="card-body">
                 <form id="welcome-form">
@@ -1831,7 +1863,7 @@
                   </div>
 
                   <div class="border-top pt-3 mt-3">
-                    <h3>Advanced Embed Settings</h3>
+                    <h3><i class="fa-solid fa-sliders text-cyan"></i> Advanced Embed Settings</h3>
                     <div class="grid-2-col mt-2">
                       <div class="input-group">
                         <label for="welcome-author-name">Author Name:</label>
@@ -1897,10 +1929,10 @@
 
             <!-- Member Milestone Triggers -->
             <div class="card glass span-2">
-                          <div class="card-header border-bottom">
-                            <h2>Member Milestone Triggers</h2>
-                            <p>Auto-send celebration embeds when your server reaches member count milestones.</p>
-                          </div>
+              <div class="card-header border-bottom">
+                <h2><i class="fa-solid fa-flag-checkered text-warning"></i> Member Milestone Triggers</h2>
+                <p>Auto-send celebration embeds when your server reaches member count milestones.</p>
+              </div>
                           <div class="card-body">
                             <form id="milestone-form">
                               <div class="toggle-group mb-4">
@@ -2376,7 +2408,7 @@
             <!-- Preview Card -->
             <div class="card glass span-2">
               <div class="card-header border-bottom">
-                <h2>Panel Message Preview</h2>
+                <h2><i class="fa-solid fa-eye text-cyan"></i> Panel Message Preview</h2>
                 <p>Simulates what the role panel will look like when deployed in Discord.</p>
               </div>
               <div class="card-body card-body-preview">
@@ -2489,7 +2521,7 @@
             <!-- Channel Handling Options Card -->
             <div class="card glass span-4">
               <div class="card-header border-bottom">
-                <h2>Channel Handling Options</h2>
+                <h2><i class="fa-solid fa-sliders text-primary"></i> Channel Handling Options</h2>
                 <p>Configure how existing channels and categories are processed before deploying layouts.</p>
               </div>
               <div class="card-body">
@@ -2567,7 +2599,7 @@
           <div class="grid-layout">
             <div class="card glass span-2">
               <div class="card-header border-bottom">
-                <h2>Visual Embed Designer</h2>
+                <h2><i class="fa-solid fa-palette text-primary"></i> Visual Embed Designer</h2>
                 <p>Create rich, detailed cards to announce updates or showcase features on your server.</p>
               </div>
               <div class="card-body">
@@ -2864,7 +2896,7 @@
             <!-- Embed Preview Simulator -->
             <div class="card glass span-2">
               <div class="card-header border-bottom">
-                <h2>Visual Simulator Preview</h2>
+                <h2><i class="fa-solid fa-eye text-cyan"></i> Visual Simulator Preview</h2>
                 <p>Simulates how the embed will look when pushed live to Discord chat.</p>
               </div>
               <div class="card-body card-body-preview">
@@ -2915,7 +2947,7 @@
             <!-- Left Side: Create Giveaway Form -->
             <div class="card glass">
               <div class="card-header border-bottom">
-                <h2>🎁 Create a Giveaway</h2>
+                <h2><i class="fa-solid fa-gift text-primary"></i> Create a Giveaway</h2>
                 <p>Launch a giveaway with persistent button reactions on Discord.</p>
               </div>
               <div class="card-body">
@@ -2958,7 +2990,7 @@
             <!-- Right Side: Active Giveaways -->
             <div class="card glass span-2">
               <div class="card-header border-bottom">
-                <h2>⚡ Active Giveaways</h2>
+                <h2><i class="fa-solid fa-bolt text-warning"></i> Active Giveaways</h2>
                 <p>Live giveaways running on your Discord server.</p>
               </div>
               <div class="card-body">
@@ -2977,7 +3009,7 @@
           <!-- Bottom: Giveaway History -->
           <div class="card glass mt-4">
             <div class="card-header border-bottom">
-              <h2>📜 Giveaway History</h2>
+              <h2><i class="fa-solid fa-clock-rotate-left text-sub"></i> Giveaway History</h2>
               <p>Completed giveaways and rolled winners.</p>
             </div>
             <div class="card-body" style="padding: 0;">
@@ -3059,7 +3091,7 @@
             <!-- Now Playing Panel -->
             <div class="card glass span-2">
               <div class="card-header border-bottom">
-                <h2>Now Playing Controls</h2>
+                <h2><i class="fa-solid fa-compact-disc text-primary"></i> Now Playing Controls</h2>
               </div>
               <div class="card-body">
                 <div class="music-visualizer-box glass-inner p-4 text-center">
@@ -3114,7 +3146,7 @@
             <!-- YouTube Search & Queue -->
             <div class="card glass span-2">
               <div class="card-header border-bottom">
-                <h2>YouTube Search & Queue</h2>
+                <h2><i class="fa-solid fa-magnifying-glass text-cyan"></i> YouTube Search & Queue</h2>
               </div>
               <div class="card-body">
                 <form id="music-play-form">
@@ -3131,7 +3163,7 @@
 
                 <!-- Queue listing -->
                 <div class="mt-4 border-top pt-3">
-                  <h3>Active Playlist Queue</h3>
+                  <h3><i class="fa-solid fa-list-ol text-sub"></i> Active Playlist Queue</h3>
                   <div class="table-container max-h-300 mt-2">
                     <table class="premium-table" id="table-music-queue">
                       <thead>
@@ -3164,7 +3196,7 @@
             <!-- Alternative External Bots Panel -->
             <div class="card glass span-4 mt-4">
               <div class="card-header border-bottom">
-                <h2>Alternative External Music Bots</h2>
+                <h2><i class="fa-solid fa-compact-disc text-indigo"></i> Alternative External Music Bots</h2>
                 <p>Host-free, high-quality audio alternatives if the built-in node is offline or lacks custom server resources.</p>
               </div>
               <div class="card-body">
@@ -3228,7 +3260,7 @@
 
                 <!-- Custom Invite Generator -->
                 <div class="mt-4 border-top pt-4">
-                  <h3 class="mb-2">Custom Bot Invite Generator</h3>
+                  <h3 class="mb-2"><i class="fa-solid fa-robot text-primary"></i> Custom Bot Invite Generator</h3>
                   <p class="text-sub font-size-08 mb-3">Add any other custom music or utility bot directly to your server by pasting its Application Client ID below.</p>
                   <div class="grid-2-col">
                     <div class="input-group">
@@ -3263,7 +3295,7 @@
             <!-- Leveling Settings -->
             <div class="card glass span-2">
               <div class="card-header border-bottom">
-                <h2>XP System Configurations</h2>
+                <h2><i class="fa-solid fa-trophy text-warning"></i> XP System Configurations</h2>
               </div>
               <div class="card-body">
                 <form id="leveling-config-form">
@@ -3295,7 +3327,7 @@
 
                   <div class="border-top pt-3 mt-3">
                     <div class="flex-between mb-2">
-                      <h3>Level Roles Configuration</h3>
+                      <h3><i class="fa-solid fa-medal text-primary"></i> Level Roles Configuration</h3>
                       <button type="button" id="btn-level-role-add" class="btn btn-secondary btn-small">
                         <i class="fa-solid fa-plus"></i> Add Mapping
                       </button>
@@ -3338,7 +3370,7 @@
             <!-- Leaderboard Listing -->
             <div class="card glass span-2">
               <div class="card-header border-bottom">
-                <h2>Server Rank Leaderboard</h2>
+                <h2><i class="fa-solid fa-ranking-star text-primary"></i> Server Rank Leaderboard</h2>
               </div>
               <div class="card-body p-0">
                 <div class="table-container max-h-400">
@@ -3392,7 +3424,7 @@
           <div class="card glass">
             <div class="card-header border-bottom flex-header">
               <div>
-                <h2>Dashboard Audit Trail</h2>
+                <h2><i class="fa-solid fa-list-check text-primary"></i> Dashboard Audit Trail</h2>
                 <p>Chronological feed of administrative and moderation actions logged via this optimizer dashboard.</p>
               </div>
               <div class="flex-between mt-2 mt-md-0">
@@ -3456,11 +3488,11 @@
         <!-- TAB: AUTOMATION CENTER -->
         <section id="tab-automation" class="tab-pane hidden">
           <div class="sub-tab-container">
-            <button class="sub-tab-btn active" data-sub-tab="automation-overview-sub">Automation Overview</button>
-            <button class="sub-tab-btn" data-sub-tab="automod-sub">Auto-Moderation</button>
-            <button class="sub-tab-btn" data-sub-tab="incidents-sub">Incidents & Security</button>
-            <button class="sub-tab-btn" data-sub-tab="auto-responder-sub">Auto-Responders</button>
-            <button class="sub-tab-btn" data-sub-tab="scheduler-sub">Scheduler</button>
+            <button class="sub-tab-btn active" data-sub-tab="automation-overview-sub"><i class="fa-solid fa-chart-pie"></i> Automation Overview</button>
+            <button class="sub-tab-btn" data-sub-tab="automod-sub"><i class="fa-solid fa-shield-virus"></i> Auto-Moderation</button>
+            <button class="sub-tab-btn" data-sub-tab="incidents-sub"><i class="fa-solid fa-triangle-exclamation"></i> Incidents & Security</button>
+            <button class="sub-tab-btn" data-sub-tab="auto-responder-sub"><i class="fa-solid fa-reply-all"></i> Auto-Responders</button>
+            <button class="sub-tab-btn" data-sub-tab="scheduler-sub"><i class="fa-solid fa-calendar-days"></i> Scheduler</button>
           </div>
 
           <div id="automation-overview-sub" class="sub-tab-pane">
@@ -3488,7 +3520,7 @@
             <!-- Auto-Moderation Settings -->
             <div class="card glass span-2">
               <div class="card-header border-bottom">
-                <h2>Auto-Moderation Settings</h2>
+                <h2><i class="fa-solid fa-shield-virus text-primary"></i> Auto-Moderation Settings</h2>
               </div>
               <div class="card-body">
                 <form id="automod-form">
@@ -3565,7 +3597,7 @@
             <!-- Blocklist management -->
             <div class="card glass span-2">
               <div class="card-header border-bottom">
-                <h2>Custom Word Filter Blocklist</h2>
+                <h2><i class="fa-solid fa-filter-circle-xmark text-warning"></i> Custom Word Filter Blocklist</h2>
                 <p>Add specific slurs, spam keywords, or links that the bot should automatically delete.</p>
               </div>
               <div class="card-body">
@@ -3579,7 +3611,7 @@
 
             <div class="card glass span-2 mt-4">
               <div class="card-header border-bottom">
-                <h2><i class="fa-solid fa-shield-halved"></i> Anti-Raid Protection</h2>
+                <h2><i class="fa-solid fa-shield-halved text-cyan"></i> Anti-Raid Protection</h2>
                 <p>Detect and respond to mass-join attacks and suspicious accounts.</p>
               </div>
               <div class="card-body">
@@ -3640,7 +3672,7 @@
             <!-- Incident Stats -->
             <div class="card glass span-4">
               <div class="card-header border-bottom flex-header">
-                <h2><i class="fa-solid fa-shield-virus"></i> Incident Center</h2>
+                <h2><i class="fa-solid fa-triangle-exclamation text-danger"></i> Incident Center</h2>
                 <select id="incident-days" class="analytics-select" onchange="loadIncidents()">
                   <option value="7">Last 7 days</option>
                   <option value="30" selected>Last 30 days</option>
@@ -3684,7 +3716,7 @@
             <!-- Create Responder -->
             <div class="card glass span-2">
               <div class="card-header border-bottom">
-                <h2>Create Auto-Responder Trigger</h2>
+                <h2><i class="fa-solid fa-reply-all text-primary"></i> Create Auto-Responder Trigger</h2>
                 <p>Respond dynamically to keyword triggers. Supports exact matches, simple containing searches, or advanced regex models.</p>
               </div>
               <div class="card-body">
@@ -3756,7 +3788,7 @@
             <!-- Active Responders -->
             <div class="card glass span-2">
               <div class="card-header border-bottom">
-                <h2>Registered Responders</h2>
+                <h2><i class="fa-solid fa-robot text-cyan"></i> Registered Responders</h2>
               </div>
               <div class="card-body p-0">
                 <div class="table-container max-h-400">
@@ -3790,7 +3822,7 @@
             <!-- Schedule Form -->
             <div class="card glass span-2">
               <div class="card-header border-bottom">
-                <h2>Schedule Event Message</h2>
+                <h2><i class="fa-solid fa-calendar-plus text-primary"></i> Schedule Event Message</h2>
                 <p>Configure automated messages to broadcast once or on a recurring timeline.</p>
               </div>
               <div class="card-body">
@@ -3846,7 +3878,7 @@
             <!-- Active Schedules -->
             <div class="card glass span-2">
               <div class="card-header border-bottom">
-                <h2>Active Scheduled Broadcasts</h2>
+                <h2><i class="fa-solid fa-clock-rotate-left text-cyan"></i> Active Scheduled Broadcasts</h2>
               </div>
               <div class="card-body p-0">
                 <div class="table-container max-h-400">
