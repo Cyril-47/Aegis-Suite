@@ -1561,6 +1561,24 @@ body.liquid-glass-theme .btn-header-utility:hover {
   box-shadow: 0 0 12px rgba(56, 189, 248, 0.35);
 }
 
+.btn-header-utility.is-muted {
+  color: var(--text-muted);
+  opacity: 0.65;
+}
+
+.btn-header-utility.is-muted:hover {
+  opacity: 1;
+  color: var(--warning);
+  border-color: rgba(245, 158, 11, 0.35);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
+}
+
+/* Modern 2026 Tactile Button Micro-Interactions */
+.btn:active, .btn-secondary:active, .drawer-filter-chip:active {
+  transform: scale(0.97);
+  transition: transform 0.08s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 /* Tab Panels */
 .tab-content-container {
   padding: 40px;

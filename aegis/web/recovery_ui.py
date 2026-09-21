@@ -133,7 +133,7 @@ def get_recovery_html(reason_code: str, health_payload: dict) -> str:
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Aegis Suite - Safe Mode Recovery</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="/static/css/google-fonts.css" rel="stylesheet">
     <style>
         :root {
             --bg-base: #0a0b10;
@@ -165,7 +165,7 @@ def get_recovery_html(reason_code: str, health_payload: dict) -> str:
         }
 
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
             background: radial-gradient(circle at 50% 0%, var(--bg-gradient-start), var(--bg-gradient-end));
             background-color: var(--bg-base);
             color: var(--text-primary);

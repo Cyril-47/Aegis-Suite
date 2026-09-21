@@ -854,6 +854,7 @@ function setupNavigation() {
 
   navItems.forEach(item => {
     item.addEventListener('click', () => {
+      if (typeof playUiSound === 'function') playUiSound('click');
       const targetTab = item.getAttribute('data-tab');
       localStorage.setItem('active_tab', targetTab);
       
@@ -4138,6 +4139,7 @@ function setupEventListeners() {
     applyThemeUI(savedTheme);
 
     btnThemeToggle.addEventListener('click', () => {
+      if (typeof playUiSound === 'function') playUiSound('toggle');
       let nextTheme = 'dark';
       if (document.body.classList.contains('synthwave-theme')) {
         nextTheme = 'dark';
@@ -4953,6 +4955,15 @@ function showToast(message, type = 'info', duration = 3500) {
 
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
+  
+  // Trigger tactile procedural audio feedback
+  if (typeof playUiSound === 'function') {
+    if (type === 'success') {
+      playUiSound('success');
+    } else if (type === 'error') {
+      playUiSound('error');
+    }
+  }
   
   let icon = 'fa-circle-info';
   if (type === 'success') icon = 'fa-circle-check';
@@ -10975,6 +10986,7 @@ function initActionDrawerControls() {
 }
 
 function openActionDrawer() {
+  if (typeof playUiSound === 'function') playUiSound('drawer');
   const backdrop = document.getElementById('action-drawer-backdrop');
   const drawer = document.getElementById('action-center-drawer');
   if (!backdrop || !drawer) return;
@@ -10992,6 +11004,7 @@ function openActionDrawer() {
 }
 
 function closeActionDrawer() {
+  if (typeof playUiSound === 'function') playUiSound('click');
   const backdrop = document.getElementById('action-drawer-backdrop');
   const drawer = document.getElementById('action-center-drawer');
   if (!drawer) return;
@@ -12366,7 +12379,46 @@ async function rollbackConfigSnapshot(snapshotId) {
 document.addEventListener('DOMContentLoaded', () => {
   checkPendingUndoOnLoad();
   setupFullscreen();
+  setupSoundToggle();
 });
+
+// Sound Effects UI Controller (Mute/Unmute & State Synchronization)
+function setupSoundToggle() {
+  const btnSoundToggle = document.getElementById('btn-sound-toggle');
+  if (!btnSoundToggle) return;
+
+  function updateSoundBtnUI(enabled) {
+    if (enabled) {
+      btnSoundToggle.innerHTML = '<i class="fa-solid fa-volume-high"></i>';
+      btnSoundToggle.title = 'Mute Sound Effects';
+      btnSoundToggle.setAttribute('aria-label', 'Mute Sound Effects');
+      btnSoundToggle.classList.remove('is-muted');
+    } else {
+      btnSoundToggle.innerHTML = '<i class="fa-solid fa-volume-xmark"></i>';
+      btnSoundToggle.title = 'Unmute Sound Effects';
+      btnSoundToggle.setAttribute('aria-label', 'Unmute Sound Effects');
+      btnSoundToggle.classList.add('is-muted');
+    }
+  }
+
+  if (typeof isSoundEnabled === 'function') {
+    updateSoundBtnUI(isSoundEnabled());
+  }
+
+  btnSoundToggle.addEventListener('click', () => {
+    if (typeof toggleSoundMute === 'function') {
+      const enabled = toggleSoundMute();
+      updateSoundBtnUI(enabled);
+      showToast(enabled ? 'Sound effects enabled' : 'Sound effects muted', 'info', 2000);
+    }
+  });
+
+  window.addEventListener('aegis-sound-state-changed', (e) => {
+    if (e && e.detail) {
+      updateSoundBtnUI(Boolean(e.detail.enabled));
+    }
+  });
+}
 
 // Fullscreen Mode Controller (Hardware-Accelerated Native PyWebView + Web Fullscreen API Fallback)
 function setupFullscreen() {

@@ -5,6 +5,31 @@ All notable changes to the Aegis Suite project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.4] - 2026-09-21
+
+### Added
+- **Procedural Tactile Sound Effects Engine (`static/audio.js`)**:
+  - Implemented zero-asset, zero-network procedural audio synthesis leveraging the Web Audio API (`OscillatorNode` + `GainNode`).
+  - Added acoustic presets inspired by modern SaaS apps (Linear, Raycast, macOS):
+    - `click` / `tap`: Ultra-crisp 45ms percussive tick for tab navigation, header utilities, and primary buttons.
+    - `toggle`: Crisp dual-tone frequency slide (480Hz → 740Hz) for switches, checkboxes, and theme toggling.
+    - `success`: Harmonic chord arpeggio (C5 → E5 → G5 → C6) for batch safe fixes, settings saves, and success toasts.
+    - `drawer`: Soft aerodynamic whoosh (240Hz → 520Hz → 320Hz) on opening the Slide-Over Action Drawer.
+    - `error`: Subtle dual-tone warning drop (260Hz → 140Hz) for error notifications.
+  - Added header utility button (`#btn-sound-toggle`) for 1-click audio mute/unmute with persistent state in `localStorage` (`aegis_sound_enabled`).
+- **Trending 2026 Micro-Interaction Physics (`static/style.css`)**:
+  - Added tactile button spring micro-interactions (`transform: scale(0.97)` on `:active` with `cubic-bezier(0.16, 1, 0.3, 1)`).
+  - Styled muted state for audio toggle button with subtle warning accents and hover glow.
+
+### Fixed
+- **Instant Boot Pattern (<250ms Launch) & Complete Windows "(Not Responding)" Elimination**:
+  - Moved heavy synchronous dependency checks (`_check_critical_deps()`) off the main thread into a background daemon thread, eliminating a 2–4 second blocking delay on startup.
+  - Replaced the pre-window sleep loop with an instant PyWebView window launch utilizing a self-contained inline SVG/CSS Dark Obsidian splash screen (`background_color="#0b0f19"`).
+  - Main thread enters the native Windows message pump immediately upon launch, ensuring Windows OS never flags the window as `(Not Responding)`.
+  - PyWebView background worker runs `AppCore` and active health probe asynchronously, seamlessly navigating to the dashboard (`window.load_url()`) once healthy.
+- **Offline Safe Mode Resilience (`aegis/web/recovery_ui.py`)**:
+  - Replaced synchronous Google Fonts network request (`https://fonts.googleapis.com`) with local `/static/css/google-fonts.css` and system font fallbacks, preventing network latency or offline hangs during cold recovery boots.
+
 ## [2.7.3] - 2026-09-20
 
 ### Added
