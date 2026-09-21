@@ -12,8 +12,8 @@ logger = logging.getLogger("aegis.main")
 
 
 def _check_critical_deps():
-    """Logs the availability of critical optional dependencies at startup."""
-    import importlib
+    """Logs the availability of critical optional dependencies at startup without triggering heavy imports."""
+    import importlib.util
     checks = [
         ("discord", "discord.py (bot framework)"),
         ("nacl", "PyNaCl (voice support)"),
@@ -27,10 +27,9 @@ def _check_critical_deps():
     ffmpeg_ok = shutil.which("ffmpeg") is not None
 
     for mod_name, label in checks:
-        try:
-            importlib.import_module(mod_name)
+        if mod_name in sys.modules or importlib.util.find_spec(mod_name) is not None:
             logger.info(f"  [OK] {label}")
-        except ImportError:
+        else:
             logger.warning(f"  [MISSING] {label} — some features will be unavailable")
 
     if ffmpeg_ok:
@@ -303,7 +302,16 @@ def main() -> int:
         # Application assets directory (distinct from writable AppData paths.root)
         app_base_dir = getattr(sys, "_MEIPASS", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-        # Initialize System Tray Manager
+        # Resolve application icon
+        ico_candidates = [
+            os.path.join(app_base_dir, "logo.ico"),
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "logo.ico"),
+            os.path.join(os.getcwd(), "logo.ico"),
+            os.path.join(os.path.dirname(sys.executable), "logo.ico"),
+        ]
+        target_ico = next((p for p in ico_candidates if os.path.exists(p)), None)
+
+        # Initialize System Tray Manager (will be started after GUI message pump is active)
         tray_mgr = None
         try:
             from aegis.core.tray import SystemTrayManager
@@ -312,7 +320,6 @@ def main() -> int:
                 on_open_callback=on_restore,
                 on_exit_callback=on_full_exit
             )
-            tray_mgr.run_detached()
         except Exception as tray_err:
             logger.warning(f"Could not initialize system tray icon: {tray_err}")
 
@@ -330,7 +337,19 @@ def main() -> int:
         def start_server_and_load():
             """Background worker executed by PyWebView as soon as the native GUI window and message pump are active."""
             logger.info("GUI message pump active; spinning up AppCore in background...")
-            bg_thread = threading.Thread(target=lambda: loop.run_until_complete(core.run()), daemon=True)
+
+            # Start tray icon after the main GUI window message pump is initialized
+            if tray_mgr:
+                try:
+                    tray_mgr.run_detached()
+                except Exception as tray_err:
+                    logger.warning(f"Could not start detached system tray icon: {tray_err}")
+
+            def _run_core():
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(core.run())
+
+            bg_thread = threading.Thread(target=_run_core, daemon=True, name="AegisCoreThread")
             bg_thread.start()
 
             # Poll for web server health probe
@@ -355,7 +374,7 @@ def main() -> int:
                 dash_url = f"http://127.0.0.1:{core.web_port}"
                 logger.info(f"Navigating native window to dashboard: {dash_url}")
                 # Brief aesthetic pause for splash screen elegance
-                time.sleep(0.25)
+                time.sleep(0.2)
                 if window_ref:
                     try:
                         window_ref.load_url(dash_url)
@@ -386,36 +405,13 @@ def main() -> int:
             desktop_bridge.set_window(window_ref)
             window_ref.events.closing += on_closing
 
-            def set_window_native_icon():
-                try:
-                    base_dir = os.path.dirname(os.path.abspath(__file__))
-                    ico_candidates = []
-                    meipass = getattr(sys, "_MEIPASS", None)
-                    if meipass:
-                        ico_candidates.extend([
-                            os.path.join(meipass, "logo.ico"),
-                        ])
-                    ico_candidates.extend([
-                        os.path.join(base_dir, "..", "logo.ico"),
-                        os.path.join(base_dir, "logo.ico"),
-                        os.path.join(os.getcwd(), "logo.ico"),
-                        os.path.join(os.path.dirname(sys.executable), "logo.ico"),
-                    ])
-                    target_ico = next((p for p in ico_candidates if p.lower().endswith(".ico") and os.path.exists(p)), None)
-                    if target_ico and hasattr(window_ref, "native") and window_ref.native:
-                        import clr
-                        clr.AddReference("System.Drawing")
-                        from System.Drawing import Icon
-                        window_ref.native.Icon = Icon(target_ico)
-                        logger.info(f"Set PyWebView native window icon: {target_ico}")
-                except Exception as ex:
-                    logger.debug(f"Could not set native window icon: {ex}")
-
-            window_ref.events.shown += set_window_native_icon
-            webview.start(start_server_and_load, gui='edgechromium', debug=False)
+            webview.start(start_server_and_load, gui='edgechromium', debug=False, icon=target_ico)
         except Exception as e:
             logger.warning(f"PyWebView launch error: {e}. Opening browser...")
-            bg_thread = threading.Thread(target=lambda: loop.run_until_complete(core.run()), daemon=True)
+            def _fallback_run_core():
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(core.run())
+            bg_thread = threading.Thread(target=_fallback_run_core, daemon=True, name="AegisFallbackThread")
             bg_thread.start()
             start_wait = time.time()
             while time.time() - start_wait < 30.0:

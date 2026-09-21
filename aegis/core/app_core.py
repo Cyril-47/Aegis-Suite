@@ -226,8 +226,8 @@ class AppCore:
         else:
             await self.promote_to_running()
 
-        # Wait for the ASGI server task to start and assign web_port
-        for _ in range(20):
+        # Wait for the ASGI server task to start and assign web_port (up to 10s for cold boots)
+        for _ in range(100):
             if self.web_port is not None:
                 break
             await asyncio.sleep(0.1)
