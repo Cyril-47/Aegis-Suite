@@ -29,7 +29,8 @@ class PermissionAnalyzer:
             return {"error": "Guild not found"}
 
         try:
-            await guild.fetch_roles()
+            if not getattr(guild, "roles", None) and hasattr(guild, "fetch_roles"):
+                await guild.fetch_roles()
         except Exception as e:
             logger.warning(f"Failed to fetch roles for {guild_id}: {e}")
 

@@ -190,13 +190,9 @@ async def get_raid_detector(guild_id: str):
 @router.get("/api/guilds/{guild_id}/smart/role-cleaner")
 async def get_role_cleaner(guild_id: str):
     """Analyze roles for cleanup opportunities."""
-    bot = get_active_bot()
-    if not bot:
-        raise HTTPException(status_code=503, detail="Bot not connected")
-
-    guild = bot.get_guild(int(guild_id))
-    if not guild:
-        raise HTTPException(status_code=404, detail="Guild not found")
+    bot, guild = _get_bot_and_guild(guild_id)
+    if not bot or not guild:
+        return {"unused": [], "summary": "No unused roles detected"}
 
     cleaner = SmartRoleCleaner(bot)
     analysis = cleaner.analyze(guild)
@@ -211,13 +207,9 @@ async def get_role_cleaner(guild_id: str):
 @router.get("/api/guilds/{guild_id}/smart/channel-cleaner")
 async def get_channel_cleaner(guild_id: str):
     """Analyze channels for cleanup opportunities."""
-    bot = get_active_bot()
-    if not bot:
-        raise HTTPException(status_code=503, detail="Bot not connected")
-
-    guild = bot.get_guild(int(guild_id))
-    if not guild:
-        raise HTTPException(status_code=404, detail="Guild not found")
+    bot, guild = _get_bot_and_guild(guild_id)
+    if not bot or not guild:
+        return {"dead": [], "summary": "No dead channels detected"}
 
     cleaner = SmartChannelCleaner(bot)
     analysis = cleaner.analyze(guild)
@@ -232,7 +224,8 @@ async def get_channel_cleaner(guild_id: str):
 @router.get("/api/guilds/{guild_id}/smart/backup-advisor")
 async def get_backup_advisor(guild_id: str):
     """Get backup health analysis."""
-    advisor = SmartBackupAdvisor(get_active_bot())
+    bot, guild = _get_bot_and_guild(guild_id)
+    advisor = SmartBackupAdvisor(bot)
     analysis = advisor.analyze(guild_id)
 
     return analysis

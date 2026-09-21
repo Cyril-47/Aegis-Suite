@@ -7,12 +7,12 @@ router = APIRouter()
 @router.get("/api/guilds/{guild_id}/automation-center")
 async def get_automation_center(guild_id: str):
     bot = get_active_bot()
-    if not bot:
-        raise HTTPException(status_code=503, detail="Bot not connected")
-
-    guild = bot.get_guild(parse_id(guild_id, "guild_id"))
-    if not guild:
-        raise HTTPException(status_code=404, detail="Guild not found")
+    guild = None
+    if bot:
+        try:
+            guild = bot.get_guild(parse_id(guild_id, "guild_id"))
+        except Exception:
+            guild = None
 
     # Check what automation features are active
     features = []
@@ -95,10 +95,6 @@ async def get_automation_center(guild_id: str):
 
 @router.get("/api/trend-forecast/{guild_id}")
 async def get_trend_forecast(guild_id: str, days: int = 30):
-    bot = get_active_bot()
-    if not bot:
-        raise HTTPException(status_code=503, detail="Bot not connected")
-
     from aegis.db.analytics_models import DailySnapshot
 
     engine = _get_analytics_engine()

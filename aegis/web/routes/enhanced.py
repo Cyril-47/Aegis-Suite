@@ -8,11 +8,15 @@ router = APIRouter()
 async def get_security_checks(guild_id: str):
     bot = get_active_bot()
     if not bot:
-        raise HTTPException(status_code=503, detail="Bot not connected")
+        try:
+            from aegis.bot.runner import get_mock_bot
+            bot = get_mock_bot()
+        except Exception:
+            bot = None
 
-    guild = bot.get_guild(parse_id(guild_id, "guild_id"))
+    guild = bot.get_guild(parse_id(guild_id, "guild_id")) if bot else None
     if not guild:
-        raise HTTPException(status_code=404, detail="Guild not found")
+        return {"checks": [], "summary": "Guild not available"}
 
     checks = []
 

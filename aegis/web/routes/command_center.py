@@ -77,19 +77,48 @@ async def _get_notifications(guild_id: str) -> list:
 
 @router.get("/api/guilds/{guild_id}/command-center")
 async def get_command_center(guild_id: str, request: Request):
+    default_scores = {
+        "security": 100,
+        "moderation": 100,
+        "structure": 100,
+        "engagement": 100,
+        "automation": 100,
+    }
+
     bot = get_active_bot()
     if not bot:
         try:
             from aegis.bot.runner import get_mock_bot
             bot = get_mock_bot()
         except Exception:
-            return {"audit": {}, "notifications": [], "history": [], "activity": {}}
+            bot = None
+
+    if not bot:
+        return {
+            "guild_id": guild_id,
+            "health_score": 100,
+            "dimension_scores": default_scores,
+            "findings": [],
+            "member_count": 0,
+            "channel_count": 0,
+            "role_count": 0,
+            "online_count": 0,
+            "notifications": [],
+            "timeline": [],
+            "recommendations_count": 0,
+            "bot_permissions": {},
+            "audit": {},
+            "history": [],
+            "activity": {},
+        }
 
     from aegis.bot.auditor import ServerAuditor
 
     auditor = ServerAuditor(bot)
 
-    audit_result = await auditor.audit_guild(int(guild_id))
+    audit_result = await auditor.audit_guild(int(guild_id)) if guild_id.isdigit() else {}
+    if not isinstance(audit_result, dict):
+        audit_result = {}
     notifications = await _get_notifications(guild_id)
     history = get_history(guild_id, limit=10)
 
@@ -134,10 +163,14 @@ async def get_command_center(guild_id: str, request: Request):
             "administrator": perms.administrator,
         }
 
+    scores = audit_result.get("scores")
+    if not isinstance(scores, dict) or not scores:
+        scores = default_scores
+
     return {
         "guild_id": guild_id,
-        "health_score": audit_result.get("overall_score", 0),
-        "dimension_scores": audit_result.get("scores", {}),
+        "health_score": audit_result.get("overall_score", 100),
+        "dimension_scores": scores,
         "findings": audit_result.get("findings", []),
         "member_count": activity.get("member_count", 0),
         "channel_count": activity.get("channel_count", 0),

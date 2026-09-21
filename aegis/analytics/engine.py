@@ -82,7 +82,7 @@ class AnalyticsEngine:
             try:
                 await asyncio.sleep(self._flush_interval)
                 await asyncio.get_event_loop().run_in_executor(None, self._flush_now)
-            except asyncio.CancelledError:
+            except (asyncio.CancelledError, RuntimeError):
                 break
             except Exception:
                 logger.exception("Analytics flush loop error")

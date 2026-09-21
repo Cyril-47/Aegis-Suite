@@ -24,8 +24,10 @@ class ServerAuditor:
             return {"error": "Guild not found"}
 
         try:
-            await guild.fetch_channels()
-            await guild.fetch_roles()
+            if not getattr(guild, "channels", None) and hasattr(guild, "fetch_channels"):
+                await guild.fetch_channels()
+            if not getattr(guild, "roles", None) and hasattr(guild, "fetch_roles"):
+                await guild.fetch_roles()
         except Exception as e:
             logger.warning(f"Failed to fetch guild data for {guild_id}: {e}")
 

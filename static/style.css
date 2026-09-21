@@ -4163,10 +4163,6 @@ input[type="range"].glass-slider::-webkit-slider-thumb:active {
 .sf-score-ring circle:first-child {
   stroke: rgba(255, 255, 255, 0.05);
 }
-.sf-score-ring circle:last-child {
-  stroke-linecap: round;
-  transition: stroke-dashoffset 1s ease-out;
-}
 .sf-score-text {
   position: absolute;
   inset: 0;

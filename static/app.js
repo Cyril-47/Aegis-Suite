@@ -551,6 +551,10 @@ function initApp() {
 // Odometer-style smooth numeric counter (easeOutCubic, zero idle CPU)
 function animateNumber(el, start, end, duration = 650, prefix = '', suffix = '') {
   if (!el) return;
+  if (el._animFrameId) {
+    cancelAnimationFrame(el._animFrameId);
+    el._animFrameId = null;
+  }
   const startNum = typeof start === 'number' ? start : (parseInt(String(start).replace(/[^0-9.-]/g, ''), 10) || 0);
   const endNum = typeof end === 'number' ? end : (parseInt(String(end).replace(/[^0-9.-]/g, ''), 10) || 0);
   if (startNum === endNum) {
@@ -565,12 +569,13 @@ function animateNumber(el, start, end, duration = 650, prefix = '', suffix = '')
     const current = Math.round(startNum + (endNum - startNum) * ease);
     el.textContent = `${prefix}${current.toLocaleString()}${suffix}`;
     if (progress < 1) {
-      requestAnimationFrame(update);
+      el._animFrameId = requestAnimationFrame(update);
     } else {
+      el._animFrameId = null;
       el.textContent = `${prefix}${endNum.toLocaleString()}${suffix}`;
     }
   }
-  requestAnimationFrame(update);
+  el._animFrameId = requestAnimationFrame(update);
 }
 
 async function fetchStats() {
@@ -809,7 +814,6 @@ function refreshActiveTabContent() {
     
     if (activeSub === 'command-center-sub') {
       loadSmartCommandCenter();
-      setTimeout(() => triggerHealthGaugeSweep(container), 80);
     } else if (activeSub === 'intel-security') {
       loadIntelSecurity();
     } else if (activeSub === 'intel-community') {
@@ -870,10 +874,6 @@ function setupNavigation() {
           pane.classList.add('hidden');
         }
       });
-
-      if (targetTab === 'tab-smart') {
-        setTimeout(() => triggerHealthGaugeSweep(document.getElementById('tab-smart')), 60);
-      }
 
       // Update tab description in header
       if (TAB_DESCRIPTIONS[targetTab]) {
@@ -998,7 +998,6 @@ function setupSubTabs() {
       if (activeGuildId) {
         if (targetSub === 'command-center-sub') {
           loadSmartCommandCenter();
-          setTimeout(() => triggerHealthGaugeSweep(container), 80);
         } else if (targetSub === 'intel-security') {
           loadIntelSecurity();
         } else if (targetSub === 'intel-community') {
@@ -1549,19 +1548,23 @@ async function runServerAudit() {
 function renderAuditResults(data) {
   const resultsDiv = document.getElementById('audit-results');
   if (!resultsDiv) return;
-  const scoreColor = data.overall_score >= 80 ? 'var(--success)' : data.overall_score >= 60 ? 'var(--warning)' : 'var(--danger)';
-  const toneClass = data.overall_score >= 80 ? 'tone-highlight-emerald' : data.overall_score >= 60 ? 'tone-highlight-amber' : 'tone-highlight-crimson';
+  const overallScore = data?.overall_score ?? data?.score ?? 75;
+  const scoreColor = overallScore >= 80 ? 'var(--success)' : overallScore >= 60 ? 'var(--warning)' : 'var(--danger)';
+  const toneClass = overallScore >= 80 ? 'tone-highlight-emerald' : overallScore >= 60 ? 'tone-highlight-amber' : 'tone-highlight-crimson';
+  const memberCount = data?.member_count ?? data?.guild_info?.member_count ?? 0;
+  const channelCount = data?.channel_count ?? ((data?.guild_info?.text_channels || 0) + (data?.guild_info?.voice_channels || 0));
+  const roleCount = data?.role_count ?? data?.guild_info?.roles ?? 0;
   
   let html = `
     <div class="bento-stat-chip ${toneClass} mb-4 p-4" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;">
       <div style="display:flex;align-items:center;gap:20px;">
-        <div class="stat-value" style="font-size:3.2rem;font-family:'Outfit',sans-serif;color:${scoreColor};line-height:1;margin:0;">${data.overall_score}</div>
+        <div class="stat-value" style="font-size:3.2rem;font-family:'Outfit',sans-serif;color:${scoreColor};line-height:1;margin:0;">${overallScore}</div>
         <div>
           <div style="font-weight:700;font-size:1.15rem;color:var(--text-main);">Overall Server Health Score</div>
           <div style="color:var(--text-sub);font-size:0.85rem;margin-top:4px;display:flex;gap:12px;flex-wrap:wrap;">
-            <span><i class="fa-solid fa-users text-primary" style="margin-right:4px;"></i>${data.member_count} members</span>
-            <span><i class="fa-solid fa-hashtag text-cyan" style="margin-right:4px;"></i>${data.channel_count} channels</span>
-            <span><i class="fa-solid fa-id-badge text-warning" style="margin-right:4px;"></i>${data.role_count} roles</span>
+            <span><i class="fa-solid fa-users text-primary" style="margin-right:4px;"></i>${memberCount} members</span>
+            <span><i class="fa-solid fa-hashtag text-cyan" style="margin-right:4px;"></i>${channelCount} channels</span>
+            <span><i class="fa-solid fa-id-badge text-warning" style="margin-right:4px;"></i>${roleCount} roles</span>
           </div>
         </div>
       </div>
@@ -1578,8 +1581,9 @@ function renderAuditResults(data) {
     { key: 'automation', label: 'Automation', icon: 'fa-robot' },
   ];
   
+  const scores = data?.scores || {};
   for (const dim of dimensions) {
-    const score = data.scores[dim.key] || 0;
+    const score = typeof scores[dim.key] === 'number' ? scores[dim.key] : overallScore;
     const color = score >= 80 ? 'var(--success)' : score >= 60 ? 'var(--warning)' : 'var(--danger)';
     html += `
       <div class="stat-card glass-inner text-center" style="border-top:3px solid ${color};padding:16px 12px;">
@@ -1647,14 +1651,18 @@ function renderCommandCenter(data) {
 
   // Dimension scores
   const dims = ['security', 'moderation', 'structure', 'engagement', 'automation'];
+  const dimScores = data?.dimension_scores || data?.scores || {};
   for (const dim of dims) {
     const el = document.getElementById(`cc-dim-${dim}`);
     if (!el) continue;
-    const s = data.dimension_scores[dim] || 0;
+    const s = typeof dimScores[dim] === 'number' ? dimScores[dim] : 100;
     const c = s >= 80 ? 'var(--success)' : s >= 60 ? 'var(--warning)' : 'var(--danger)';
     el.style.borderTop = `3px solid ${c}`;
-    el.querySelector('.cc-dim-score').textContent = s;
-    el.querySelector('.cc-dim-score').style.color = c;
+    const scoreEl = el.querySelector('.cc-dim-score');
+    if (scoreEl) {
+      scoreEl.textContent = s;
+      scoreEl.style.color = c;
+    }
   }
 
   // Quick stats
@@ -8652,7 +8660,6 @@ async function refreshCommandCenter() {
   try {
     if (typeof playUiSound === 'function') playUiSound('click');
     await loadSmartCommandCenter(true);
-    triggerHealthGaugeSweep(document.getElementById('tab-smart'));
   } finally {
     if (icon) icon.classList.remove('fa-spin');
   }
@@ -11306,19 +11313,21 @@ async function loadSmartCommandCenter(force = false) {
         </div>
       `;
 
-      // Trigger animated sweep in next frame
+      // Force layout reflow so initial state (circumference, 0% width) is committed
+      const ring = healthContent.querySelector('.cc-score-ring-circle');
+      if (ring) void ring.getBoundingClientRect();
+      healthContent.querySelectorAll('.dim-pill-fill').forEach(fill => void fill.getBoundingClientRect());
+
+      // Trigger animated sweep cleanly in next animation frame
       requestAnimationFrame(() => {
-        setTimeout(() => {
-          const ring = healthContent.querySelector('.cc-score-ring-circle');
-          if (ring) ring.style.strokeDashoffset = offset;
-          healthContent.querySelectorAll('.dim-pill-fill').forEach(fill => {
-            if (fill.dataset.width) fill.style.width = fill.dataset.width;
-          });
-          const sfScoreValEl = document.getElementById('sf-score-val-animated');
-          if (sfScoreValEl) {
-            animateNumber(sfScoreValEl, 0, weightedScore, 1000);
-          }
-        }, 30);
+        if (ring) ring.style.strokeDashoffset = offset;
+        healthContent.querySelectorAll('.dim-pill-fill').forEach(fill => {
+          if (fill.dataset.width) fill.style.width = fill.dataset.width;
+        });
+        const sfScoreValEl = document.getElementById('sf-score-val-animated');
+        if (sfScoreValEl) {
+          animateNumber(sfScoreValEl, 0, weightedScore, 1000);
+        }
       });
     }
   }
