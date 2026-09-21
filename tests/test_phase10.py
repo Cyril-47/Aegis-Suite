@@ -136,3 +136,17 @@ def test_jwt_fail_closed_security(paths_tmp, monkeypatch):
     if token:
         r2 = client.get("/api/config", headers={"Authorization": f"Bearer {token}"})
         assert r2.status_code in (401, 403)
+
+def test_restore_window_endpoint(paths_tmp):
+    core = AppCore(paths=paths_tmp)
+    called = []
+    core.window_restore_callback = lambda: called.append(True)
+
+    app = build_app(core)
+    client = TestClient(app)
+
+    # POST to /api/app/restore-window should succeed without auth and trigger callback
+    r = client.post("/api/app/restore-window")
+    assert r.status_code == 200
+    assert r.json().get("status") == "ok"
+    assert len(called) == 1

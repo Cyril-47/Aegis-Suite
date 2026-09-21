@@ -48,6 +48,9 @@ class AppCore:
         # Shutdown event logger to verify exact teardown sequence ordering
         self.teardown_log: List[str] = []
 
+        # Optional GUI window restore callback for multi-instance activation
+        self.window_restore_callback: Optional[Any] = None
+
         _active_cores.append(self)
 
     def _on_state_transition(self, state: LifecycleState, reason: Optional[ReasonCode]) -> None:

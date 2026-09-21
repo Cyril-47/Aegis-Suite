@@ -31,6 +31,11 @@ class SingleInstanceGuard:
                     self._mutex = None
                 else:
                     self.is_primary = True
+                    try:
+                        with open(self.lock_file_path, "w") as f:
+                            f.write(str(os.getpid()))
+                    except Exception:
+                        pass
             except Exception as e:
                 logger.error(f"Win32 CreateMutex failed: {e}. Falling back to lock file.")
                 self._acquire_file_lock()

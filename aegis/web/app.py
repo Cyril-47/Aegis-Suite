@@ -112,10 +112,11 @@ def build_app(core) -> FastAPI:
         if not path.startswith("/api/"):
             return await call_next(request)
             
-        # Allow health and auth endpoints to bypass auth checks
+        # Allow health, auth, and local window restore endpoints to bypass auth checks
         if (path == "/api/status" or 
             path == "/api/health" or
             path == "/api/public/status" or
+            path == "/api/app/restore-window" or
             path.startswith("/api/auth/")):
             return await call_next(request)
 
@@ -185,5 +186,21 @@ def build_app(core) -> FastAPI:
     app.include_router(smart_features_router)
     app.include_router(intelligence_engine_router)
     app.include_router(live_alerts_router)
+
+    @app.post("/api/app/restore-window")
+    async def restore_window_endpoint(request: Request):
+        """Allows subsequent CLI/shortcut instances to signal the primary instance to show its native desktop window."""
+        client_host = request.client.host if request.client else ""
+        if client_host not in ("127.0.0.1", "::1", "localhost", "testclient"):
+            return JSONResponse(status_code=403, content={"detail": "Forbidden: Loopback only"})
+        
+        callback = getattr(core, "window_restore_callback", None)
+        if callback:
+            try:
+                callback()
+                return {"status": "ok", "message": "Window restored"}
+            except Exception as exc:
+                return JSONResponse(status_code=500, content={"error": str(exc)})
+        return {"status": "noop", "message": "No restore callback registered"}
 
     return app

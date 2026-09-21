@@ -46,31 +46,43 @@ def main() -> int:
     paths = Paths()
     paths.ensure()
 
-    # 2. Acquire single-instance mutex (Fix C6)
-    guard = SingleInstanceGuard(paths.root)
-    if not guard.acquire():
-        print("[!] Another instance of Aegis Suite is already running.")
-        url = guard.read_dashboard_url()
-        if url:
-            print(f"Opening dashboard in browser: {url}")
-            webbrowser.open(url)
-        else:
-            print("Dashboard URL not found for running instance.")
-        return 0
-
-    # Onboarding Wizard - Bypass console/terminal wizard, boot straight into Web GUI Setup
-    # import first_run_wizard
-    # if not first_run_wizard.credentials_already_exist(paths.root):
-    #     print("\n[+] Credentials not found. Starting first-run configuration wizard...")
-    #     success = first_run_wizard.run_first_run_wizard(paths.root)
-    #     if not success:
-    #         print("[-] Configuration wizard aborted or failed. Exiting.")
-    #         guard.release()
-    #         return 1
-
-    # 3. Setup logging (Redacts secrets automatically - C4)
+    # 2. Setup logging early so all startup diagnostics and single-instance events are captured
     setup_logging(paths)
     logger.info("Initializing Aegis Suite...")
+
+    # 3. Acquire single-instance mutex (Fix C6)
+    guard = SingleInstanceGuard(paths.root)
+    if not guard.acquire():
+        logger.info("Another instance of Aegis Suite is already running. Signaling existing window to restore...")
+        url = guard.read_dashboard_url()
+        restored = False
+        if url:
+            try:
+                import urllib.request
+                req = urllib.request.Request(f"{url}/api/app/restore-window", data=b"", method="POST")
+                with urllib.request.urlopen(req, timeout=1.2) as resp:
+                    if resp.status == 200:
+                        restored = True
+                        logger.info("Successfully signaled running instance to restore native window.")
+            except Exception as e:
+                logger.debug(f"Could not signal running instance over HTTP: {e}")
+
+        if not restored and sys.platform == "win32":
+            try:
+                import ctypes
+                hwnd = ctypes.windll.user32.FindWindowW(None, "Aegis Suite")
+                if hwnd:
+                    ctypes.windll.user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+                    ctypes.windll.user32.SetForegroundWindow(hwnd)
+                    logger.info("Restored existing Aegis Suite window via Win32 API.")
+                    restored = True
+            except Exception as win_err:
+                logger.debug(f"Could not restore window via Win32 API: {win_err}")
+
+        if not restored:
+            print("[!] Aegis Suite is already running in the background.")
+        return 0
+
     # Run dependency checks asynchronously in a background thread so app boots instantly
     import threading
     threading.Thread(target=_check_critical_deps, daemon=True, name="DepsCheckThread").start()
@@ -265,6 +277,18 @@ def main() -> int:
                     window_ref.restore()
                 except Exception as e:
                     logger.warning(f"Could not restore desktop window: {e}")
+            if sys.platform == "win32":
+                try:
+                    import ctypes
+                    hwnd = ctypes.windll.user32.FindWindowW(None, "Aegis Suite")
+                    if hwnd:
+                        ctypes.windll.user32.ShowWindow(hwnd, 9)  # SW_RESTORE
+                        ctypes.windll.user32.SetForegroundWindow(hwnd)
+                except Exception:
+                    pass
+
+        # Wire window restore callback to core so HTTP endpoint /api/app/restore-window can trigger it
+        core.window_restore_callback = on_restore
 
         def on_full_exit():
             nonlocal is_full_exit
