@@ -123,6 +123,33 @@ function globalLoadingReset() {
   });
 }
 
+/**
+ * Universal Button Lock / Anti-Thrashing Guard (Industry Standard)
+ * Disables button and locks execution against rapid duplicate clicks until async task settles.
+ */
+async function withButtonLock(buttonEl, asyncFn) {
+  if (!buttonEl) return asyncFn();
+  if (buttonEl.disabled || buttonEl.dataset.locked === 'true') return;
+  buttonEl.dataset.locked = 'true';
+  buttonEl.disabled = true;
+  const originalHtml = buttonEl.innerHTML;
+  const originalWidth = buttonEl.offsetWidth;
+  if (originalWidth > 0) buttonEl.style.minWidth = `${originalWidth}px`;
+  
+  if (!originalHtml.includes('fa-circle-notch') && !originalHtml.includes('fa-spin')) {
+    buttonEl.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i>';
+  }
+
+  try {
+    return await asyncFn();
+  } finally {
+    buttonEl.innerHTML = originalHtml;
+    buttonEl.style.minWidth = '';
+    buttonEl.disabled = false;
+    delete buttonEl.dataset.locked;
+  }
+}
+
 // Embed Builder Persistence functions
 let embedTabs = [{}];
 let activeEmbedTabIndex = 0;
@@ -3463,6 +3490,34 @@ async function populateGuildChannels(guildId) {
 // Event Listeners & Helpers
 // ==========================================================================
 function setupEventListeners() {
+  // Universal Row-Level Delegation for Toggles (Fitts's Law + instant hit targets)
+  document.addEventListener('click', (e) => {
+    const group = e.target.closest('.toggle-group');
+    if (!group) return;
+    // If the click is inside the switch itself or another interactive control, do not interfere
+    if (e.target.closest('.switch, input, button, a, select, textarea')) return;
+
+    const checkbox = group.querySelector('input[type="checkbox"]');
+    if (checkbox && !checkbox.disabled) {
+      checkbox.checked = !checkbox.checked;
+      checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+      try { checkbox.focus({ preventScroll: true }); } catch (err) {}
+    }
+  });
+
+  // WCAG 2.2 Accessibility: Sync role="switch" and aria-checked for all switch inputs
+  const syncSwitchAria = (input) => {
+    if (!input) return;
+    input.setAttribute('role', 'switch');
+    input.setAttribute('aria-checked', input.checked ? 'true' : 'false');
+  };
+  document.querySelectorAll('.switch input[type="checkbox"]').forEach(syncSwitchAria);
+  document.addEventListener('change', (e) => {
+    if (e.target.matches('.switch input[type="checkbox"]')) {
+      syncSwitchAria(e.target);
+    }
+  });
+
   // Event delegation for password toggle buttons
   document.addEventListener('click', (e) => {
     const toggleBtn = e.target.closest('[data-toggle-password]');
@@ -5940,48 +5995,57 @@ async function playMusicTrack(query) {
 
 async function toggleMusic() {
   if (!activeGuildId) return;
-  const isPlaying = !(document.getElementById('music-eq-waves')?.classList.contains('hidden') ?? true);
-  const endpoint = isPlaying ? 'pause' : 'resume';
-  
-  try {
-    const res = await fetch(`/api/guilds/${activeGuildId}/music/${endpoint}`, { method: 'POST' });
-    if (res.ok) {
-      showToast(isPlaying ? 'Paused playback.' : 'Resumed playback.', 'info');
-      fetchMusicStatus();
-    } else {
-      showToast('Cannot toggle music playback.', 'warning');
+  const btn = document.getElementById('btn-music-toggle');
+  await withButtonLock(btn, async () => {
+    const isPlaying = !(document.getElementById('music-eq-waves')?.classList.contains('hidden') ?? true);
+    const endpoint = isPlaying ? 'pause' : 'resume';
+    
+    try {
+      const res = await fetch(`/api/guilds/${activeGuildId}/music/${endpoint}`, { method: 'POST' });
+      if (res.ok) {
+        showToast(isPlaying ? 'Paused playback.' : 'Resumed playback.', 'info');
+        await fetchMusicStatus();
+      } else {
+        showToast('Cannot toggle music playback.', 'warning');
+      }
+    } catch (err) {
+      console.error('Error toggling music:', err);
     }
-  } catch (err) {
-    console.error('Error toggling music:', err);
-  }
+  });
 }
 
 async function stopMusic() {
   if (!activeGuildId) return;
   const check = confirm('Stop playback and clear the queue?');
   if (!check) return;
-  try {
-    const res = await fetch(`/api/guilds/${activeGuildId}/music/stop`, { method: 'POST' });
-    if (res.ok) {
-      showToast('Music player stopped & queue cleared.', 'warning');
-      fetchMusicStatus();
+  const btn = document.getElementById('btn-music-stop');
+  await withButtonLock(btn, async () => {
+    try {
+      const res = await fetch(`/api/guilds/${activeGuildId}/music/stop`, { method: 'POST' });
+      if (res.ok) {
+        showToast('Music player stopped & queue cleared.', 'warning');
+        await fetchMusicStatus();
+      }
+    } catch (err) {
+      console.error(err);
     }
-  } catch (err) {
-    console.error(err);
-  }
+  });
 }
 
 async function skipMusic() {
   if (!activeGuildId) return;
-  try {
-    const res = await fetch(`/api/guilds/${activeGuildId}/music/skip`, { method: 'POST' });
-    if (res.ok) {
-      showToast('Skipped current song.', 'info');
-      fetchMusicStatus();
+  const btn = document.getElementById('btn-music-skip');
+  await withButtonLock(btn, async () => {
+    try {
+      const res = await fetch(`/api/guilds/${activeGuildId}/music/skip`, { method: 'POST' });
+      if (res.ok) {
+        showToast('Skipped current song.', 'info');
+        await fetchMusicStatus();
+      }
+    } catch (err) {
+      console.error(err);
     }
-  } catch (err) {
-    console.error(err);
-  }
+  });
 }
 
 async function setMusicVolume(vol) {
@@ -6016,17 +6080,20 @@ async function joinMusicVoiceChannel(channelId) {
 
 async function shuffleMusicQueue() {
   if (!activeGuildId) return;
-  try {
-    const res = await fetch(`/api/guilds/${activeGuildId}/music/queue/shuffle`, { method: 'POST' });
-    if (res.ok) {
-      showToast('Queue shuffled.', 'success');
-      fetchMusicStatus();
-    } else {
-      showToast('Queue is too small to shuffle.', 'warning');
+  const btn = document.getElementById('btn-music-shuffle');
+  await withButtonLock(btn, async () => {
+    try {
+      const res = await fetch(`/api/guilds/${activeGuildId}/music/queue/shuffle`, { method: 'POST' });
+      if (res.ok) {
+        showToast('Queue shuffled.', 'success');
+        await fetchMusicStatus();
+      } else {
+        showToast('Queue is too small to shuffle.', 'warning');
+      }
+    } catch (err) {
+      console.error(err);
     }
-  } catch (err) {
-    console.error(err);
-  }
+  });
 }
 
 async function deleteMusicQueueItem(index) {
@@ -7349,19 +7416,21 @@ function renderActiveGiveaways() {
       const doubleCheck = confirm('Are you sure you want to end this giveaway early and select winners now?');
       if (!doubleCheck) return;
       
-      try {
-        const res = await fetch(`/api/guilds/${activeGuildId}/giveaways/${id}/end`, {
-          method: 'POST'
-        });
-        if (res.ok) {
-          showToast('Giveaway ended early!', 'success');
-          loadGiveaways();
-        } else {
-          showToast('Failed to end giveaway.', 'error');
+      await withButtonLock(btn, async () => {
+        try {
+          const res = await fetch(`/api/guilds/${activeGuildId}/giveaways/${id}/end`, {
+            method: 'POST'
+          });
+          if (res.ok) {
+            showToast('Giveaway ended early!', 'success');
+            loadGiveaways();
+          } else {
+            showToast('Failed to end giveaway.', 'error');
+          }
+        } catch (err) {
+          showToast('Error ending giveaway.', 'error');
         }
-      } catch (err) {
-        showToast('Error ending giveaway.', 'error');
-      }
+      });
     });
   });
   
@@ -7371,19 +7440,21 @@ function renderActiveGiveaways() {
       const doubleCheck = confirm('Are you sure you want to cancel and delete this giveaway? It will NOT select winners.');
       if (!doubleCheck) return;
       
-      try {
-        const res = await fetch(`/api/guilds/${activeGuildId}/giveaways/${id}`, {
-          method: 'DELETE'
-        });
-        if (res.ok) {
-          showToast('Giveaway deleted.', 'success');
-          loadGiveaways();
-        } else {
-          showToast('Failed to delete giveaway.', 'error');
+      await withButtonLock(btn, async () => {
+        try {
+          const res = await fetch(`/api/guilds/${activeGuildId}/giveaways/${id}`, {
+            method: 'DELETE'
+          });
+          if (res.ok) {
+            showToast('Giveaway deleted.', 'success');
+            loadGiveaways();
+          } else {
+            showToast('Failed to delete giveaway.', 'error');
+          }
+        } catch (err) {
+          showToast('Error deleting giveaway.', 'error');
         }
-      } catch (err) {
-        showToast('Error deleting giveaway.', 'error');
-      }
+      });
     });
   });
 }
@@ -7451,21 +7522,23 @@ function renderGiveawayHistory(history) {
       const doubleCheck = confirm('Are you sure you want to reroll a new winner from the participants?');
       if (!doubleCheck) return;
       
-      try {
-        showToast('Rerolling winner...', 'info');
-        const res = await fetch(`/api/guilds/${activeGuildId}/giveaways/${id}/reroll`, {
-          method: 'POST'
-        });
-        if (res.ok) {
-          showToast('Winners rerolled successfully!', 'success');
-          loadGiveaways();
-        } else {
-          const errData = await res.json();
-          showToast(errData.detail || 'Failed to reroll.', 'error');
+      await withButtonLock(btn, async () => {
+        try {
+          showToast('Rerolling winner...', 'info');
+          const res = await fetch(`/api/guilds/${activeGuildId}/giveaways/${id}/reroll`, {
+            method: 'POST'
+          });
+          if (res.ok) {
+            showToast('Winners rerolled successfully!', 'success');
+            loadGiveaways();
+          } else {
+            const errData = await res.json();
+            showToast(errData.detail || 'Failed to reroll.', 'error');
+          }
+        } catch (err) {
+          showToast('Error rerolling winner.', 'error');
         }
-      } catch (err) {
-        showToast('Error rerolling winner.', 'error');
-      }
+      });
     });
   });
   
@@ -7475,19 +7548,21 @@ function renderGiveawayHistory(history) {
       const doubleCheck = confirm('Are you sure you want to delete this giveaway record? The message in Discord will remain but the record will be removed from dashboard.');
       if (!doubleCheck) return;
       
-      try {
-        const res = await fetch(`/api/guilds/${activeGuildId}/giveaways/${id}`, {
-          method: 'DELETE'
-        });
-        if (res.ok) {
-          showToast('Record deleted.', 'success');
-          loadGiveaways();
-        } else {
-          showToast('Failed to delete record.', 'error');
+      await withButtonLock(btn, async () => {
+        try {
+          const res = await fetch(`/api/guilds/${activeGuildId}/giveaways/${id}`, {
+            method: 'DELETE'
+          });
+          if (res.ok) {
+            showToast('Record deleted.', 'success');
+            loadGiveaways();
+          } else {
+            showToast('Failed to delete record.', 'error');
+          }
+        } catch (err) {
+          showToast('Error deleting record.', 'error');
         }
-      } catch (err) {
-        showToast('Error deleting record.', 'error');
-      }
+      });
     });
   });
 }
@@ -9807,11 +9882,20 @@ async function loadMaturityScore() {
   }
 }
 
-// ==========================================================================
-// Auto Fix Executor
-// ==========================================================================
-async function executeSmartFix(action, params = {}) {
+let isSmartFixInProgress = false;
+
+async function executeSmartFix(action, params = {}, triggeringBtn = null) {
   if (!activeGuildId) return;
+  if (isSmartFixInProgress) {
+    showToast('A fix is already in progress, please wait...', 'warning');
+    return;
+  }
+  isSmartFixInProgress = true;
+  if (triggeringBtn) {
+    triggeringBtn.disabled = true;
+    triggeringBtn.dataset.origHtml = triggeringBtn.innerHTML;
+    triggeringBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Fixing...';
+  }
   try {
     showToast('Executing fix...', 'info');
     const res = await fetch(`/api/guilds/${activeGuildId}/smart/fix`, {
@@ -9840,6 +9924,13 @@ async function executeSmartFix(action, params = {}) {
     }
   } catch (err) {
     showToast('Failed to execute fix: ' + err.message, 'error');
+  } finally {
+    isSmartFixInProgress = false;
+    if (triggeringBtn && triggeringBtn.dataset.origHtml) {
+      triggeringBtn.innerHTML = triggeringBtn.dataset.origHtml;
+      triggeringBtn.disabled = false;
+      delete triggeringBtn.dataset.origHtml;
+    }
   }
 }
 
@@ -10613,7 +10704,18 @@ function renderActivityFeed(backendTimeline = []) {
 
 // Fix Queue action handler
 async function handleFixQueueAction(itemId, action, params, requiresConfirmation) {
+  if (isSmartFixInProgress) {
+    showToast('A fix is already in progress, please wait...', 'warning');
+    return;
+  }
+  const btn = document.querySelector(`.sf-fix-card[data-item-id="${itemId}"] .fix-queue-btn`);
+
   const execute = async () => {
+    isSmartFixInProgress = true;
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Fixing...';
+    }
     showToast(`Executing fix: ${action}...`, 'info');
     try {
       const res = await fetch(`/api/guilds/${activeGuildId}/smart/fix`, {
@@ -10631,7 +10733,7 @@ async function handleFixQueueAction(itemId, action, params, requiresConfirmation
           addLiveActivity('Fix', `Executed auto-fix: ${action}`, `+2 Health`);
           
           window.aegisCache.invalidate();
-          loadSmartCommandCenter();
+          await loadSmartCommandCenter();
 
           if (result.snapshot_id) {
             registerPendingUndo(result.snapshot_id, `Undo fix: ${result.details || action}`);
@@ -10644,6 +10746,12 @@ async function handleFixQueueAction(itemId, action, params, requiresConfirmation
       }
     } catch (e) {
       showToast('Error executing fix.', 'error');
+    } finally {
+      isSmartFixInProgress = false;
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-wrench"></i> Fix';
+      }
     }
   };
 

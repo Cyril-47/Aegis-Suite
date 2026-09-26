@@ -53,15 +53,16 @@
   /**
    * Play a procedural synthesized sound preset with deduplication guard.
    * @param {'click' | 'toggle' | 'success' | 'drawer' | 'error'} preset
+   * @param {Object} [options]
    */
-  function playUiSound(preset) {
+  function playUiSound(preset, options = {}) {
     if (!isSoundEnabled()) return;
 
     const nowMs = performance.now();
     const elapsed = nowMs - lastSoundTime;
 
-    // Strict deduplication: suppress any sound within 55ms unless higher priority
-    if (elapsed < 55) {
+    // Strict deduplication: suppress any sound within 40ms unless higher priority
+    if (elapsed < 40) {
       if ((preset === 'success' || preset === 'error') && (lastPreset === 'click' || lastPreset === 'toggle')) {
         // Allow success/error to take priority over immediate preceding click
       } else {
@@ -69,8 +70,8 @@
       }
     }
 
-    // Suppress duplicate triggers of the exact same preset within 120ms
-    if (elapsed < 120 && preset === lastPreset) {
+    // Suppress duplicate triggers of the exact same preset within 100ms
+    if (elapsed < 100 && preset === lastPreset) {
       return;
     }
 
@@ -105,13 +106,21 @@
         }
 
         case 'toggle': {
-          // Crisp dual-tone switch blip (subtle, 35ms duration)
+          // Crisp dual-tone switch blip with directional pitch (Apple / macOS style)
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
 
           osc.type = 'triangle';
-          osc.frequency.setValueAtTime(480, now);
-          osc.frequency.exponentialRampToValueAtTime(680, now + 0.035);
+          const isOff = options && options.direction === 'off';
+          if (isOff) {
+            // Soft descending tone for toggling OFF
+            osc.frequency.setValueAtTime(640, now);
+            osc.frequency.exponentialRampToValueAtTime(360, now + 0.035);
+          } else {
+            // Bright rising chime for toggling ON
+            osc.frequency.setValueAtTime(440, now);
+            osc.frequency.exponentialRampToValueAtTime(760, now + 0.035);
+          }
 
           gain.gain.setValueAtTime(0.035, now);
           gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.04);
@@ -223,21 +232,18 @@
 
       e._audioHandled = true;
 
-      // Primary action buttons or general click
-      if (target.classList.contains('nav-item')) {
-        playUiSound('click');
-      } else if (target.classList.contains('btn-primary') || target.classList.contains('btn-glow')) {
-        playUiSound('click');
-      } else if (target.classList.contains('btn-header-utility')) {
+      // Play click sound on all interactive buttons, nav items, and chips
+      if (target.matches('button, .btn, .btn-circle, .btn-icon-only, .nav-item, .drawer-filter-chip, [role="button"]')) {
         playUiSound('click');
       }
     });
 
-    // Checkbox toggles
+    // Checkbox toggles with directional acoustic feedback
     document.addEventListener('change', (e) => {
       if (e.target.matches('input[type="checkbox"], input[type="radio"]')) {
         if (e.target.dataset.noSound === 'true') return;
-        playUiSound('toggle');
+        const dir = e.target.checked ? 'on' : 'off';
+        playUiSound('toggle', { direction: dir });
       }
     });
   });

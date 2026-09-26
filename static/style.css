@@ -505,6 +505,11 @@ body.light-theme .glow-emerald {
 /* ==========================================================================
    Buttons
    ========================================================================== */
+/* Universal Pointer Defense: Button children cannot hijack click events */
+button > *, .btn > *, .btn-circle > *, .btn-icon-only > * {
+  pointer-events: none;
+}
+
 .btn {
   display: inline-flex;
   align-items: center;
@@ -515,24 +520,26 @@ body.light-theme .glow-emerald {
   font-weight: 500;
   font-size: 0.9rem;
   border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.1s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.12s ease, background 0.15s ease, border-color 0.15s ease;
   will-change: transform, box-shadow;
+  user-select: none;
 }
 
-.btn:active {
-  transform: scale(0.96) translateY(1px);
-  transition-duration: 0.08s;
+.btn:active, .btn-secondary:active, .btn-discord:active, .btn-circle:active, .btn-icon-only:active {
+  transform: translateY(1px) scale(0.982);
+  transition: transform 0.05s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.05s ease;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25) !important;
 }
 
 .btn:focus-visible {
-  outline: 3px solid var(--primary);
-  outline-offset: 3px;
-  box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.35);
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.35);
 }
 body.light-theme .btn:focus-visible {
-  box-shadow: 0 0 0 5px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.15);
 }
 
 .btn-primary {
@@ -767,30 +774,59 @@ body.light-theme .glass-input:focus-visible, body.light-theme input:focus-visibl
   color: var(--text-main);
 }
 
+/* Interactive Row Container for Toggles (Fitts's Law row-level hit targets) */
 .toggle-group {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
+  padding: 8px 12px;
+  margin: -2px -6px;
+  border-radius: 10px;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.toggle-group:hover {
+  background-color: rgba(255, 255, 255, 0.035);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+body.light-theme .toggle-group:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.06);
+}
+
+.toggle-group:active:not(:has(button)) {
+  transform: scale(0.995);
+  transition: transform 0.06s ease;
 }
 
 .toggle-label {
   font-size: 0.95rem;
   color: var(--text-main);
   font-weight: 500;
+  flex: 1;
+  pointer-events: none; /* Uniform click targeting to row */
 }
 
-/* Styled Switch (Toggle) */
+/* Styled Switch (Toggle) - Apple / Linear Precision Spring Physics */
 .switch {
   position: relative;
   display: inline-block;
   width: 48px;
-  height: 24px;
+  height: 26px;
+  flex-shrink: 0;
+  cursor: pointer;
 }
 
 .switch input {
   opacity: 0;
   width: 0;
   height: 0;
+  position: absolute;
 }
 
 .slider {
@@ -801,27 +837,46 @@ body.light-theme .glass-input:focus-visible, body.light-theme input:focus-visibl
   right: 0;
   bottom: 0;
   background-color: #1e293b;
-  transition: .25s;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .slider:before {
   position: absolute;
   content: "";
-  height: 16px;
-  width: 16px;
-  left: 4px;
-  bottom: 4px;
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
   background-color: #94a3b8;
-  transition: .25s;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), width 0.15s ease, background-color 0.2s ease;
+}
+
+/* Tactile thumb stretch on active press */
+.switch:active .slider:before,
+.toggle-group:active .switch .slider:before {
+  width: 22px;
 }
 
 input:checked + .slider {
-  background-color: var(--success);
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-color: rgba(16, 185, 129, 0.6);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.35);
 }
 
 input:checked + .slider:before {
-  background-color: white;
-  transform: translateX(24px);
+  background-color: #ffffff;
+  transform: translateX(22px);
+}
+
+/* In active press when checked, stretch thumb from the right edge */
+input:checked + .slider:active:before,
+.switch:active input:checked + .slider:before,
+.toggle-group:active .switch input:checked + .slider:before {
+  transform: translateX(18px);
+  width: 22px;
 }
 
 .slider.round {
@@ -830,6 +885,13 @@ input:checked + .slider:before {
 
 .slider.round:before {
   border-radius: 50%;
+}
+
+/* Keyboard focus halo */
+.switch input:focus-visible + .slider {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.35);
 }
 
 .color-picker-wrapper {
@@ -1573,8 +1635,8 @@ body.liquid-glass-theme .btn-header-utility:hover {
   box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
 }
 
-/* Modern 2026 Tactile Button Micro-Interactions */
-.btn:active, .btn-secondary:active, .drawer-filter-chip:active {
+/* Filter chip micro-interactions */
+.drawer-filter-chip:active {
   transform: scale(0.97);
   transition: transform 0.08s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -5786,14 +5848,15 @@ body.light-theme .backup-action-box:hover {
 }
 
 /* 7. Snappy Tactile Press Feedback (100% CSS, Zero Layout Shift) */
-.btn, .btn-icon-only, .btn-secondary, .btn-discord {
-  transition: transform 0.12s ease, box-shadow 0.12s ease, background-color 0.12s ease;
+.btn, .btn-icon-only, .btn-secondary, .btn-discord, .btn-circle {
+  transition: transform 0.1s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.12s ease, background-color 0.12s ease;
 }
 .btn:hover, .btn-secondary:hover, .btn-discord:hover {
-  transform: translateY(-1px);
+  transform: translateY(-1.5px);
 }
-.btn:active, .btn-secondary:active, .btn-discord:active, .btn-icon-only:active {
-  transform: translateY(1px);
+.btn:active, .btn-secondary:active, .btn-discord:active, .btn-icon-only:active, .btn-circle:active {
+  transform: translateY(1px) scale(0.982);
+  transition-duration: 0.05s;
 }
 .nav-item, .sub-tab-btn {
   transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
