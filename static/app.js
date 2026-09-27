@@ -87,6 +87,84 @@ const TAB_DESCRIPTIONS = {
 let isAuthenticated = false;
 let authToken = localStorage.getItem('admin_token') || '';
 
+// ==========================================================================
+// Loading Indicators & Splash Screen Management (Calm UX / 4-Tier Architecture)
+// ==========================================================================
+let splashDismissed = false;
+
+function updateSplashProgress(pct, statusText) {
+  if (splashDismissed) return;
+  const fill = document.getElementById('splash-progress-fill');
+  const text = document.getElementById('splash-status-text');
+  if (fill) fill.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+  if (text && statusText) text.textContent = statusText;
+}
+
+function dismissSplashScreen() {
+  if (splashDismissed) return;
+  splashDismissed = true;
+  updateSplashProgress(100, 'Ready');
+  const splash = document.getElementById('app-splash-screen');
+  if (!splash) return;
+  
+  // Smooth liquid fade and scale out
+  setTimeout(() => {
+    splash.classList.add('fade-out');
+    setTimeout(() => {
+      splash.style.display = 'none';
+      if (typeof splash.remove === 'function') {
+        splash.remove();
+      }
+    }, 500);
+  }, 200);
+}
+
+// Global Hairline Top Progress Bar (Vercel / Linear Paradigm)
+let topProgressTimer = null;
+let topProgressDismissTimer = null;
+
+function setTopProgress(pct) {
+  const bar = document.getElementById('global-progress-bar');
+  if (!bar) return;
+  bar.classList.add('active');
+  bar.classList.remove('finished');
+  bar.style.width = `${Math.min(100, Math.max(0, pct))}%`;
+}
+
+function showTopProgress() {
+  const bar = document.getElementById('global-progress-bar');
+  if (!bar) return;
+  clearTimeout(topProgressTimer);
+  clearTimeout(topProgressDismissTimer);
+  bar.classList.remove('finished');
+  bar.classList.add('active');
+  bar.style.width = '20%';
+  
+  topProgressTimer = setTimeout(() => {
+    bar.style.width = '65%';
+    topProgressTimer = setTimeout(() => {
+      bar.style.width = '85%';
+    }, 350);
+  }, 120);
+}
+
+function hideTopProgress() {
+  const bar = document.getElementById('global-progress-bar');
+  if (!bar) return;
+  clearTimeout(topProgressTimer);
+  clearTimeout(topProgressDismissTimer);
+  bar.style.width = '100%';
+  
+  topProgressDismissTimer = setTimeout(() => {
+    bar.classList.add('finished');
+    bar.classList.remove('active');
+    setTimeout(() => {
+      bar.style.width = '0%';
+      bar.classList.remove('finished');
+    }, 300);
+  }, 180);
+}
+
 // Global Loading State Reset
 function globalLoadingReset() {
   const elementsToHide = [
@@ -439,8 +517,16 @@ window.fetch = function (url, options) {
 };
 
 document.addEventListener('DOMContentLoaded', async () => {
+  updateSplashProgress(25, 'Initializing Aegis Kernel...');
+
+  // Fallback watchdog: ensure splash is never stuck if backend or network halts
+  setTimeout(() => {
+    dismissSplashScreen();
+  }, 4500);
+
   // Load translations
   await loadTranslations(currentLanguage);
+  updateSplashProgress(45, 'Loading Localization & Core Assets...');
 
   // One-shot cleanup of residual credential keys from prior versions (R4.2)
   localStorage.removeItem('bot_token');
@@ -449,9 +535,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupNavigation();
   setupEventListeners();
   initGiveawaysTab();
+  updateSplashProgress(65, 'Verifying Gateway & Session...');
   
   const authed = await checkAuthentication();
   if (authed) {
+    updateSplashProgress(85, 'Synchronizing Liquid Workspace...');
     initApp();
   }
 
@@ -552,6 +640,9 @@ function initApp() {
     }
     
     refreshActiveTabContent();
+    dismissSplashScreen();
+  }).catch(() => {
+    dismissSplashScreen();
   });
   fetchConfig();
   fetchStats();
@@ -691,6 +782,7 @@ async function checkAuthentication() {
       loginOverlay.classList.add('hidden');
       mainApp.classList.add('hidden');
       logoutLocalState();
+      dismissSplashScreen();
       return false;
     }
     
@@ -700,6 +792,7 @@ async function checkAuthentication() {
       setupOverlay.classList.add('hidden');
       mainApp.classList.add('hidden');
       logoutLocalState();
+      dismissSplashScreen();
       
       // Load public status to extract client_id for the login page invite button
       fetch('/api/status').then(res => res.json()).then(data => {
@@ -725,6 +818,7 @@ async function checkAuthentication() {
       loginOverlay.classList.remove('hidden');
       setupOverlay.classList.add('hidden');
       mainApp.classList.add('hidden');
+      dismissSplashScreen();
       return false;
     }
     
@@ -738,6 +832,7 @@ async function checkAuthentication() {
     // Valid session! Hide overlays
     setupOverlay.classList.add('hidden');
     loginOverlay.classList.add('hidden');
+    if (mainApp) mainApp.classList.remove('hidden');
     isAuthenticated = true;
     return true;
   } catch (err) {
@@ -757,6 +852,7 @@ async function checkAuthentication() {
     if (loginOverlay) loginOverlay.classList.remove('hidden');
     if (setupOverlay) setupOverlay.classList.add('hidden');
     if (mainApp) mainApp.classList.add('hidden');
+    dismissSplashScreen();
     return false;
   }
 }
@@ -906,8 +1002,12 @@ function setupNavigation() {
       if (TAB_DESCRIPTIONS[targetTab]) {
         currentTabDesc.textContent = TAB_DESCRIPTIONS[targetTab];
       }
-      
-      refreshActiveTabContent();
+      showTopProgress();
+      try {
+        refreshActiveTabContent();
+      } finally {
+        setTimeout(hideTopProgress, 350);
+      }
     });
   });
 
@@ -7995,13 +8095,31 @@ function openHostingModeSettings() {
 // ==========================================================================
 // Incident Center
 // ==========================================================================
+function renderIncidentSkeletons(count = 3) {
+  let html = '';
+  for (let i = 0; i < count; i++) {
+    html += `
+      <div class="glass-inner p-3 mb-2" style="display:flex;align-items:center;gap:12px;border-left:3px solid rgba(255,255,255,0.1);">
+        <div class="skeleton" style="width:20px;height:20px;border-radius:4px;flex-shrink:0;"></div>
+        <div style="flex:1;">
+          <div class="skeleton skeleton-heading" style="width:40%;height:14px;margin-bottom:6px;"></div>
+          <div class="skeleton skeleton-text-sm" style="width:65%;height:10px;margin-bottom:0;"></div>
+        </div>
+        <div style="text-align:right;">
+          <div class="skeleton" style="width:80px;height:12px;border-radius:3px;"></div>
+        </div>
+      </div>`;
+  }
+  return html;
+}
+
 async function loadIncidents() {
   if (!activeGuildId) return;
   const days = document.getElementById('incident-days')?.value || 30;
   const list = document.getElementById('incidents-list');
   if (!list) return;
 
-  list.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading incidents...</div>';
+  list.innerHTML = renderIncidentSkeletons(3);
 
   try {
     const res = await fetch(`/api/guilds/${activeGuildId}/incidents?days=${days}`);
@@ -10032,12 +10150,13 @@ async function loadTicketSetupStats() {
   const closedEl = document.getElementById('ticket-stat-closed');
   const avgEl = document.getElementById('ticket-stat-avg');
   
-  const needsLoading = !totalEl || totalEl.textContent.trim() === '' || totalEl.textContent.trim() === '--' || totalEl.querySelector('.spinner');
+  const needsLoading = !totalEl || totalEl.textContent.trim() === '' || totalEl.textContent.trim() === '--' || totalEl.querySelector('.skeleton') || totalEl.querySelector('.spinner');
   if (needsLoading) {
-    if (totalEl) totalEl.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin spinner" style="font-size: 1rem;"></i>';
-    if (openEl) openEl.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin spinner" style="font-size: 1rem;"></i>';
-    if (closedEl) closedEl.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin spinner" style="font-size: 1rem;"></i>';
-    if (avgEl) avgEl.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin spinner" style="font-size: 1rem;"></i>';
+    const skelNum = '<span class="skeleton" style="display:inline-block;width:36px;height:24px;border-radius:4px;"></span>';
+    if (totalEl) totalEl.innerHTML = skelNum;
+    if (openEl) openEl.innerHTML = skelNum;
+    if (closedEl) closedEl.innerHTML = skelNum;
+    if (avgEl) avgEl.innerHTML = skelNum;
   }
   
   try {
@@ -11197,12 +11316,30 @@ async function loadSmartCommandCenter(force = false) {
 
   const isInitialLoad = !healthContent || !healthContent.children.length || healthContent.querySelector('.skeleton-card');
   if (isInitialLoad) {
-    if (healthContent) healthContent.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Analyzing server...</div>';
-    if (fixQueueContent) fixQueueContent.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Building fix queue...</div>';
-    if (winsContent) winsContent.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading wins...</div>';
+    if (healthContent) healthContent.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 32px; margin-bottom: 24px;">
+        <div class="skeleton" style="width: 140px; height: 140px; border-radius: 50%; flex-shrink: 0;"></div>
+        <div style="flex: 1; display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;">
+          <div class="skeleton cc-dim-card" style="height: 100px;"></div>
+          <div class="skeleton cc-dim-card" style="height: 100px;"></div>
+          <div class="skeleton cc-dim-card" style="height: 100px;"></div>
+          <div class="skeleton cc-dim-card" style="height: 100px;"></div>
+          <div class="skeleton cc-dim-card" style="height: 100px;"></div>
+        </div>
+      </div>`;
+    if (fixQueueContent) fixQueueContent.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div class="card glass p-3"><div class="skeleton skeleton-heading" style="width:40%;"></div><div class="skeleton skeleton-text"></div></div>
+        <div class="card glass p-3"><div class="skeleton skeleton-heading" style="width:50%;"></div><div class="skeleton skeleton-text"></div></div>
+      </div>`;
+    if (winsContent) winsContent.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div class="card glass p-3"><div class="skeleton skeleton-heading" style="width:45%;"></div><div class="skeleton skeleton-text"></div></div>
+      </div>`;
   }
 
   if (force) {
+    showTopProgress();
     window.aegisCache.invalidate();
     lastRenderedFixQueueSig = null;
   }
@@ -11530,6 +11667,7 @@ async function loadSmartCommandCenter(force = false) {
       renderDrawerFixList();
     }
   }
+  hideTopProgress();
 }
 
 // 2. Intelligence Center loaders
@@ -11584,9 +11722,17 @@ async function loadIntelCommunity() {
   const sentimentEl = document.getElementById('intel-sentiment-content');
   const benchmarkEl = document.getElementById('intel-benchmark-content');
 
-  if (growthEl) growthEl.innerHTML = '<div class="text-center py-3"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading...</div>';
-  if (sentimentEl) sentimentEl.innerHTML = '<div class="text-center py-3"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading...</div>';
-  if (benchmarkEl) benchmarkEl.innerHTML = '<div class="text-center py-3"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading...</div>';
+  const skeletonCardHtml = `
+    <div class="card glass span-4 fade-in-up">
+      <div class="card-body">
+        <div class="skeleton skeleton-heading" style="width:35%;"></div>
+        <div class="skeleton skeleton-text" style="width:85%;"></div>
+        <div class="skeleton skeleton-text-sm" style="width:60%;"></div>
+      </div>
+    </div>`;
+  if (growthEl && !growthEl.children.length) growthEl.innerHTML = skeletonCardHtml;
+  if (sentimentEl && !sentimentEl.children.length) sentimentEl.innerHTML = skeletonCardHtml;
+  if (benchmarkEl && !benchmarkEl.children.length) benchmarkEl.innerHTML = skeletonCardHtml;
 
   try {
     const data = await window.aegisCache.fetchWithCache(`/api/guilds/${activeGuildId}/smart/growth-advisor`);
@@ -11656,8 +11802,15 @@ async function loadIntelModeration() {
   const slaEl = document.getElementById('intel-moderation-sla-content');
   const activityEl = document.getElementById('intel-moderation-activity-content');
 
-  if (slaEl && !slaEl.children.length) slaEl.innerHTML = '<div class="text-center py-3"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading SLAs...</div>';
-  if (activityEl && !activityEl.children.length) activityEl.innerHTML = '<div class="text-center py-3"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading...</div>';
+  const modSkelHtml = `
+    <div class="card glass span-4 fade-in-up">
+      <div class="card-body">
+        <div class="skeleton skeleton-heading" style="width:30%;"></div>
+        <div class="skeleton skeleton-text" style="width:75%;"></div>
+      </div>
+    </div>`;
+  if (slaEl && !slaEl.children.length) slaEl.innerHTML = modSkelHtml;
+  if (activityEl && !activityEl.children.length) activityEl.innerHTML = modSkelHtml;
 
   try {
     const data = await window.aegisCache.fetchWithCache(`/api/guilds/${activeGuildId}/ticket-sla`);
@@ -11972,8 +12125,16 @@ async function loadAutomationCenterTab() {
   const slowmodeEl = document.getElementById('auto-slowmode-status');
   const maintenanceEl = document.getElementById('auto-maintenance-content');
 
-  if (guardianEl && !guardianEl.children.length) guardianEl.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading Guardian status...</div>';
-  if (rulesEl && !rulesEl.children.length) rulesEl.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading rules...</div>';
+  const autoSkelCard = `
+    <div class="card glass span-4 fade-in-up">
+      <div class="card-body">
+        <div class="skeleton skeleton-heading" style="width:40%;"></div>
+        <div class="skeleton skeleton-text" style="width:80%;"></div>
+        <div class="skeleton skeleton-text-sm" style="width:50%;"></div>
+      </div>
+    </div>`;
+  if (guardianEl && !guardianEl.children.length) guardianEl.innerHTML = autoSkelCard;
+  if (rulesEl && !rulesEl.children.length) rulesEl.innerHTML = autoSkelCard;
 
   try {
     const [rulesData, logsData] = await Promise.all([
@@ -12476,9 +12637,42 @@ async function loadHistoryProgress() {
   const snapshotsEl = document.getElementById('history-config-snapshots');
   const timelineEl = document.getElementById('timeline-content');
 
-  if (maturityEl && !maturityEl.children.length) maturityEl.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading maturity score...</div>';
-  if (snapshotsEl && !snapshotsEl.children.length) snapshotsEl.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading snapshots...</div>';
-  if (timelineEl && !timelineEl.children.length) timelineEl.innerHTML = '<div class="text-center py-4"><i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading incident timeline...</div>';
+  if (maturityEl && !maturityEl.children.length) {
+    maturityEl.innerHTML = `
+      <div class="skeleton-card">
+        <div class="skeleton skeleton-heading" style="width:50%;"></div>
+        <div class="skeleton skeleton-text" style="width:85%;"></div>
+        <div class="skeleton skeleton-text-sm" style="width:60%;"></div>
+      </div>`;
+  }
+  if (snapshotsEl && !snapshotsEl.children.length) {
+    snapshotsEl.innerHTML = `
+      <div class="glass-inner p-2 mb-2" style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="flex:1;">
+          <div class="skeleton skeleton-heading" style="width:35%;height:14px;margin-bottom:4px;"></div>
+          <div class="skeleton skeleton-text-sm" style="width:60%;height:10px;margin-bottom:0;"></div>
+        </div>
+        <div class="skeleton" style="width:54px;height:24px;border-radius:4px;"></div>
+      </div>
+      <div class="glass-inner p-2 mb-2" style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="flex:1;">
+          <div class="skeleton skeleton-heading" style="width:30%;height:14px;margin-bottom:4px;"></div>
+          <div class="skeleton skeleton-text-sm" style="width:50%;height:10px;margin-bottom:0;"></div>
+        </div>
+        <div class="skeleton" style="width:54px;height:24px;border-radius:4px;"></div>
+      </div>`;
+  }
+  if (timelineEl && !timelineEl.children.length) {
+    timelineEl.innerHTML = `
+      <div class="timeline-container">
+        <div class="timeline-item">
+          <div class="skeleton" style="width:12px;height:12px;border-radius:50%;position:absolute;left:-26px;top:4px;"></div>
+          <div class="skeleton skeleton-text-sm" style="width:70px;height:10px;margin-bottom:4px;"></div>
+          <div class="skeleton skeleton-heading" style="width:30%;height:14px;margin-bottom:4px;"></div>
+          <div class="skeleton skeleton-text" style="width:75%;height:12px;margin-bottom:0;"></div>
+        </div>
+      </div>`;
+  }
 
   // Load all three in parallel
   const [maturityResult, snapshotsResult, timelineResult] = await Promise.allSettled([

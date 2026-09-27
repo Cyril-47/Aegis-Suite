@@ -30,6 +30,26 @@
   <div class="glow-aurora glow-indigo"></div>
   <div class="glow-aurora glow-emerald"></div>
 
+  <!-- Global Slim Top Progress Bar (Calm UX / Linear & Vercel Paradigm) -->
+  <div id="global-progress-bar" class="global-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"></div>
+
+  <!-- APP BOOT / SPLASH SCREEN (GPU-Accelerated Zero-Flash Experience) -->
+  <div id="app-splash-screen" class="app-splash-screen" role="status" aria-live="polite">
+    <div class="splash-inner">
+      <div class="splash-logo-wrapper">
+        <div class="splash-pulse-glow"></div>
+        <img src="/static/bot_logo.png" alt="Aegis Shield" class="splash-logo-img">
+      </div>
+      <h2 class="splash-brand-title">Aegis Suite</h2>
+      <p class="splash-brand-subtitle">Discord Server Intelligence & Cyber-Defense</p>
+      
+      <div class="splash-progress-track">
+        <div id="splash-progress-fill" class="splash-progress-fill"></div>
+      </div>
+      <div id="splash-status-text" class="splash-status-text">Initializing Kernel Services...</div>
+    </div>
+  </div>
+
   <!-- AUTH SETUP OVERLAY -->
   <div id="auth-setup-overlay" class="wizard-container hidden" role="dialog" aria-modal="true" aria-labelledby="auth-setup-title">
     <div class="wizard-box glass">
@@ -811,8 +831,17 @@
                   </button>
                 </div>
                 <div class="card-body">
-                  <div id="cc-loading" class="text-center py-4">
-                    <i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading Auditor...
+                  <div id="cc-loading">
+                    <div style="display: flex; align-items: center; gap: 32px; margin-bottom: 24px;">
+                      <div class="skeleton" style="width: 140px; height: 140px; border-radius: 50%; flex-shrink: 0;"></div>
+                      <div style="flex: 1; display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;">
+                        <div class="skeleton cc-dim-card" style="height: 100px;"></div>
+                        <div class="skeleton cc-dim-card" style="height: 100px;"></div>
+                        <div class="skeleton cc-dim-card" style="height: 100px;"></div>
+                        <div class="skeleton cc-dim-card" style="height: 100px;"></div>
+                        <div class="skeleton cc-dim-card" style="height: 100px;"></div>
+                      </div>
+                    </div>
                   </div>
                   <div id="cc-content" class="hidden">
                     <div style="display: flex; align-items: center; gap: 32px; margin-bottom: 24px;">
@@ -967,8 +996,23 @@
                   <p>Actionable suggestions to improve your server's health score.</p>
                 </div>
                 <div class="card-body">
-                  <div id="recommendations-loading" class="text-center py-3">
-                    <i class="fa-solid fa-circle-notch fa-spin spinner"></i> Loading recommendations...
+                  <div id="recommendations-loading" class="py-2">
+                    <div style="display: flex; align-items: flex-start; gap: 12px; padding: 12px; border-bottom: 1px solid var(--card-border);">
+                      <div class="skeleton" style="width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; flex-shrink: 0;"></div>
+                      <div style="flex: 1;">
+                        <div class="skeleton skeleton-heading" style="width: 45%; height: 16px; margin-bottom: 6px;"></div>
+                        <div class="skeleton skeleton-text" style="width: 80%; height: 12px; margin-bottom: 0;"></div>
+                      </div>
+                      <div class="skeleton skeleton-badge" style="width: 55px; height: 20px;"></div>
+                    </div>
+                    <div style="display: flex; align-items: flex-start; gap: 12px; padding: 12px; border-bottom: 1px solid var(--card-border);">
+                      <div class="skeleton" style="width: 10px; height: 10px; border-radius: 50%; margin-top: 4px; flex-shrink: 0;"></div>
+                      <div style="flex: 1;">
+                        <div class="skeleton skeleton-heading" style="width: 35%; height: 16px; margin-bottom: 6px;"></div>
+                        <div class="skeleton skeleton-text" style="width: 70%; height: 12px; margin-bottom: 0;"></div>
+                      </div>
+                      <div class="skeleton skeleton-badge" style="width: 55px; height: 20px;"></div>
+                    </div>
                   </div>
                   <div id="recommendations-list" class="checklist-list hidden"></div>
                   <div id="recommendations-empty" class="text-center py-3 hidden" style="color: #94a3b8;">
@@ -998,7 +1042,22 @@
                   <h2><i class="fa-solid fa-code-branch"></i> Config History</h2>
                 </div>
                 <div class="card-body" id="cc-config-history" style="max-height: 250px; overflow-y: auto;">
-                  <div class="text-center py-3" style="color: var(--text-sub);">Loading config history...</div>
+                  <div class="glass-inner p-2 mb-2" style="display:flex;align-items:center;gap:8px;">
+                    <div class="skeleton" style="width:16px;height:16px;border-radius:4px;flex-shrink:0;"></div>
+                    <div style="flex:1;">
+                      <div class="skeleton skeleton-heading" style="width:40%;height:12px;margin-bottom:4px;"></div>
+                      <div class="skeleton skeleton-text-sm" style="width:65%;height:10px;margin-bottom:0;"></div>
+                    </div>
+                    <div class="skeleton" style="width:28px;height:24px;border-radius:4px;flex-shrink:0;"></div>
+                  </div>
+                  <div class="glass-inner p-2 mb-2" style="display:flex;align-items:center;gap:8px;">
+                    <div class="skeleton" style="width:16px;height:16px;border-radius:4px;flex-shrink:0;"></div>
+                    <div style="flex:1;">
+                      <div class="skeleton skeleton-heading" style="width:35%;height:12px;margin-bottom:4px;"></div>
+                      <div class="skeleton skeleton-text-sm" style="width:55%;height:10px;margin-bottom:0;"></div>
+                    </div>
+                    <div class="skeleton" style="width:28px;height:24px;border-radius:4px;flex-shrink:0;"></div>
+                  </div>
                 </div>
               </div>
 
@@ -1472,7 +1531,11 @@
                   <p>Overall rating progress and opportunities breakdown</p>
                 </div>
                 <div class="card-body" id="history-maturity-content">
-                  <div class="text-center py-3" style="color: var(--text-sub);">Loading maturity score...</div>
+                  <div class="skeleton-card">
+                    <div class="skeleton skeleton-heading" style="width:50%;"></div>
+                    <div class="skeleton skeleton-text" style="width:85%;"></div>
+                    <div class="skeleton skeleton-text-sm" style="width:60%;"></div>
+                  </div>
                 </div>
               </div>
 
@@ -1483,7 +1546,20 @@
                   <p>Manage and rollback server configuration snapshots</p>
                 </div>
                 <div class="card-body" id="history-config-snapshots" style="max-height: 280px; overflow-y: auto;">
-                  <div class="text-center py-3" style="color: var(--text-sub);">Loading config history...</div>
+                  <div class="glass-inner p-2 mb-2" style="display:flex;justify-content:space-between;align-items:center;">
+                    <div style="flex:1;">
+                      <div class="skeleton skeleton-heading" style="width:35%;height:14px;margin-bottom:4px;"></div>
+                      <div class="skeleton skeleton-text-sm" style="width:60%;height:10px;margin-bottom:0;"></div>
+                    </div>
+                    <div class="skeleton" style="width:54px;height:24px;border-radius:4px;"></div>
+                  </div>
+                  <div class="glass-inner p-2 mb-2" style="display:flex;justify-content:space-between;align-items:center;">
+                    <div style="flex:1;">
+                      <div class="skeleton skeleton-heading" style="width:30%;height:14px;margin-bottom:4px;"></div>
+                      <div class="skeleton skeleton-text-sm" style="width:50%;height:10px;margin-bottom:0;"></div>
+                    </div>
+                    <div class="skeleton" style="width:54px;height:24px;border-radius:4px;"></div>
+                  </div>
                 </div>
               </div>
 
@@ -1495,7 +1571,20 @@
                 </div>
                 <div class="card-body">
                   <div id="timeline-content">
-                    <div class="text-center py-3" style="color: var(--text-sub);">Loading incident timeline...</div>
+                    <div class="timeline-container">
+                      <div class="timeline-item">
+                        <div class="skeleton" style="width:12px;height:12px;border-radius:50%;position:absolute;left:-26px;top:4px;"></div>
+                        <div class="skeleton skeleton-text-sm" style="width:70px;height:10px;margin-bottom:4px;"></div>
+                        <div class="skeleton skeleton-heading" style="width:30%;height:14px;margin-bottom:4px;"></div>
+                        <div class="skeleton skeleton-text" style="width:75%;height:12px;margin-bottom:0;"></div>
+                      </div>
+                      <div class="timeline-item" style="margin-top:16px;">
+                        <div class="skeleton" style="width:12px;height:12px;border-radius:50%;position:absolute;left:-26px;top:4px;"></div>
+                        <div class="skeleton skeleton-text-sm" style="width:70px;height:10px;margin-bottom:4px;"></div>
+                        <div class="skeleton skeleton-heading" style="width:25%;height:14px;margin-bottom:4px;"></div>
+                        <div class="skeleton skeleton-text" style="width:65%;height:12px;margin-bottom:0;"></div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -3699,9 +3788,25 @@
                   </div>
                 </div>
                 <div id="incidents-list">
-                  <div class="text-center py-4" style="color:var(--text-sub);">
-                    <i class="fa-solid fa-shield-halved" style="font-size:2rem;opacity:0.3;"></i>
-                    <p style="margin-top:8px;">Loading incidents...</p>
+                  <div class="glass-inner p-3 mb-2" style="display:flex;align-items:center;gap:12px;border-left:3px solid rgba(255,255,255,0.1);">
+                    <div class="skeleton" style="width:20px;height:20px;border-radius:4px;flex-shrink:0;"></div>
+                    <div style="flex:1;">
+                      <div class="skeleton skeleton-heading" style="width:40%;height:14px;margin-bottom:6px;"></div>
+                      <div class="skeleton skeleton-text-sm" style="width:65%;height:10px;margin-bottom:0;"></div>
+                    </div>
+                    <div style="text-align:right;">
+                      <div class="skeleton" style="width:80px;height:12px;border-radius:3px;"></div>
+                    </div>
+                  </div>
+                  <div class="glass-inner p-3 mb-2" style="display:flex;align-items:center;gap:12px;border-left:3px solid rgba(255,255,255,0.1);">
+                    <div class="skeleton" style="width:20px;height:20px;border-radius:4px;flex-shrink:0;"></div>
+                    <div style="flex:1;">
+                      <div class="skeleton skeleton-heading" style="width:35%;height:14px;margin-bottom:6px;"></div>
+                      <div class="skeleton skeleton-text-sm" style="width:50%;height:10px;margin-bottom:0;"></div>
+                    </div>
+                    <div style="text-align:right;">
+                      <div class="skeleton" style="width:80px;height:12px;border-radius:3px;"></div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -4281,9 +4386,31 @@
 
     <!-- Drawer Scrollable Issues List -->
     <div class="action-drawer-body" id="action-drawer-items-list">
-      <div class="text-center py-5" style="color:var(--text-sub);">
-        <i class="fa-solid fa-circle-notch fa-spin spinner" style="font-size: 2rem; margin-bottom: 12px; display: block;"></i>
-        Loading issues...
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div class="card glass p-3">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+            <div class="skeleton skeleton-badge" style="width:60px;height:20px;"></div>
+            <div class="skeleton skeleton-heading" style="width:50%;height:16px;margin-bottom:0;"></div>
+          </div>
+          <div class="skeleton skeleton-text" style="width:90%;"></div>
+          <div class="skeleton skeleton-text-sm" style="width:60%;margin-bottom:0;"></div>
+        </div>
+        <div class="card glass p-3">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+            <div class="skeleton skeleton-badge" style="width:60px;height:20px;"></div>
+            <div class="skeleton skeleton-heading" style="width:40%;height:16px;margin-bottom:0;"></div>
+          </div>
+          <div class="skeleton skeleton-text" style="width:85%;"></div>
+          <div class="skeleton skeleton-text-sm" style="width:50%;margin-bottom:0;"></div>
+        </div>
+        <div class="card glass p-3">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+            <div class="skeleton skeleton-badge" style="width:60px;height:20px;"></div>
+            <div class="skeleton skeleton-heading" style="width:45%;height:16px;margin-bottom:0;"></div>
+          </div>
+          <div class="skeleton skeleton-text" style="width:80%;"></div>
+          <div class="skeleton skeleton-text-sm" style="width:55%;margin-bottom:0;"></div>
+        </div>
       </div>
     </div>
 

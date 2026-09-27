@@ -479,6 +479,155 @@ body.light-theme .glow-emerald {
     animation: none !important;
     transition: none !important;
   }
+/* ==========================================================================
+   Global Slim Top Progress Bar (Calm UX / Linear & Vercel Paradigm)
+   ========================================================================== */
+.global-progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2.5px;
+  width: 0%;
+  z-index: 999999;
+  background: linear-gradient(90deg, #6366f1 0%, #38bdf8 50%, #10b981 100%);
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.7);
+  opacity: 0;
+  pointer-events: none;
+  transition: width 0.25s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+}
+
+.global-progress-bar.active {
+  opacity: 1;
+}
+
+.global-progress-bar.finished {
+  opacity: 0;
+  transition: opacity 0.3s ease 0.1s, width 0.15s ease;
+}
+
+/* ==========================================================================
+   Aegis Liquid Brand Splash Screen (GPU-Accelerated Startup Experience)
+   ========================================================================== */
+.app-splash-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #080b13;
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.app-splash-screen.fade-out {
+  opacity: 0;
+  transform: scale(1.025);
+  pointer-events: none;
+}
+
+.splash-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 420px;
+  padding: 30px;
+  user-select: none;
+}
+
+.splash-logo-wrapper {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.splash-pulse-glow {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.45) 0%, rgba(16, 185, 129, 0.2) 50%, transparent 70%);
+  filter: blur(24px);
+  animation: splashAuraPulse 3s ease-in-out infinite alternate;
+  z-index: 1;
+}
+
+@keyframes splashAuraPulse {
+  0% { transform: scale(0.92); opacity: 0.55; }
+  50% { transform: scale(1.15); opacity: 0.95; }
+  100% { transform: scale(1.02); opacity: 0.7; }
+}
+
+.splash-logo-img {
+  position: relative;
+  z-index: 2;
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 24px rgba(99, 102, 241, 0.5));
+  animation: splashFloat 4s ease-in-out infinite;
+}
+
+@keyframes splashFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.splash-brand-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.85rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  margin: 0;
+  background: linear-gradient(135deg, #ffffff 30%, #a5b4fc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: 0 4px 20px rgba(99, 102, 241, 0.25);
+}
+
+.splash-brand-subtitle {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.85rem;
+  color: #94a3b8;
+  margin: 6px 0 0 0;
+  letter-spacing: 0.01em;
+}
+
+.splash-progress-track {
+  width: 260px;
+  height: 3.5px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 28px;
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.splash-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #6366f1 0%, #38bdf8 55%, #10b981 100%);
+  border-radius: 999px;
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.8);
+  transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: width;
+}
+
+.splash-status-text {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.78rem;
+  color: #64748b;
+  margin-top: 12px;
+  letter-spacing: 0.03em;
+  transition: color 0.2s ease, opacity 0.2s ease;
 }
 
 /* ==========================================================================
@@ -3479,18 +3628,39 @@ span.hosting-mode-badge:focus-visible {
   background: var(--nav-active-bg) !important;
 }
 
-/* Skeleton Loading */
-.skeleton {
-  background: linear-gradient(90deg, var(--inner-bg) 25%, rgba(255,255,255,0.08) 50%, var(--inner-bg) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: 8px;
+/* ==========================================================================
+   Bento Skeleton Shimmer Token System (Exact Geometry / Zero CLS)
+   ========================================================================== */
+@keyframes liquidShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 }
 
-.skeleton-text { height: 14px; margin-bottom: 8px; }
-.skeleton-text-sm { height: 10px; margin-bottom: 6px; width: 60%; }
-.skeleton-heading { height: 20px; width: 40%; margin-bottom: 12px; }
-.skeleton-card { padding: 20px; min-height: 100px; }
+.skeleton {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.035) 25%, rgba(255, 255, 255, 0.09) 50%, rgba(255, 255, 255, 0.035) 75%);
+  background-size: 200% 100%;
+  animation: liquidShimmer 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  border-radius: 6px;
+  will-change: background-position;
+}
+
+.skeleton-text { height: 14px; margin-bottom: 8px; border-radius: 4px; }
+.skeleton-text-sm { height: 10px; margin-bottom: 6px; width: 60%; border-radius: 3px; }
+.skeleton-heading { height: 22px; width: 45%; margin-bottom: 12px; border-radius: 6px; }
+.skeleton-badge { height: 20px; width: 64px; border-radius: 999px; }
+.skeleton-avatar { width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; }
+.skeleton-card {
+  padding: 24px;
+  min-height: 120px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+body.light-theme .skeleton {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+}
 
 /* Command Center Dimension Cards */
 .cc-dim-card {
@@ -3848,19 +4018,6 @@ span.hosting-mode-badge:focus-visible {
   transition: width 0.5s ease-out;
 }
 
-/* Skeleton Loading */
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-.skeleton {
-  background: linear-gradient(90deg, var(--card-border) 25%, rgba(255,255,255,0.05) 50%, var(--card-border) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: 4px;
-}
-
 /* Staggered Fade-in Animation */
 @keyframes fadeInUp {
   from {
@@ -4175,14 +4332,6 @@ input[type="range"].glass-slider::-webkit-slider-thumb:active {
 .card.glass:hover {
   border-color: rgba(88, 101, 242, 0.35);
   box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.45), 0 0 24px rgba(88, 101, 242, 0.12);
-}
-
-/* Skeleton Loading Screens */
-.skeleton {
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 25%, rgba(255, 255, 255, 0.08) 50%, rgba(255, 255, 255, 0.03) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite ease-in-out;
-  border-radius: 4px;
 }
 
 /* Unified Fix Queue Card Borders */
