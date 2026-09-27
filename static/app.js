@@ -696,6 +696,35 @@ function animateNumber(el, start, end, duration = 650, prefix = '', suffix = '')
   el._animFrameId = requestAnimationFrame(update);
 }
 
+function animateArc(el, startOffset, endOffset, duration = 1000) {
+  if (!el) return;
+  if (el._arcAnimId) {
+    cancelAnimationFrame(el._arcAnimId);
+    el._arcAnimId = null;
+  }
+  const startVal = typeof startOffset === 'number' ? startOffset : (parseFloat(startOffset) || 0);
+  const endVal = typeof endOffset === 'number' ? endOffset : (parseFloat(endOffset) || 0);
+  if (Math.abs(startVal - endVal) < 0.2) {
+    el.style.strokeDashoffset = endVal;
+    return;
+  }
+  const startTime = performance.now();
+  function updateArc(now) {
+    const elapsed = now - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const ease = 1 - Math.pow(1 - progress, 3);
+    const current = startVal + (endVal - startVal) * ease;
+    el.style.strokeDashoffset = current;
+    if (progress < 1) {
+      el._arcAnimId = requestAnimationFrame(updateArc);
+    } else {
+      el._arcAnimId = null;
+      el.style.strokeDashoffset = endVal;
+    }
+  }
+  el._arcAnimId = requestAnimationFrame(updateArc);
+}
+
 async function fetchStats() {
   if (!isAuthenticated) return;
   try {
@@ -1773,16 +1802,18 @@ function renderCommandCenter(data) {
   const scoreLabel = document.getElementById('cc-score-label');
 
   if (scoreCircle) {
-    const arcLen = 356.05;
-    const offset = Math.max(0, arcLen - (arcLen * score) / 100);
-    scoreCircle.style.strokeDasharray = '356.05';
-    scoreCircle.style.strokeDashoffset = offset;
+    const arcLen = 385.37;
+    const targetOffset = Math.max(0, arcLen - (arcLen * score) / 100);
+    scoreCircle.style.strokeDasharray = '385.37';
     scoreCircle.style.stroke = scoreColor;
     scoreCircle.style.filter = `drop-shadow(0 0 12px ${scoreColor}80)`;
+    const currentOff = parseFloat(scoreCircle.style.strokeDashoffset);
+    const startOff = isNaN(currentOff) ? arcLen : currentOff;
+    animateArc(scoreCircle, startOff, targetOffset, 1000);
   }
   if (scoreValue) {
     const prev = parseInt(scoreValue.textContent.replace(/[^0-9]/g, ''), 10) || 0;
-    animateNumber(scoreValue, prev, score, 750);
+    animateNumber(scoreValue, prev, score, 850);
   }
   if (scoreLabel) {
     let postureText = 'Optimal';
@@ -11349,7 +11380,7 @@ async function loadSmartCommandCenter(force = false) {
   if (isInitialLoad) {
     if (healthContent) healthContent.innerHTML = `
       <div style="display: flex; align-items: center; gap: 24px; margin-bottom: 20px; flex-wrap: wrap;">
-        <div class="skeleton telemetry-arch-gauge-hero" style="width: 230px; height: 210px; border-radius: 16px; flex-shrink: 0; margin: 0 auto;"></div>
+        <div class="skeleton telemetry-arch-gauge-hero" style="width: 250px; height: 215px; border-radius: 16px; flex-shrink: 0; margin: 0 auto;"></div>
         <div style="flex: 2; min-width: 260px;">
           <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px;">
             <div class="skeleton bento-stat-chip" style="height: 68px;"></div>
@@ -11480,7 +11511,7 @@ async function loadSmartCommandCenter(force = false) {
 
   if (healthContent) {
     const scoreColor = weightedScore >= 80 ? 'var(--success)' : weightedScore >= 60 ? 'var(--warning)' : 'var(--danger)';
-    const arcLength = 356.05;
+    const arcLength = 385.37;
     const offset = Math.max(0, arcLength - (weightedScore / 100) * arcLength);
 
     let postureGrade = 'A+ Hardened';
@@ -11506,10 +11537,12 @@ async function loadSmartCommandCenter(force = false) {
       // In-place smooth update without layout shift
       existingScoreEl.dataset.targetScore = weightedScore;
       const prevScore = parseInt(existingScoreEl.textContent, 10) || 0;
-      animateNumber(existingScoreEl, prevScore, weightedScore, 1000);
+      animateNumber(existingScoreEl, prevScore, weightedScore, 850);
       existingCircle.style.stroke = scoreColor;
-      existingCircle.style.strokeDashoffset = offset;
       existingCircle.style.filter = `drop-shadow(0 0 12px ${scoreColor}80)`;
+      const currentOff = parseFloat(existingCircle.style.strokeDashoffset);
+      const startOff = isNaN(currentOff) ? arcLength : currentOff;
+      animateArc(existingCircle, startOff, offset, 1000);
       
       const postureBadge = healthContent.querySelector('#sf-health-posture-badge');
       if (postureBadge) {
@@ -11535,7 +11568,10 @@ async function loadSmartCommandCenter(force = false) {
       };
       for (const key in dimMap) {
         const item = dimMap[key];
-        if (item.el) item.el.textContent = `${item.score}%`;
+        if (item.el) {
+          const prevDim = parseInt(item.el.textContent.replace(/[^0-9]/g, ''), 10) || 0;
+          animateNumber(item.el, prevDim, item.score, 850, '', '%');
+        }
         if (item.fill) item.fill.style.width = `${item.score}%`;
       }
     } else {
@@ -11546,36 +11582,36 @@ async function loadSmartCommandCenter(force = false) {
             <div class="cc-dim-icon-badge"><i class="fa-solid fa-shield-halved" style="color:var(--primary);"></i></div>
             <span class="cc-dim-label">Security</span>
             <span class="cc-dim-weight">35% Weight</span>
-            <span class="cc-dim-score dim-pill-score-sec" style="color:var(--primary);">${secScore}%</span>
-            <div class="cc-dim-bar"><div class="cc-dim-bar-fill dim-pill-fill-sec" data-width="${secScore}%" style="width:0%;background:linear-gradient(90deg, var(--primary), #818cf8);"></div></div>
+            <span class="cc-dim-score dim-pill-score-sec" style="color:var(--primary);">0%</span>
+            <div class="cc-dim-bar"><div class="cc-dim-bar-fill dim-pill-fill dim-pill-fill-sec" data-width="${secScore}%" style="width:0%;background:linear-gradient(90deg, var(--primary), #818cf8);"></div></div>
           </div>
           <div class="cc-dim-card" title="Click to inspect Moderation metrics" onclick="navigateSmartModule('intel-moderation')">
             <div class="cc-dim-icon-badge"><i class="fa-solid fa-gavel" style="color:var(--success);"></i></div>
             <span class="cc-dim-label">Moderation</span>
             <span class="cc-dim-weight">25% Weight</span>
-            <span class="cc-dim-score dim-pill-score-mod" style="color:var(--success);">${modScore}%</span>
-            <div class="cc-dim-bar"><div class="cc-dim-bar-fill dim-pill-fill-mod" data-width="${modScore}%" style="width:0%;background:linear-gradient(90deg, var(--success), #34d399);"></div></div>
+            <span class="cc-dim-score dim-pill-score-mod" style="color:var(--success);">0%</span>
+            <div class="cc-dim-bar"><div class="cc-dim-bar-fill dim-pill-fill dim-pill-fill-mod" data-width="${modScore}%" style="width:0%;background:linear-gradient(90deg, var(--success), #34d399);"></div></div>
           </div>
           <div class="cc-dim-card" title="Click to configure Automation rules" onclick="navigateSmartModule('automation-rules-sub')">
             <div class="cc-dim-icon-badge"><i class="fa-solid fa-robot" style="color:var(--warning);"></i></div>
             <span class="cc-dim-label">Automation</span>
             <span class="cc-dim-weight">15% Weight</span>
-            <span class="cc-dim-score dim-pill-score-auto" style="color:var(--warning);">${autoScore}%</span>
-            <div class="cc-dim-bar"><div class="cc-dim-bar-fill dim-pill-fill-auto" data-width="${autoScore}%" style="width:0%;background:linear-gradient(90deg, var(--warning), #fbbf24);"></div></div>
+            <span class="cc-dim-score dim-pill-score-auto" style="color:var(--warning);">0%</span>
+            <div class="cc-dim-bar"><div class="cc-dim-bar-fill dim-pill-fill dim-pill-fill-auto" data-width="${autoScore}%" style="width:0%;background:linear-gradient(90deg, var(--warning), #fbbf24);"></div></div>
           </div>
           <div class="cc-dim-card" title="Click to view Structure & Trends" onclick="navigateSmartModule('intel-trends')">
             <div class="cc-dim-icon-badge"><i class="fa-solid fa-sitemap" style="color:var(--accent-cyan, #06b6d4);"></i></div>
             <span class="cc-dim-label">Structure</span>
             <span class="cc-dim-weight">15% Weight</span>
-            <span class="cc-dim-score dim-pill-score-rel" style="color:var(--accent-cyan, #06b6d4);">${relScore}%</span>
-            <div class="cc-dim-bar"><div class="cc-dim-bar-fill dim-pill-fill-rel" data-width="${relScore}%" style="width:0%;background:linear-gradient(90deg, var(--accent-cyan, #06b6d4), #38bdf8);"></div></div>
+            <span class="cc-dim-score dim-pill-score-rel" style="color:var(--accent-cyan, #06b6d4);">0%</span>
+            <div class="cc-dim-bar"><div class="cc-dim-bar-fill dim-pill-fill dim-pill-fill-rel" data-width="${relScore}%" style="width:0%;background:linear-gradient(90deg, var(--accent-cyan, #06b6d4), #38bdf8);"></div></div>
           </div>
           <div class="cc-dim-card" title="Click to view Community activity" onclick="navigateSmartModule('intel-community')">
             <div class="cc-dim-icon-badge"><i class="fa-solid fa-users" style="color:var(--pink);"></i></div>
             <span class="cc-dim-label">Community</span>
             <span class="cc-dim-weight">10% Weight</span>
-            <span class="cc-dim-score dim-pill-score-gro" style="color:var(--pink);">${groScore}%</span>
-            <div class="cc-dim-bar"><div class="cc-dim-bar-fill dim-pill-fill-gro" data-width="${groScore}%" style="width:0%;background:linear-gradient(90deg, var(--pink), #f472b6);"></div></div>
+            <span class="cc-dim-score dim-pill-score-gro" style="color:var(--pink);">0%</span>
+            <div class="cc-dim-bar"><div class="cc-dim-bar-fill dim-pill-fill dim-pill-fill-gro" data-width="${groScore}%" style="width:0%;background:linear-gradient(90deg, var(--pink), #f472b6);"></div></div>
           </div>
         </div>
       `;
@@ -11585,11 +11621,14 @@ async function loadSmartCommandCenter(force = false) {
           <!-- 2026 Open-Arch Telemetry Speedometer (Zero Text Collision) -->
           <div class="telemetry-arch-gauge-hero">
             <div class="telemetry-arch-wrap">
-              <svg viewBox="0 0 220 160" class="telemetry-arch-svg">
-                <!-- Background Track -->
-                <path class="gauge-arc-track" d="M 36.4,142.5 A 85,85 0 1 1 183.6,142.5"></path>
+              <svg viewBox="0 0 260 175" class="telemetry-arch-svg">
+                <!-- Background Track (385.37px circumference arc) -->
+                <path class="gauge-arc-track" d="M 50.3,164.0 A 92,92 0 1 1 209.7,164.0"></path>
                 <!-- Active Value Arc -->
-                <path class="cc-score-ring-circle gauge-arc-fill" d="M 36.4,142.5 A 85,85 0 1 1 183.6,142.5" style="stroke:${scoreColor};stroke-dasharray:356.05;stroke-dashoffset:356.05;filter:drop-shadow(0 0 12px ${scoreColor}80);"></path>
+                <path class="cc-score-ring-circle gauge-arc-fill" d="M 50.3,164.0 A 92,92 0 1 1 209.7,164.0" style="stroke:${scoreColor};stroke-dasharray:385.37;stroke-dashoffset:385.37;filter:drop-shadow(0 0 12px ${scoreColor}80);"></path>
+                <!-- Scale Labels outside terminals -->
+                <text x="36" y="167" class="gauge-svg-scale" text-anchor="end">0</text>
+                <text x="224" y="167" class="gauge-svg-scale" text-anchor="start">100</text>
               </svg>
               <!-- Centered Score inside Dome -->
               <div class="telemetry-arch-center">
@@ -11599,12 +11638,6 @@ async function loadSmartCommandCenter(force = false) {
                 </div>
                 <span class="telemetry-arch-sub">Overall Posture</span>
               </div>
-            </div>
-
-            <!-- Threshold Boundary Markers -->
-            <div class="telemetry-arch-anchors">
-              <span>0 Crit</span>
-              <span>100 Sec</span>
             </div>
 
             <!-- Dedicated Zero-Overlap Posture Shelf -->
@@ -11636,14 +11669,16 @@ async function loadSmartCommandCenter(force = false) {
         </div>
       `;
 
-      // Force layout reflow so initial state (356.05, 0% width) is committed
+      // Force layout reflow so initial state (385.37, 0% width) is committed
       const ring = healthContent.querySelector('.cc-score-ring-circle');
       if (ring) void ring.getBoundingClientRect();
       healthContent.querySelectorAll('.dim-pill-fill').forEach(fill => void fill.getBoundingClientRect());
 
       // Trigger animated sweep cleanly in next animation frame
       requestAnimationFrame(() => {
-        if (ring) ring.style.strokeDashoffset = offset;
+        if (ring) {
+          animateArc(ring, arcLength, offset, 1100);
+        }
         healthContent.querySelectorAll('.dim-pill-fill').forEach(fill => {
           if (fill.dataset.width) fill.style.width = fill.dataset.width;
         });
@@ -11651,6 +11686,11 @@ async function loadSmartCommandCenter(force = false) {
         if (sfScoreValEl) {
           animateNumber(sfScoreValEl, 0, weightedScore, 1000);
         }
+        animateNumber(healthContent.querySelector('.dim-pill-score-sec'), 0, secScore, 900, '', '%');
+        animateNumber(healthContent.querySelector('.dim-pill-score-mod'), 0, modScore, 900, '', '%');
+        animateNumber(healthContent.querySelector('.dim-pill-score-auto'), 0, autoScore, 900, '', '%');
+        animateNumber(healthContent.querySelector('.dim-pill-score-rel'), 0, relScore, 900, '', '%');
+        animateNumber(healthContent.querySelector('.dim-pill-score-gro'), 0, groScore, 900, '', '%');
       });
     }
   }

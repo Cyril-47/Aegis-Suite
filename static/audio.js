@@ -55,13 +55,13 @@
     const ctx = getAudioContext();
     if (!ctx) return;
 
-    if (ctx.state === 'suspended') {
+    if (ctx.state !== 'running') {
       ctx.resume().then(() => {
         if (ctx.state === 'running' && callback) {
           callback(ctx);
         }
       }).catch(() => {});
-    } else if (ctx.state === 'running') {
+    } else {
       callback(ctx);
     }
   }
@@ -245,7 +245,7 @@
     document.addEventListener('click', (e) => {
       if (e._audioHandled) return;
 
-      const target = e.target.closest('button, .btn, .btn-circle, .btn-icon-only, .nav-item, .sub-tab-btn, .drawer-filter-chip, .tab-btn, a.btn, [role="button"]');
+      const target = e.target.closest('button, .btn, .btn-circle, .btn-icon-only, .nav-item, .sub-tab-btn, .drawer-filter-chip, .tab-btn, a.btn, [role="button"], .smart-mod-card, .cc-dim-card, .preset-card, .radio-card, .bento-stat-chip, [data-action]');
       if (!target || target.dataset.noSound === 'true') return;
 
       // Utility mute button has its own click handler

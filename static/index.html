@@ -839,7 +839,7 @@
                 <div class="card-body">
                   <div id="cc-loading">
                     <div class="auditor-hero-cockpit mb-4">
-                      <div class="skeleton telemetry-arch-gauge-hero" style="width: 230px; height: 210px; border-radius: 16px; flex-shrink: 0;"></div>
+                      <div class="skeleton telemetry-arch-gauge-hero" style="width: 250px; height: 215px; border-radius: 16px; flex-shrink: 0;"></div>
                       <div class="cc-bento-dimension-grid">
                         <div class="skeleton cc-dim-card" style="height: 125px;"></div>
                         <div class="skeleton cc-dim-card" style="height: 125px;"></div>
@@ -860,11 +860,14 @@
                       <!-- 2026 Open-Arch Telemetry Speedometer (Zero Text Collision) -->
                       <div class="telemetry-arch-gauge-hero">
                         <div class="telemetry-arch-wrap">
-                          <svg viewBox="0 0 220 160" class="telemetry-arch-svg">
-                            <!-- Background Track -->
-                            <path class="gauge-arc-track" d="M 36.4,142.5 A 85,85 0 1 1 183.6,142.5" />
+                          <svg viewBox="0 0 260 175" class="telemetry-arch-svg">
+                            <!-- Background Track (385.37px circumference arc) -->
+                            <path class="gauge-arc-track" d="M 50.3,164.0 A 92,92 0 1 1 209.7,164.0" />
                             <!-- Active Value Arc -->
-                            <path id="cc-score-circle" class="gauge-arc-fill" d="M 36.4,142.5 A 85,85 0 1 1 183.6,142.5" />
+                            <path id="cc-score-circle" class="gauge-arc-fill" d="M 50.3,164.0 A 92,92 0 1 1 209.7,164.0" />
+                            <!-- Scale Labels outside terminals -->
+                            <text x="36" y="167" class="gauge-svg-scale" text-anchor="end">0</text>
+                            <text x="224" y="167" class="gauge-svg-scale" text-anchor="start">100</text>
                           </svg>
                           <!-- Centered Score inside Dome -->
                           <div class="telemetry-arch-center">
@@ -874,12 +877,6 @@
                             </div>
                             <span class="telemetry-arch-sub">Security Posture</span>
                           </div>
-                        </div>
-
-                        <!-- Threshold Boundary Markers -->
-                        <div class="telemetry-arch-anchors">
-                          <span>0 Crit</span>
-                          <span>100 Sec</span>
                         </div>
 
                         <!-- Dedicated Zero-Overlap Posture Shelf -->
