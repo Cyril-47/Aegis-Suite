@@ -623,6 +623,29 @@ code.block-code {
   }
 }
 
+/* 2026 Open-Arch Telemetry Speedometer Responsive Rules */
+@media (max-width: 640px) {
+  .telemetry-arch-gauge-hero {
+    width: 100% !important;
+    max-width: 280px !important;
+    margin: 0 auto !important;
+  }
+  .telemetry-arch-wrap {
+    transform: scale(0.95);
+    transform-origin: center top;
+  }
+}
+@media (max-width: 420px) {
+  .telemetry-arch-wrap {
+    transform: scale(0.85);
+    transform-origin: center top;
+    margin-bottom: -15px;
+  }
+  .telemetry-arch-anchors {
+    width: 150px !important;
+  }
+}
+
 /* --------------------------------------------------------------------------
    7. SHORT DISPLAYS & VERTICAL ASPECT RATIOS (max-height: 720px)
    -------------------------------------------------------------------------- */

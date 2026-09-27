@@ -1773,28 +1773,35 @@ function renderCommandCenter(data) {
   const scoreLabel = document.getElementById('cc-score-label');
 
   if (scoreCircle) {
-    const offset = 314 - (314 * score) / 100;
+    const arcLen = 356.05;
+    const offset = Math.max(0, arcLen - (arcLen * score) / 100);
+    scoreCircle.style.strokeDasharray = '356.05';
     scoreCircle.style.strokeDashoffset = offset;
     scoreCircle.style.stroke = scoreColor;
+    scoreCircle.style.filter = `drop-shadow(0 0 12px ${scoreColor}80)`;
   }
   if (scoreValue) {
     const prev = parseInt(scoreValue.textContent.replace(/[^0-9]/g, ''), 10) || 0;
     animateNumber(scoreValue, prev, score, 750);
   }
   if (scoreLabel) {
+    let postureText = 'Optimal';
+    let postureCls = 'posture-optimal';
     if (score >= 90) {
-      scoreLabel.textContent = 'A+ Hardened';
-      scoreLabel.className = 'health-posture-badge health-posture-optimal';
+      postureText = 'A+ Hardened';
+      postureCls = 'posture-optimal';
     } else if (score >= 75) {
-      scoreLabel.textContent = 'Optimal';
-      scoreLabel.className = 'health-posture-badge health-posture-good';
+      postureText = 'Optimal';
+      postureCls = 'posture-good';
     } else if (score >= 55) {
-      scoreLabel.textContent = 'Guarded';
-      scoreLabel.className = 'health-posture-badge health-posture-warning';
+      postureText = 'Guarded';
+      postureCls = 'posture-warning';
     } else {
-      scoreLabel.textContent = 'Exposure Alert';
-      scoreLabel.className = 'health-posture-badge health-posture-danger';
+      postureText = 'Exposure Alert';
+      postureCls = 'posture-danger';
     }
+    scoreLabel.className = `telemetry-posture-capsule ${postureCls}`;
+    scoreLabel.innerHTML = `<span class="posture-beacon"></span><span class="posture-text">${postureText}</span>`;
   }
 
   // Dimension scores & animated bar meters
@@ -11338,12 +11345,11 @@ async function loadSmartCommandCenter(force = false) {
   // Hide static loading spinner, show content area
   if (ccLoading) ccLoading.classList.add('hidden');
   if (ccContent) ccContent.classList.remove('hidden');
-
-  const isInitialLoad = !healthContent || !healthContent.children.length || healthContent.querySelector('.skeleton-card');
+  const isInitialLoad = !healthContent || !healthContent.children.length || healthContent.querySelector('.skeleton-card') || healthContent.querySelector('.skeleton');
   if (isInitialLoad) {
     if (healthContent) healthContent.innerHTML = `
       <div style="display: flex; align-items: center; gap: 24px; margin-bottom: 20px; flex-wrap: wrap;">
-        <div class="skeleton" style="width: 145px; height: 145px; border-radius: 50%; flex-shrink: 0; margin: 0 auto;"></div>
+        <div class="skeleton telemetry-arch-gauge-hero" style="width: 230px; height: 210px; border-radius: 16px; flex-shrink: 0; margin: 0 auto;"></div>
         <div style="flex: 2; min-width: 260px;">
           <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px;">
             <div class="skeleton bento-stat-chip" style="height: 68px;"></div>
@@ -11474,24 +11480,23 @@ async function loadSmartCommandCenter(force = false) {
 
   if (healthContent) {
     const scoreColor = weightedScore >= 80 ? 'var(--success)' : weightedScore >= 60 ? 'var(--warning)' : 'var(--danger)';
-    const radius = 50;
-    const circumference = 2 * Math.PI * radius;
-    const offset = circumference - (weightedScore / 100) * circumference;
+    const arcLength = 356.05;
+    const offset = Math.max(0, arcLength - (weightedScore / 100) * arcLength);
 
     let postureGrade = 'A+ Hardened';
-    let postureClass = 'health-posture-optimal';
+    let postureClass = 'posture-optimal';
     if (weightedScore >= 90) {
       postureGrade = 'A+ Hardened';
-      postureClass = 'health-posture-optimal';
+      postureClass = 'posture-optimal';
     } else if (weightedScore >= 75) {
       postureGrade = 'Optimal';
-      postureClass = 'health-posture-good';
+      postureClass = 'posture-good';
     } else if (weightedScore >= 55) {
       postureGrade = 'Guarded';
-      postureClass = 'health-posture-warning';
+      postureClass = 'posture-warning';
     } else {
       postureGrade = 'Exposure Alert';
-      postureClass = 'health-posture-danger';
+      postureClass = 'posture-danger';
     }
 
     const existingScoreEl = document.getElementById('sf-score-val-animated');
@@ -11504,15 +11509,12 @@ async function loadSmartCommandCenter(force = false) {
       animateNumber(existingScoreEl, prevScore, weightedScore, 1000);
       existingCircle.style.stroke = scoreColor;
       existingCircle.style.strokeDashoffset = offset;
-      existingCircle.style.filter = `drop-shadow(0 0 12px ${scoreColor}60)`;
+      existingCircle.style.filter = `drop-shadow(0 0 12px ${scoreColor}80)`;
       
-      const scoreTextEl = healthContent.querySelector('.sf-score-text');
-      if (scoreTextEl) scoreTextEl.style.color = scoreColor;
-
       const postureBadge = healthContent.querySelector('#sf-health-posture-badge');
       if (postureBadge) {
-        postureBadge.textContent = postureGrade;
-        postureBadge.className = `health-posture-badge ${postureClass}`;
+        postureBadge.className = `telemetry-posture-capsule ${postureClass}`;
+        postureBadge.innerHTML = `<span class="posture-beacon"></span><span class="posture-text">${postureGrade}</span>`;
       }
 
       // Update chips
@@ -11580,19 +11582,40 @@ async function loadSmartCommandCenter(force = false) {
 
       healthContent.innerHTML = `
         <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;">
-          <div style="flex:1;min-width:145px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
-            <div class="sf-score-ring" style="width:145px;height:145px;">
-              <svg viewBox="0 0 120 120" style="width:145px;height:145px;transform:rotate(-90deg);">
-                <circle cx="60" cy="60" r="${radius}" stroke="rgba(255,255,255,0.06)" stroke-width="10" fill="none"></circle>
-                <circle class="cc-score-ring-circle" cx="60" cy="60" r="${radius}" stroke="${scoreColor}" stroke-width="10" stroke-dasharray="${circumference}" stroke-dashoffset="${circumference}" stroke-linecap="round" fill="none" style="filter:drop-shadow(0 0 12px ${scoreColor}60);"></circle>
+          <!-- 2026 Open-Arch Telemetry Speedometer (Zero Text Collision) -->
+          <div class="telemetry-arch-gauge-hero">
+            <div class="telemetry-arch-wrap">
+              <svg viewBox="0 0 220 160" class="telemetry-arch-svg">
+                <!-- Background Track -->
+                <path class="gauge-arc-track" d="M 36.4,142.5 A 85,85 0 1 1 183.6,142.5"></path>
+                <!-- Active Value Arc -->
+                <path class="cc-score-ring-circle gauge-arc-fill" d="M 36.4,142.5 A 85,85 0 1 1 183.6,142.5" style="stroke:${scoreColor};stroke-dasharray:356.05;stroke-dashoffset:356.05;filter:drop-shadow(0 0 12px ${scoreColor}80);"></path>
               </svg>
-              <div class="sf-score-text" style="color:${scoreColor};font-size:2.1rem;font-weight:700;font-family:'Outfit',sans-serif;">
-                <span id="sf-score-val-animated" data-target-score="${weightedScore}">0</span><span class="sf-score-percent" style="font-size:0.95rem;">%</span>
-                <span id="sf-health-posture-badge" class="health-posture-badge ${postureClass}" style="margin-top:4px;">${postureGrade}</span>
+              <!-- Centered Score inside Dome -->
+              <div class="telemetry-arch-center">
+                <div class="telemetry-arch-score-row">
+                  <span id="sf-score-val-animated" class="telemetry-arch-val" data-target-score="${weightedScore}">0</span>
+                  <span class="telemetry-arch-pct">%</span>
+                </div>
+                <span class="telemetry-arch-sub">Overall Posture</span>
               </div>
             </div>
-            <div style="font-size:0.72rem;color:var(--text-sub);text-transform:uppercase;letter-spacing:0.06em;margin-top:6px;font-weight:600;">Overall Posture</div>
+
+            <!-- Threshold Boundary Markers -->
+            <div class="telemetry-arch-anchors">
+              <span>0 Crit</span>
+              <span>100 Sec</span>
+            </div>
+
+            <!-- Dedicated Zero-Overlap Posture Shelf -->
+            <div class="telemetry-posture-shelf">
+              <span id="sf-health-posture-badge" class="telemetry-posture-capsule ${postureClass}">
+                <span class="posture-beacon"></span>
+                <span class="posture-text">${postureGrade}</span>
+              </span>
+            </div>
           </div>
+
           <div style="flex:2;min-width:260px;">
             <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:10px;">
               <div class="bento-stat-chip text-center tone-highlight-crimson" style="padding:10px 12px;">
@@ -11613,7 +11636,7 @@ async function loadSmartCommandCenter(force = false) {
         </div>
       `;
 
-      // Force layout reflow so initial state (circumference, 0% width) is committed
+      // Force layout reflow so initial state (356.05, 0% width) is committed
       const ring = healthContent.querySelector('.cc-score-ring-circle');
       if (ring) void ring.getBoundingClientRect();
       healthContent.querySelectorAll('.dim-pill-fill').forEach(fill => void fill.getBoundingClientRect());
