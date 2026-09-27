@@ -1032,11 +1032,13 @@ function setupNavigation() {
         currentTabDesc.textContent = TAB_DESCRIPTIONS[targetTab];
       }
       showTopProgress();
-      try {
-        refreshActiveTabContent();
-      } finally {
-        setTimeout(hideTopProgress, 350);
-      }
+      requestAnimationFrame(() => {
+        try {
+          refreshActiveTabContent();
+        } finally {
+          setTimeout(hideTopProgress, 350);
+        }
+      });
     });
   });
 
@@ -8872,21 +8874,20 @@ function triggerHealthGaugeSweep(container) {
       fill.style.width = '0%';
     });
 
-    // Force layout reflow
-    void ring.getBoundingClientRect();
-
-    // Re-enable transition and sweep to target values smoothly
+    // Re-enable transition and sweep to target values smoothly without synchronous layout stall
     requestAnimationFrame(() => {
-      ring.style.transition = 'stroke-dashoffset 1.1s cubic-bezier(0.16, 1, 0.3, 1)';
-      ring.style.strokeDashoffset = `${targetOffset}`;
+      requestAnimationFrame(() => {
+        ring.style.transition = 'stroke-dashoffset 1.1s cubic-bezier(0.16, 1, 0.3, 1)';
+        ring.style.strokeDashoffset = `${targetOffset}`;
 
-      dimFills.forEach(fill => {
-        fill.style.transition = 'width 0.9s cubic-bezier(0.16, 1, 0.3, 1)';
-        const targetWidth = fill.dataset.width || `${targetScore}%`;
-        fill.style.width = targetWidth;
+        dimFills.forEach(fill => {
+          fill.style.transition = 'width 0.9s cubic-bezier(0.16, 1, 0.3, 1)';
+          const targetWidth = fill.dataset.width || `${targetScore}%`;
+          fill.style.width = targetWidth;
+        });
+
+        animateNumber(scoreValEl, 0, targetScore, 950);
       });
-
-      animateNumber(scoreValEl, 0, targetScore, 950);
     });
   }
 
@@ -8898,11 +8899,12 @@ function triggerHealthGaugeSweep(container) {
     if (legScore > 0) {
       legacyCircle.style.transition = 'none';
       legacyCircle.style.strokeDashoffset = '314';
-      void legacyCircle.getBoundingClientRect();
       requestAnimationFrame(() => {
-        legacyCircle.style.transition = 'stroke-dashoffset 1.1s cubic-bezier(0.16, 1, 0.3, 1)';
-        legacyCircle.style.strokeDashoffset = `${314 - (314 * legScore) / 100}`;
-        animateNumber(legacyVal, 0, legScore, 950);
+        requestAnimationFrame(() => {
+          legacyCircle.style.transition = 'stroke-dashoffset 1.1s cubic-bezier(0.16, 1, 0.3, 1)';
+          legacyCircle.style.strokeDashoffset = `${314 - (314 * legScore) / 100}`;
+          animateNumber(legacyVal, 0, legScore, 950);
+        });
       });
     }
   }
@@ -11669,12 +11671,9 @@ async function loadSmartCommandCenter(force = false) {
         </div>
       `;
 
-      // Force layout reflow so initial state (385.37, 0% width) is committed
       const ring = healthContent.querySelector('.cc-score-ring-circle');
-      if (ring) void ring.getBoundingClientRect();
-      healthContent.querySelectorAll('.dim-pill-fill').forEach(fill => void fill.getBoundingClientRect());
 
-      // Trigger animated sweep cleanly in next animation frame
+      // Trigger animated sweep cleanly in next animation frame without blocking layout flushes
       requestAnimationFrame(() => {
         if (ring) {
           animateArc(ring, arcLength, offset, 1100);
