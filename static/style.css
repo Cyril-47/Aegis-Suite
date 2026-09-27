@@ -1617,6 +1617,7 @@ body.light-theme .sidebar-action-btn:focus-visible {
   flex-direction: column;
   height: 100vh;
   overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 /* Top Header */
@@ -3663,30 +3664,184 @@ body.light-theme .skeleton {
   background-size: 200% 100%;
 }
 
-/* Command Center Dimension Cards */
+/* Command Center & Auditor Bento Dimension Cards */
 .cc-dim-card {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 14px 8px;
-  border-radius: 12px;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 16px 12px;
+  border-radius: 14px;
   background: var(--inner-bg);
-  border-top: 3px solid var(--card-border);
+  border: 1px solid var(--card-border);
+  border-top: 3px solid var(--primary);
   text-align: center;
-  transition: border-color 0.3s;
+  position: relative;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  overflow: hidden;
 }
+
+.cc-dim-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(99, 102, 241, 0.4);
+  box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.35), 0 0 14px -3px var(--primary-glow);
+}
+
+.cc-dim-icon-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 2px;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.cc-dim-card:hover .cc-dim-icon-badge {
+  transform: scale(1.08);
+  background: rgba(255, 255, 255, 0.08);
+}
+
 .cc-dim-card i {
   font-size: 1.1rem;
   color: var(--text-sub);
+  transition: color 0.2s ease;
 }
+
 .cc-dim-card .cc-dim-score {
-  font-size: 1.4rem;
+  font-size: 1.55rem;
   font-weight: 700;
+  font-family: 'Outfit', sans-serif;
+  line-height: 1;
+  color: var(--text-main);
 }
+
 .cc-dim-card .cc-dim-label {
-  font-size: 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 600;
   color: var(--text-sub);
+  letter-spacing: 0.02em;
+}
+
+.cc-dim-weight {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.cc-dim-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.cc-dim-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Posture Grade Badge */
+.health-posture-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+.health-posture-optimal {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: var(--success);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+}
+.health-posture-good {
+  background: rgba(6, 182, 212, 0.12);
+  border-color: rgba(6, 182, 212, 0.35);
+  color: var(--accent-cyan, #06b6d4);
+  box-shadow: 0 0 10px rgba(6, 182, 212, 0.2);
+}
+.health-posture-warning {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: var(--warning);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
+}
+.health-posture-danger {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: var(--danger);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);
+}
+
+/* Telemetry Freshness Chip */
+.telemetry-freshness-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.73rem;
+  color: var(--text-sub);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--card-border);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 500;
+}
+
+/* Interactive Bento Dimension Grid in Cockpit */
+.cc-bento-dimension-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-top: 14px;
+  flex: 1;
+}
+@media (max-width: 900px) {
+  .cc-bento-dimension-grid {
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  }
+}
+
+/* Auditor Hero Cockpit Layout */
+.auditor-hero-cockpit {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+@media (max-width: 900px) {
+  .auditor-hero-cockpit {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+.auditor-gauge-hero {
+  flex: 0 0 170px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.auditor-gauge-subtext {
+  text-align: center;
 }
 
 /* Permission Builder */
@@ -3787,13 +3942,13 @@ body.light-theme .skeleton {
   background: var(--inner-bg);
 }
 
-/* Sub-tab Pills navigation style */
+/* Sub-tab Pills navigation style (Rock-Solid CLS-Free) */
 .sub-tab-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  background: var(--inner-bg);       /* was: rgba(255,255,255,0.02) — too transparent */
-  padding: 5px;
+  gap: 6px;
+  background: var(--inner-bg);
+  padding: 6px;
   border-radius: 12px;
   border: 1px solid var(--card-border);
   margin-bottom: 20px;
@@ -3801,31 +3956,33 @@ body.light-theme .skeleton {
 
 .sub-tab-btn {
   background: none;
-  border: none;
+  border: 1px solid transparent;
   color: var(--text-sub);
-  padding: 10px 16px;
-  min-height: 44px;
+  padding: 9px 16px;
+  min-height: 42px;
   font-size: 0.85rem;
   font-weight: 600;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
   flex-shrink: 0;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
+  box-sizing: border-box;
 }
 
 .sub-tab-btn:hover {
   color: var(--text-main);
   background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .sub-tab-btn.active {
-  background: var(--card-bg);        /* was: nav-active-bg — too light */
-  border: 1px solid var(--primary);
+  background: var(--card-bg);
+  border-color: var(--primary);
   color: var(--text-main);
-  box-shadow: 0 0 12px var(--primary-glow);
+  box-shadow: 0 0 14px var(--primary-glow);
   position: relative;
 }
 
@@ -3841,14 +3998,13 @@ body.light-theme .skeleton {
   box-shadow: 0 0 8px var(--primary-glow);
 }
 
-/* Light theme overrides */
-
 /* ============================================================
-   Smart Features Module Navigation Cards
+   Smart Features Module Navigation Rail (Rock-Solid Fixed Positioning)
    ============================================================ */
 .smart-mod-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
   gap: 8px;
   align-items: center;
   background: var(--card-bg);
@@ -3857,16 +4013,32 @@ body.light-theme .skeleton {
   padding: 6px;
   backdrop-filter: var(--glass-backdrop);
   margin-bottom: 16px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.smart-mod-grid::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 1080px) {
+  .smart-mod-grid {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    overflow-x: visible;
+  }
 }
 
 .smart-mod-card {
-  width: 100%;
+  flex: 1 1 0;
+  min-width: 110px;
+  height: 42px;
   background: transparent;
   border: 1px solid transparent;
   border-radius: 10px;
-  padding: 8px 12px;
+  padding: 0 10px;
   cursor: pointer;
-  transition: all 0.18s ease;
+  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, color 0.18s ease;
   display: flex;
   flex-direction: row;
   align-items: center;
@@ -3875,6 +4047,8 @@ body.light-theme .skeleton {
   position: relative;
   user-select: none;
   box-sizing: border-box;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .smart-mod-card:hover {
@@ -3885,7 +4059,19 @@ body.light-theme .skeleton {
 .smart-mod-card.active {
   background: var(--nav-active-bg);
   border-color: var(--nav-active-border);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.2), 0 0 16px -4px var(--primary-glow);
+}
+
+.smart-mod-card.active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 18%;
+  right: 18%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--primary, #6366f1), transparent);
+  border-radius: 2px;
+  box-shadow: 0 0 8px var(--primary-glow);
 }
 
 .smart-mod-card i {
@@ -3893,6 +4079,7 @@ body.light-theme .skeleton {
   color: var(--text-sub);
   margin-bottom: 0;
   transition: color 0.18s;
+  flex-shrink: 0;
 }
 
 .smart-mod-card.active i {
@@ -3912,13 +4099,13 @@ body.light-theme .skeleton {
 }
 
 .smart-mod-desc {
-  display: none; /* De-congest into horizontal pill bar */
+  display: none; /* Keep de-congested into horizontal telemetry rail */
 }
 
 .smart-mod-live-dot {
   position: absolute;
-  top: 8px;
-  right: 8px;
+  top: 7px;
+  right: 7px;
   width: 6px;
   height: 6px;
   border-radius: 50%;

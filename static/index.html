@@ -822,72 +822,101 @@
           <!-- PANE 1 — Overview (visible by default, no hidden class) -->
           <div id="auditor-overview-sub" class="sub-tab-pane">
             <div class="grid-layout">
-              <!-- Server Health Score -->
-              <div class="card glass span-4" id="cc-health-card">
+              <!-- Server Health Score — 2026 Obsidian Bento Health Cockpit -->
+              <div class="card glass span-4" id="cc-health-card" style="border-top: 3px solid var(--primary);">
                 <div class="card-header border-bottom flex-header">
-                  <h2><i class="fa-solid fa-heart-pulse"></i> Server Health</h2>
-                  <button id="cc-analyze-btn" class="btn btn-secondary btn-small" data-action="run-command-center-scan">
-                    <i class="fa-solid fa-magnifying-glass-chart"></i> Analyze Server
-                  </button>
+                  <div>
+                    <h2><i class="fa-solid fa-shield-halved text-primary"></i> Server Health & Security Cockpit</h2>
+                    <p style="margin: 2px 0 0; font-size: 0.8rem; color: var(--text-sub);">Multi-vector posture telemetry and threat defense metrics</p>
+                  </div>
+                  <div class="flex-center gap-2" style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+                    <span class="telemetry-freshness-chip"><span class="pulse-dot-sm"></span> Real-Time Sentinel</span>
+                    <button id="cc-analyze-btn" class="btn btn-primary btn-small btn-glow" data-action="run-command-center-scan">
+                      <i class="fa-solid fa-magnifying-glass-chart"></i> Analyze Server
+                    </button>
+                  </div>
                 </div>
                 <div class="card-body">
                   <div id="cc-loading">
-                    <div style="display: flex; align-items: center; gap: 32px; margin-bottom: 24px;">
-                      <div class="skeleton" style="width: 140px; height: 140px; border-radius: 50%; flex-shrink: 0;"></div>
-                      <div style="flex: 1; display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;">
-                        <div class="skeleton cc-dim-card" style="height: 100px;"></div>
-                        <div class="skeleton cc-dim-card" style="height: 100px;"></div>
-                        <div class="skeleton cc-dim-card" style="height: 100px;"></div>
-                        <div class="skeleton cc-dim-card" style="height: 100px;"></div>
-                        <div class="skeleton cc-dim-card" style="height: 100px;"></div>
+                    <div class="auditor-hero-cockpit mb-4">
+                      <div class="skeleton" style="width: 145px; height: 145px; border-radius: 50%; flex-shrink: 0;"></div>
+                      <div class="cc-bento-dimension-grid">
+                        <div class="skeleton cc-dim-card" style="height: 125px;"></div>
+                        <div class="skeleton cc-dim-card" style="height: 125px;"></div>
+                        <div class="skeleton cc-dim-card" style="height: 125px;"></div>
+                        <div class="skeleton cc-dim-card" style="height: 125px;"></div>
+                        <div class="skeleton cc-dim-card" style="height: 125px;"></div>
                       </div>
+                    </div>
+                    <div class="grid-4-col">
+                      <div class="skeleton stat-card" style="height: 90px;"></div>
+                      <div class="skeleton stat-card" style="height: 90px;"></div>
+                      <div class="skeleton stat-card" style="height: 90px;"></div>
+                      <div class="skeleton stat-card" style="height: 90px;"></div>
                     </div>
                   </div>
                   <div id="cc-content" class="hidden">
-                    <div style="display: flex; align-items: center; gap: 32px; margin-bottom: 24px;">
-                      <!-- Score Gauge -->
-                      <div style="position: relative; width: 140px; height: 140px; flex-shrink: 0;">
-                        <svg viewBox="0 0 120 120" style="width: 100%; height: 100%; transform: rotate(-90deg);">
-                          <circle cx="60" cy="60" r="50" stroke="var(--card-border)" stroke-width="10" fill="none"/>
-                          <circle id="cc-score-circle" cx="60" cy="60" r="50" stroke="var(--success)" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="314" stroke-dashoffset="314"/>
-                        </svg>
-                        <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-                          <span id="cc-score-value" style="font-size: 2rem; font-weight: 700; color: var(--text-main);">0</span>
-                          <span id="cc-score-label" style="font-size: 0.7rem; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.05em;">Loading...</span>
+                    <div class="auditor-hero-cockpit mb-4">
+                      <!-- Score Gauge Tile -->
+                      <div class="auditor-gauge-hero">
+                        <div class="sf-score-ring" style="width: 145px; height: 145px;">
+                          <svg viewBox="0 0 120 120" style="width: 100%; height: 100%; transform: rotate(-90deg);">
+                            <circle cx="60" cy="60" r="50" stroke="rgba(255,255,255,0.06)" stroke-width="10" fill="none"/>
+                            <circle id="cc-score-circle" cx="60" cy="60" r="50" stroke="var(--success)" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="314" stroke-dashoffset="314" style="filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.4));"/>
+                          </svg>
+                          <div class="sf-score-text">
+                            <span id="cc-score-value" style="font-size: 2.1rem; font-weight: 700; color: var(--text-main); font-family: 'Outfit', sans-serif;">0</span><span class="sf-score-percent" style="font-size: 0.95rem; color: var(--text-sub);">%</span>
+                            <span id="cc-score-label" class="health-posture-badge health-posture-optimal" style="margin-top: 4px;">INITIALIZING</span>
+                          </div>
+                        </div>
+                        <div class="auditor-gauge-subtext">
+                          <span style="font-size: 0.72rem; color: var(--text-sub); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Security Index</span>
                         </div>
                       </div>
-                      <!-- Dimension Scores -->
-                      <div style="flex: 1; display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;">
-                        <div class="cc-dim-card" id="cc-dim-security">
-                          <i class="fa-solid fa-shield-halved"></i>
-                          <span class="cc-dim-score">--</span>
+
+                      <!-- 5-Column Bento Dimension Matrix -->
+                      <div class="cc-bento-dimension-grid">
+                        <div class="cc-dim-card" id="cc-dim-security" title="Click to view Security Intelligence" onclick="if(typeof navigateSmartModule==='function') navigateSmartModule('intel-security');">
+                          <div class="cc-dim-icon-badge"><i class="fa-solid fa-shield-halved" style="color: var(--primary);"></i></div>
                           <span class="cc-dim-label">Security</span>
+                          <span class="cc-dim-weight">35% Weight</span>
+                          <span class="cc-dim-score" style="color: var(--primary);">--</span>
+                          <div class="cc-dim-bar"><div class="cc-dim-bar-fill" style="width: 0%; background: linear-gradient(90deg, var(--primary), #818cf8);"></div></div>
                         </div>
-                        <div class="cc-dim-card" id="cc-dim-moderation">
-                          <i class="fa-solid fa-gavel"></i>
-                          <span class="cc-dim-score">--</span>
+                        <div class="cc-dim-card" id="cc-dim-moderation" title="Click to view Moderation SLA" onclick="if(typeof navigateSmartModule==='function') navigateSmartModule('intel-moderation');">
+                          <div class="cc-dim-icon-badge"><i class="fa-solid fa-gavel" style="color: var(--success);"></i></div>
                           <span class="cc-dim-label">Moderation</span>
+                          <span class="cc-dim-weight">25% Weight</span>
+                          <span class="cc-dim-score" style="color: var(--success);">--</span>
+                          <div class="cc-dim-bar"><div class="cc-dim-bar-fill" style="width: 0%; background: linear-gradient(90deg, var(--success), #34d399);"></div></div>
                         </div>
-                        <div class="cc-dim-card" id="cc-dim-structure">
-                          <i class="fa-solid fa-sitemap"></i>
-                          <span class="cc-dim-score">--</span>
+                        <div class="cc-dim-card" id="cc-dim-structure" title="Click to view Channel & Role Architecture" onclick="if(typeof navigateSmartModule==='function') navigateSmartModule('intel-trends');">
+                          <div class="cc-dim-icon-badge"><i class="fa-solid fa-sitemap" style="color: var(--accent-cyan, #06b6d4);"></i></div>
                           <span class="cc-dim-label">Structure</span>
+                          <span class="cc-dim-weight">15% Weight</span>
+                          <span class="cc-dim-score" style="color: var(--accent-cyan, #06b6d4);">--</span>
+                          <div class="cc-dim-bar"><div class="cc-dim-bar-fill" style="width: 0%; background: linear-gradient(90deg, var(--accent-cyan, #06b6d4), #38bdf8);"></div></div>
                         </div>
-                        <div class="cc-dim-card" id="cc-dim-engagement">
-                          <i class="fa-solid fa-users"></i>
-                          <span class="cc-dim-score">--</span>
+                        <div class="cc-dim-card" id="cc-dim-engagement" title="Click to view Community Activity" onclick="if(typeof navigateSmartModule==='function') navigateSmartModule('intel-community');">
+                          <div class="cc-dim-icon-badge"><i class="fa-solid fa-users" style="color: var(--pink);"></i></div>
                           <span class="cc-dim-label">Engagement</span>
+                          <span class="cc-dim-weight">10% Weight</span>
+                          <span class="cc-dim-score" style="color: var(--pink);">--</span>
+                          <div class="cc-dim-bar"><div class="cc-dim-bar-fill" style="width: 0%; background: linear-gradient(90deg, var(--pink), #f472b6);"></div></div>
                         </div>
-                        <div class="cc-dim-card" id="cc-dim-automation">
-                          <i class="fa-solid fa-robot"></i>
-                          <span class="cc-dim-score">--</span>
+                        <div class="cc-dim-card" id="cc-dim-automation" title="Click to view Automation Guardian" onclick="if(typeof navigateSmartModule==='function') navigateSmartModule('automation-rules-sub');">
+                          <div class="cc-dim-icon-badge"><i class="fa-solid fa-robot" style="color: var(--warning);"></i></div>
                           <span class="cc-dim-label">Automation</span>
+                          <span class="cc-dim-weight">15% Weight</span>
+                          <span class="cc-dim-score" style="color: var(--warning);">--</span>
+                          <div class="cc-dim-bar"><div class="cc-dim-bar-fill" style="width: 0%; background: linear-gradient(90deg, var(--warning), #fbbf24);"></div></div>
                         </div>
                       </div>
                     </div>
-                    <!-- Quick Stats (Bento Grid) -->
-                    <div class="grid-4-col mb-4">
-                      <div class="stat-card glass-inner">
+
+                    <!-- Quick Stats (Bento Stat Chips Grid) -->
+                    <div class="grid-4-col mb-2">
+                      <div class="stat-card glass-inner bento-stat-chip">
                         <i class="fa-solid fa-users stat-card-icon-bg"></i>
                         <div class="stat-card-header">
                           <h3><i class="fa-solid fa-users text-primary"></i> Members</h3>
@@ -896,7 +925,7 @@
                         <div class="stat-value text-primary" id="cc-members">0</div>
                         <div class="stat-sub">Total registered</div>
                       </div>
-                      <div class="stat-card glass-inner">
+                      <div class="stat-card glass-inner bento-stat-chip">
                         <i class="fa-solid fa-hashtag stat-card-icon-bg"></i>
                         <div class="stat-card-header">
                           <h3><i class="fa-solid fa-hashtag text-cyan"></i> Channels</h3>
@@ -905,7 +934,7 @@
                         <div class="stat-value text-cyan" id="cc-channels">0</div>
                         <div class="stat-sub">Text & Voice channels</div>
                       </div>
-                      <div class="stat-card glass-inner">
+                      <div class="stat-card glass-inner bento-stat-chip">
                         <i class="fa-solid fa-user-shield stat-card-icon-bg"></i>
                         <div class="stat-card-header">
                           <h3><i class="fa-solid fa-user-shield text-warning"></i> Roles</h3>
@@ -914,11 +943,11 @@
                         <div class="stat-value text-warning" id="cc-roles">0</div>
                         <div class="stat-sub">Permission tiers</div>
                       </div>
-                      <div class="stat-card glass-inner">
+                      <div class="stat-card glass-inner bento-stat-chip">
                         <i class="fa-solid fa-circle-dot stat-card-icon-bg"></i>
                         <div class="stat-card-header">
                           <h3><i class="fa-solid fa-circle-dot text-success"></i> Online</h3>
-                          <span class="stat-badge badge-live">Live</span>
+                          <span class="stat-badge badge-live"><span class="pulse-dot-sm" style="display:inline-block;margin-right:4px;"></span>Live</span>
                         </div>
                         <div class="stat-value text-success" id="cc-online">0</div>
                         <div class="stat-sub">Active members now</div>
@@ -961,9 +990,10 @@
           <div id="auditor-findings-sub" class="sub-tab-pane hidden">
             <div class="grid-layout">
               <!-- Findings -->
-              <div class="card glass span-2">
+              <div class="card glass span-2" style="border-top: 3px solid var(--primary);">
                 <div class="card-header border-bottom">
-                  <h2><i class="fa-solid fa-clipboard-list"></i> Audit Findings</h2>
+                  <h2><i class="fa-solid fa-clipboard-list text-primary"></i> Audit Findings</h2>
+                  <p style="margin: 2px 0 0; font-size: 0.8rem; color: var(--text-sub);">Categorized security posture alerts and permission risks</p>
                 </div>
                 <div class="card-body" id="cc-findings">
                   <div class="empty-state">
@@ -975,9 +1005,12 @@
               </div>
 
               <!-- Deep Security Checks -->
-              <div class="card glass span-2">
+              <div class="card glass span-2" style="border-top: 3px solid var(--danger);">
                 <div class="card-header border-bottom flex-header">
-                  <h2><i class="fa-solid fa-shield-halved"></i> Deep Security Scan</h2>
+                  <div>
+                    <h2><i class="fa-solid fa-shield-halved text-danger"></i> Deep Security Scan</h2>
+                    <p style="margin: 2px 0 0; font-size: 0.8rem; color: var(--text-sub);">In-depth permission doctor and privilege escalation checks</p>
+                  </div>
                   <button class="btn btn-secondary btn-small" data-action="load-security-checks"><i class="fa-solid fa-magnifying-glass"></i> Run Security Scan</button>
                 </div>
                 <div class="card-body" id="cc-security-checks">
@@ -990,10 +1023,10 @@
               </div>
 
               <!-- Recommendations Card -->
-              <div class="card glass span-4" id="recommendations-card">
+              <div class="card glass span-4" id="recommendations-card" style="border-top: 3px solid var(--warning);">
                 <div class="card-header border-bottom">
-                  <h2><i class="fa-solid fa-lightbulb"></i> Recommendations</h2>
-                  <p>Actionable suggestions to improve your server's health score.</p>
+                  <h2><i class="fa-solid fa-lightbulb text-warning"></i> Actionable Recommendations</h2>
+                  <p style="margin: 2px 0 0; font-size: 0.8rem; color: var(--text-sub);">Ranked suggestions to immediately improve server health and harden defenses.</p>
                 </div>
                 <div class="card-body">
                   <div id="recommendations-loading" class="py-2">
@@ -1027,9 +1060,10 @@
           <div id="auditor-history-sub" class="sub-tab-pane hidden">
             <div class="grid-layout">
               <!-- Score History -->
-              <div class="card glass span-2">
+              <div class="card glass span-2" style="border-top: 3px solid var(--accent-cyan, #06b6d4);">
                 <div class="card-header border-bottom">
-                  <h2><i class="fa-solid fa-chart-line"></i> Score History</h2>
+                  <h2><i class="fa-solid fa-chart-line text-cyan"></i> Score Evolution & History</h2>
+                  <p style="margin: 2px 0 0; font-size: 0.8rem; color: var(--text-sub);">Longitudinal health score trajectory over time</p>
                 </div>
                 <div class="card-body" style="height: 220px;">
                   <canvas id="chart-score-history"></canvas>
@@ -1037,9 +1071,10 @@
               </div>
 
               <!-- Config History -->
-              <div class="card glass span-2">
+              <div class="card glass span-2" style="border-top: 3px solid var(--pink);">
                 <div class="card-header border-bottom">
-                  <h2><i class="fa-solid fa-code-branch"></i> Config History</h2>
+                  <h2><i class="fa-solid fa-code-branch text-pink"></i> Config Snapshot Timeline</h2>
+                  <p style="margin: 2px 0 0; font-size: 0.8rem; color: var(--text-sub);">Historical server configuration snapshots and rollback points</p>
                 </div>
                 <div class="card-body" id="cc-config-history" style="max-height: 250px; overflow-y: auto;">
                   <div class="glass-inner p-2 mb-2" style="display:flex;align-items:center;gap:8px;">
@@ -1161,8 +1196,14 @@
               <!-- Server Health Overview -->
               <div class="card glass span-2" style="border-top: 3px solid var(--primary);">
                 <div class="card-header border-bottom flex-header">
-                  <h2><i class="fa-solid fa-heart-pulse"></i> Server Health</h2>
-                  <button class="btn btn-secondary btn-small" onclick="refreshCommandCenter()"><i class="fa-solid fa-arrows-rotate"></i> Refresh</button>
+                  <div>
+                    <h2><i class="fa-solid fa-heart-pulse text-primary"></i> Server Health Telemetry</h2>
+                    <p style="margin: 2px 0 0; font-size: 0.8rem; color: var(--text-sub);">Multi-vector posture score and live safeguard indicators</p>
+                  </div>
+                  <div class="flex-center gap-2" style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+                    <span class="telemetry-freshness-chip"><span class="pulse-dot-sm"></span> Sentinel Active</span>
+                    <button class="btn btn-secondary btn-small" onclick="refreshCommandCenter()"><i class="fa-solid fa-arrows-rotate"></i> Refresh</button>
+                  </div>
                 </div>
                 <div class="card-body" id="cc-health-content">
                   <div class="skeleton-card">

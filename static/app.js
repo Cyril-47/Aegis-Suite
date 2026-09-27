@@ -1163,6 +1163,18 @@ function switchSmartModule(cardEl) {
   }
 }
 
+function navigateSmartModule(moduleId) {
+  const card = document.querySelector(`.smart-mod-card[data-module="${moduleId}"]`);
+  if (card) {
+    switchSmartModule(card);
+    if (typeof card.scrollIntoView === 'function') {
+      card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    }
+  }
+}
+window.navigateSmartModule = navigateSmartModule;
+window.switchSmartModule = switchSmartModule;
+
 // ==========================================================================
 // API Operations - Core Bot Status & Config
 // ==========================================================================
@@ -1770,13 +1782,22 @@ function renderCommandCenter(data) {
     animateNumber(scoreValue, prev, score, 750);
   }
   if (scoreLabel) {
-    if (score >= 90) { scoreLabel.textContent = 'Excellent'; scoreLabel.style.color = 'var(--success)'; }
-    else if (score >= 70) { scoreLabel.textContent = 'Good'; scoreLabel.style.color = 'var(--success)'; }
-    else if (score >= 50) { scoreLabel.textContent = 'Fair'; scoreLabel.style.color = 'var(--warning)'; }
-    else { scoreLabel.textContent = 'Needs Work'; scoreLabel.style.color = 'var(--danger)'; }
+    if (score >= 90) {
+      scoreLabel.textContent = 'A+ Hardened';
+      scoreLabel.className = 'health-posture-badge health-posture-optimal';
+    } else if (score >= 75) {
+      scoreLabel.textContent = 'Optimal';
+      scoreLabel.className = 'health-posture-badge health-posture-good';
+    } else if (score >= 55) {
+      scoreLabel.textContent = 'Guarded';
+      scoreLabel.className = 'health-posture-badge health-posture-warning';
+    } else {
+      scoreLabel.textContent = 'Exposure Alert';
+      scoreLabel.className = 'health-posture-badge health-posture-danger';
+    }
   }
 
-  // Dimension scores
+  // Dimension scores & animated bar meters
   const dims = ['security', 'moderation', 'structure', 'engagement', 'automation'];
   const dimScores = data?.dimension_scores || data?.scores || {};
   for (const dim of dims) {
@@ -1784,11 +1805,15 @@ function renderCommandCenter(data) {
     if (!el) continue;
     const s = typeof dimScores[dim] === 'number' ? dimScores[dim] : 100;
     const c = s >= 80 ? 'var(--success)' : s >= 60 ? 'var(--warning)' : 'var(--danger)';
-    el.style.borderTop = `3px solid ${c}`;
+    el.style.borderTopColor = c;
     const scoreEl = el.querySelector('.cc-dim-score');
     if (scoreEl) {
-      scoreEl.textContent = s;
+      scoreEl.textContent = `${s}%`;
       scoreEl.style.color = c;
+    }
+    const fillEl = el.querySelector('.cc-dim-bar-fill');
+    if (fillEl) {
+      fillEl.style.width = `${s}%`;
     }
   }
 
@@ -11317,14 +11342,21 @@ async function loadSmartCommandCenter(force = false) {
   const isInitialLoad = !healthContent || !healthContent.children.length || healthContent.querySelector('.skeleton-card');
   if (isInitialLoad) {
     if (healthContent) healthContent.innerHTML = `
-      <div style="display: flex; align-items: center; gap: 32px; margin-bottom: 24px;">
-        <div class="skeleton" style="width: 140px; height: 140px; border-radius: 50%; flex-shrink: 0;"></div>
-        <div style="flex: 1; display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px;">
-          <div class="skeleton cc-dim-card" style="height: 100px;"></div>
-          <div class="skeleton cc-dim-card" style="height: 100px;"></div>
-          <div class="skeleton cc-dim-card" style="height: 100px;"></div>
-          <div class="skeleton cc-dim-card" style="height: 100px;"></div>
-          <div class="skeleton cc-dim-card" style="height: 100px;"></div>
+      <div style="display: flex; align-items: center; gap: 24px; margin-bottom: 20px; flex-wrap: wrap;">
+        <div class="skeleton" style="width: 145px; height: 145px; border-radius: 50%; flex-shrink: 0; margin: 0 auto;"></div>
+        <div style="flex: 2; min-width: 260px;">
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px;">
+            <div class="skeleton bento-stat-chip" style="height: 68px;"></div>
+            <div class="skeleton bento-stat-chip" style="height: 68px;"></div>
+            <div class="skeleton bento-stat-chip" style="height: 68px;"></div>
+          </div>
+          <div class="cc-bento-dimension-grid">
+            <div class="skeleton cc-dim-card" style="height: 120px;"></div>
+            <div class="skeleton cc-dim-card" style="height: 120px;"></div>
+            <div class="skeleton cc-dim-card" style="height: 120px;"></div>
+            <div class="skeleton cc-dim-card" style="height: 120px;"></div>
+            <div class="skeleton cc-dim-card" style="height: 120px;"></div>
+          </div>
         </div>
       </div>`;
     if (fixQueueContent) fixQueueContent.innerHTML = `
@@ -11446,6 +11478,22 @@ async function loadSmartCommandCenter(force = false) {
     const circumference = 2 * Math.PI * radius;
     const offset = circumference - (weightedScore / 100) * circumference;
 
+    let postureGrade = 'A+ Hardened';
+    let postureClass = 'health-posture-optimal';
+    if (weightedScore >= 90) {
+      postureGrade = 'A+ Hardened';
+      postureClass = 'health-posture-optimal';
+    } else if (weightedScore >= 75) {
+      postureGrade = 'Optimal';
+      postureClass = 'health-posture-good';
+    } else if (weightedScore >= 55) {
+      postureGrade = 'Guarded';
+      postureClass = 'health-posture-warning';
+    } else {
+      postureGrade = 'Exposure Alert';
+      postureClass = 'health-posture-danger';
+    }
+
     const existingScoreEl = document.getElementById('sf-score-val-animated');
     const existingCircle = healthContent.querySelector('.cc-score-ring-circle');
 
@@ -11461,13 +11509,19 @@ async function loadSmartCommandCenter(force = false) {
       const scoreTextEl = healthContent.querySelector('.sf-score-text');
       if (scoreTextEl) scoreTextEl.style.color = scoreColor;
 
+      const postureBadge = healthContent.querySelector('#sf-health-posture-badge');
+      if (postureBadge) {
+        postureBadge.textContent = postureGrade;
+        postureBadge.className = `health-posture-badge ${postureClass}`;
+      }
+
       // Update chips
       const critEl = healthContent.querySelector('.stat-value.text-danger');
       if (critEl) critEl.textContent = criticalCount;
       const warnEl = healthContent.querySelector('.stat-value.text-warning');
       if (warnEl) warnEl.textContent = warningCount;
       const gainEl = healthContent.querySelector('.stat-value.text-success');
-      if (gainEl) gainEl.textContent = `+${potentialGain} Potential Gain`;
+      if (gainEl) gainEl.textContent = `+${potentialGain}% Gain`;
 
       // Update dimension scores & bars smoothly
       const dimMap = {
@@ -11483,74 +11537,75 @@ async function loadSmartCommandCenter(force = false) {
         if (item.fill) item.fill.style.width = `${item.score}%`;
       }
     } else {
-      // First time render — Apple Health sweeping entrance
+      // First time render — Bento Cockpit sweeping entrance
       const dimensionsHtml = `
-        <div class="dim-pill-container" style="margin-top:16px;">
-          <div>
-            <div class="dim-pill-header">
-              <span><i class="fa-solid fa-shield-halved" style="color:var(--primary);margin-right:6px;"></i>Security (35%)</span>
-              <span class="dim-pill-score dim-pill-score-sec" style="color:var(--primary);">${secScore}%</span>
-            </div>
-            <div class="dim-pill-track"><div class="dim-pill-fill dim-pill-fill-sec" data-width="${secScore}%" style="width:0%;background:linear-gradient(90deg, var(--primary), #818cf8);"></div></div>
+        <div class="cc-bento-dimension-grid">
+          <div class="cc-dim-card" title="Click to inspect Security intelligence" onclick="navigateSmartModule('intel-security')">
+            <div class="cc-dim-icon-badge"><i class="fa-solid fa-shield-halved" style="color:var(--primary);"></i></div>
+            <span class="cc-dim-label">Security</span>
+            <span class="cc-dim-weight">35% Weight</span>
+            <span class="cc-dim-score dim-pill-score-sec" style="color:var(--primary);">${secScore}%</span>
+            <div class="cc-dim-bar"><div class="cc-dim-bar-fill dim-pill-fill-sec" data-width="${secScore}%" style="width:0%;background:linear-gradient(90deg, var(--primary), #818cf8);"></div></div>
           </div>
-          <div>
-            <div class="dim-pill-header">
-              <span><i class="fa-solid fa-gavel" style="color:var(--success);margin-right:6px;"></i>Moderation (25%)</span>
-              <span class="dim-pill-score dim-pill-score-mod" style="color:var(--success);">${modScore}%</span>
-            </div>
-            <div class="dim-pill-track"><div class="dim-pill-fill dim-pill-fill-mod" data-width="${modScore}%" style="width:0%;background:linear-gradient(90deg, var(--success), #34d399);"></div></div>
+          <div class="cc-dim-card" title="Click to inspect Moderation metrics" onclick="navigateSmartModule('intel-moderation')">
+            <div class="cc-dim-icon-badge"><i class="fa-solid fa-gavel" style="color:var(--success);"></i></div>
+            <span class="cc-dim-label">Moderation</span>
+            <span class="cc-dim-weight">25% Weight</span>
+            <span class="cc-dim-score dim-pill-score-mod" style="color:var(--success);">${modScore}%</span>
+            <div class="cc-dim-bar"><div class="cc-dim-bar-fill dim-pill-fill-mod" data-width="${modScore}%" style="width:0%;background:linear-gradient(90deg, var(--success), #34d399);"></div></div>
           </div>
-          <div>
-            <div class="dim-pill-header">
-              <span><i class="fa-solid fa-robot" style="color:var(--warning);margin-right:6px;"></i>Automation (15%)</span>
-              <span class="dim-pill-score dim-pill-score-auto" style="color:var(--warning);">${autoScore}%</span>
-            </div>
-            <div class="dim-pill-track"><div class="dim-pill-fill dim-pill-fill-auto" data-width="${autoScore}%" style="width:0%;background:linear-gradient(90deg, var(--warning), #fbbf24);"></div></div>
+          <div class="cc-dim-card" title="Click to configure Automation rules" onclick="navigateSmartModule('automation-rules-sub')">
+            <div class="cc-dim-icon-badge"><i class="fa-solid fa-robot" style="color:var(--warning);"></i></div>
+            <span class="cc-dim-label">Automation</span>
+            <span class="cc-dim-weight">15% Weight</span>
+            <span class="cc-dim-score dim-pill-score-auto" style="color:var(--warning);">${autoScore}%</span>
+            <div class="cc-dim-bar"><div class="cc-dim-bar-fill dim-pill-fill-auto" data-width="${autoScore}%" style="width:0%;background:linear-gradient(90deg, var(--warning), #fbbf24);"></div></div>
           </div>
-          <div>
-            <div class="dim-pill-header">
-              <span><i class="fa-solid fa-server" style="color:var(--accent-cyan, #06b6d4);margin-right:6px;"></i>Reliability (15%)</span>
-              <span class="dim-pill-score dim-pill-score-rel" style="color:var(--accent-cyan, #06b6d4);">${relScore}%</span>
-            </div>
-            <div class="dim-pill-track"><div class="dim-pill-fill dim-pill-fill-rel" data-width="${relScore}%" style="width:0%;background:linear-gradient(90deg, var(--accent-cyan, #06b6d4), #38bdf8);"></div></div>
+          <div class="cc-dim-card" title="Click to view Structure & Trends" onclick="navigateSmartModule('intel-trends')">
+            <div class="cc-dim-icon-badge"><i class="fa-solid fa-sitemap" style="color:var(--accent-cyan, #06b6d4);"></i></div>
+            <span class="cc-dim-label">Structure</span>
+            <span class="cc-dim-weight">15% Weight</span>
+            <span class="cc-dim-score dim-pill-score-rel" style="color:var(--accent-cyan, #06b6d4);">${relScore}%</span>
+            <div class="cc-dim-bar"><div class="cc-dim-bar-fill dim-pill-fill-rel" data-width="${relScore}%" style="width:0%;background:linear-gradient(90deg, var(--accent-cyan, #06b6d4), #38bdf8);"></div></div>
           </div>
-          <div>
-            <div class="dim-pill-header">
-              <span><i class="fa-solid fa-chart-line" style="color:var(--pink);margin-right:6px;"></i>Growth (10%)</span>
-              <span class="dim-pill-score dim-pill-score-gro" style="color:var(--pink);">${groScore}%</span>
-            </div>
-            <div class="dim-pill-track"><div class="dim-pill-fill dim-pill-fill-gro" data-width="${groScore}%" style="width:0%;background:linear-gradient(90deg, var(--pink), #f472b6);"></div></div>
+          <div class="cc-dim-card" title="Click to view Community activity" onclick="navigateSmartModule('intel-community')">
+            <div class="cc-dim-icon-badge"><i class="fa-solid fa-users" style="color:var(--pink);"></i></div>
+            <span class="cc-dim-label">Community</span>
+            <span class="cc-dim-weight">10% Weight</span>
+            <span class="cc-dim-score dim-pill-score-gro" style="color:var(--pink);">${groScore}%</span>
+            <div class="cc-dim-bar"><div class="cc-dim-bar-fill dim-pill-fill-gro" data-width="${groScore}%" style="width:0%;background:linear-gradient(90deg, var(--pink), #f472b6);"></div></div>
           </div>
         </div>
       `;
 
       healthContent.innerHTML = `
         <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap;">
-          <div style="flex:1;min-width:140px;display:flex;justify-content:center;">
-            <div class="sf-score-ring" style="width:140px;height:140px;">
-              <svg viewBox="0 0 120 120" style="width:140px;height:140px;transform:rotate(-90deg);">
-                <circle cx="60" cy="60" r="${radius}" stroke="rgba(255,255,255,0.05)" stroke-width="9" fill="none"></circle>
-                <circle class="cc-score-ring-circle" cx="60" cy="60" r="${radius}" stroke="${scoreColor}" stroke-width="9" stroke-dasharray="${circumference}" stroke-dashoffset="${circumference}" stroke-linecap="round" fill="none" style="filter:drop-shadow(0 0 10px ${scoreColor}50);"></circle>
+          <div style="flex:1;min-width:145px;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+            <div class="sf-score-ring" style="width:145px;height:145px;">
+              <svg viewBox="0 0 120 120" style="width:145px;height:145px;transform:rotate(-90deg);">
+                <circle cx="60" cy="60" r="${radius}" stroke="rgba(255,255,255,0.06)" stroke-width="10" fill="none"></circle>
+                <circle class="cc-score-ring-circle" cx="60" cy="60" r="${radius}" stroke="${scoreColor}" stroke-width="10" stroke-dasharray="${circumference}" stroke-dashoffset="${circumference}" stroke-linecap="round" fill="none" style="filter:drop-shadow(0 0 12px ${scoreColor}60);"></circle>
               </svg>
-              <div class="sf-score-text" style="color:${scoreColor};font-size:2.2rem;font-weight:700;font-family:'Outfit',sans-serif;">
-                <span id="sf-score-val-animated" data-target-score="${weightedScore}">0</span><span class="sf-score-percent" style="font-size:1rem;">%</span>
-                <span style="font-size:0.72rem;color:var(--text-sub);text-transform:uppercase;letter-spacing:0.06em;margin-top:2px;font-weight:600;">Health</span>
+              <div class="sf-score-text" style="color:${scoreColor};font-size:2.1rem;font-weight:700;font-family:'Outfit',sans-serif;">
+                <span id="sf-score-val-animated" data-target-score="${weightedScore}">0</span><span class="sf-score-percent" style="font-size:0.95rem;">%</span>
+                <span id="sf-health-posture-badge" class="health-posture-badge ${postureClass}" style="margin-top:4px;">${postureGrade}</span>
               </div>
             </div>
+            <div style="font-size:0.72rem;color:var(--text-sub);text-transform:uppercase;letter-spacing:0.06em;margin-top:6px;font-weight:600;">Overall Posture</div>
           </div>
-          <div style="flex:2;min-width:200px;">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-              <div class="bento-stat-chip text-center tone-highlight-crimson">
-                <div class="stat-value text-danger" style="font-size:1.6rem;margin:0;">${criticalCount}</div>
+          <div style="flex:2;min-width:260px;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:10px;">
+              <div class="bento-stat-chip text-center tone-highlight-crimson" style="padding:10px 12px;">
+                <div class="stat-value text-danger" style="font-size:1.5rem;margin:0;">${criticalCount}</div>
                 <div style="font-size:0.72rem;color:var(--text-sub);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;">Critical Issues</div>
               </div>
-              <div class="bento-stat-chip text-center tone-highlight-amber">
-                <div class="stat-value text-warning" style="font-size:1.6rem;margin:0;">${warningCount}</div>
+              <div class="bento-stat-chip text-center tone-highlight-amber" style="padding:10px 12px;">
+                <div class="stat-value text-warning" style="font-size:1.5rem;margin:0;">${warningCount}</div>
                 <div style="font-size:0.72rem;color:var(--text-sub);font-weight:600;text-transform:uppercase;letter-spacing:0.05em;margin-top:2px;">Warnings</div>
               </div>
-              <div class="bento-stat-chip text-center tone-highlight-emerald" style="grid-column: span 2;">
-                <div class="stat-value text-success" style="font-size:1.25rem;margin:0;">+${potentialGain} Potential Gain</div>
-                <div style="font-size:0.72rem;color:var(--text-sub);margin-top:2px;">Fixing recommended issues elevates server score to ${Math.min(100, weightedScore + potentialGain)}%</div>
+              <div class="bento-stat-chip text-center tone-highlight-emerald" style="padding:10px 12px;">
+                <div class="stat-value text-success" style="font-size:1.35rem;margin:0;">+${potentialGain}% Gain</div>
+                <div style="font-size:0.72rem;color:var(--text-sub);margin-top:2px;">Target: ${Math.min(100, weightedScore + potentialGain)}%</div>
               </div>
             </div>
             ${dimensionsHtml}

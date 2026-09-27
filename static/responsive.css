@@ -392,14 +392,37 @@ code.block-code {
   }
 
   .sub-tab-container {
-    flex-wrap: wrap !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch;
     gap: 6px !important;
+    padding: 6px !important;
+  }
+  .sub-tab-container::-webkit-scrollbar {
+    display: none !important;
   }
 
   .sub-tab-btn {
-    flex: 1 1 auto !important;
+    flex: 0 0 auto !important;
     justify-content: center;
-    padding: 8px 12px !important;
+    padding: 8px 14px !important;
+    white-space: nowrap;
+  }
+
+  .smart-mod-grid {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .smart-mod-grid::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .smart-mod-card {
+    flex: 0 0 auto !important;
+    min-width: 115px !important;
   }
 
   .bot-badge-container {
