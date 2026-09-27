@@ -416,6 +416,12 @@ def main() -> int:
                         pass
 
         try:
+            # Force hardware GPU rasterization and zero-copy buffers in Edge WebView2
+            existing_wv2_args = os.environ.get("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS", "")
+            gpu_flags = "--enable-gpu-rasterization --enable-zero-copy --ignore-gpu-blocklist --disable-features=ElasticOverscroll"
+            if "--enable-gpu-rasterization" not in existing_wv2_args:
+                os.environ["WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS"] = f"{existing_wv2_args} {gpu_flags}".strip()
+
             window_ref = webview.create_window(
                 title="Aegis Suite",
                 html=SPLASH_HTML,

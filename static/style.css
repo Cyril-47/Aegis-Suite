@@ -1621,6 +1621,8 @@ body.light-theme .sidebar-action-btn:focus-visible {
   flex-direction: column;
   height: 100vh;
   overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
   scrollbar-gutter: stable;
 }
 

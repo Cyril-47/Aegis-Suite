@@ -650,14 +650,17 @@ function initApp() {
   // Restore Embed Builder State
   restoreEmbedBuilderState();
   
-  // Refresh loop for status and stats
+  // Refresh loop for status and stats (non-destructive background poll)
   statusInterval = setInterval(() => {
     if (document.visibilityState === 'hidden') return;
     checkStatus();
     
     if (isAuthenticated) {
       fetchStats();
-      refreshActiveTabContent();
+      const activePane = document.querySelector('.tab-pane:not(.hidden)');
+      if (activePane && activePane.id === 'tab-music') {
+        fetchMusicStatus();
+      }
     }
   }, 10000);
 }
