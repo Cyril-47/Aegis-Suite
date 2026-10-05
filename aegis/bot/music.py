@@ -206,20 +206,46 @@ class MusicPlayer:
     async def join_channel(self, channel_id: int):
         """Joins a voice channel."""
         self.loop = asyncio.get_running_loop()
+        try:
+            channel_id = int(channel_id)
+        except (ValueError, TypeError):
+            raise ValueError(f"Invalid channel ID: {channel_id}")
+
         channel = self.guild.get_channel(channel_id)
-        if not isinstance(channel, discord.VoiceChannel):
-            raise ValueError("Target channel is not a voice channel.")
+        if channel is None and hasattr(self.guild, "fetch_channel"):
+            try:
+                channel = await self.guild.fetch_channel(channel_id)
+            except Exception as e:
+                logger.warning(f"Could not fetch channel {channel_id}: {e}")
+
+        # Check for valid voice/stage channel
+        is_voice_like = isinstance(channel, (discord.VoiceChannel, getattr(discord, "StageChannel", ()))) or (
+            hasattr(channel, "connect") and hasattr(channel, "permissions_for")
+        )
+        if not is_voice_like:
+            raise ValueError("Target channel is not a voice or stage channel.")
             
         # Log and check bot permissions (Fix 4006 permissions issue)
-        permissions = channel.permissions_for(self.guild.me)
-        logger.info(f"Bot permissions in channel '{channel.name}' (ID: {channel_id}): "
-                    f"view_channel={permissions.view_channel}, connect={permissions.connect}, "
-                    f"speak={permissions.speak}, administrator={self.guild.me.guild_permissions.administrator}")
-        
-        if not permissions.view_channel:
-            raise ValueError("Bot does not have View Channel permission in the target voice channel.")
-        if not permissions.connect:
-            raise ValueError("Bot does not have Connect permission in the target voice channel.")
+        bot_member = getattr(self.guild, "me", None)
+        if bot_member is None and hasattr(self.guild, "fetch_member"):
+            try:
+                self_id = getattr(getattr(self.guild, "_state", None), "self_id", None)
+                if self_id:
+                    bot_member = await self.guild.fetch_member(self_id)
+            except Exception:
+                bot_member = None
+
+        if bot_member and hasattr(channel, "permissions_for"):
+            permissions = channel.permissions_for(bot_member)
+            admin = getattr(getattr(bot_member, "guild_permissions", None), "administrator", False)
+            logger.info(f"Bot permissions in channel '{getattr(channel, 'name', channel_id)}' (ID: {channel_id}): "
+                        f"view_channel={permissions.view_channel}, connect={permissions.connect}, "
+                        f"speak={permissions.speak}, administrator={admin}")
+            
+            if not permissions.view_channel and not admin:
+                raise ValueError("Bot does not have View Channel permission in the target voice channel.")
+            if not permissions.connect and not admin:
+                raise ValueError("Bot does not have Connect permission in the target voice channel.")
             
         if not _nacl_available:
             raise RuntimeError(
@@ -228,10 +254,20 @@ class MusicPlayer:
             )
             
         # Authoritative voice client check (Fix 4006)
-        voice_client = self.guild.voice_client
+        voice_client = getattr(self.guild, "voice_client", None)
         if voice_client:
-            if voice_client.is_connected():
-                if voice_client.channel.id == channel_id:
+            is_conn = False
+            fn = getattr(voice_client, "is_connected", None)
+            if callable(fn):
+                res = fn()
+                if asyncio.iscoroutine(res):
+                    is_conn = await res
+                else:
+                    is_conn = bool(res)
+
+            if is_conn:
+                vc_channel = getattr(voice_client, "channel", None)
+                if vc_channel and vc_channel.id == channel_id:
                     self.voice_client = voice_client
                     return voice_client
                 try:
@@ -242,16 +278,18 @@ class MusicPlayer:
                     logger.warning(f"Failed to move voice channel: {e}. Reconnecting from scratch.")
                     try:
                         await voice_client.disconnect(force=True)
+                        await asyncio.sleep(0.5)
                     except Exception:
                         pass
             else:
                 try:
                     await voice_client.disconnect(force=True)
+                    await asyncio.sleep(0.5)
                 except Exception:
                     pass
 
         try:
-            self.voice_client = await channel.connect()
+            self.voice_client = await channel.connect(timeout=20.0, reconnect=True, self_deaf=True)
         except Exception as e:
             logger.warning(f"Initial connection failed ({e}), clearing voice state and retrying...")
             try:
@@ -260,16 +298,16 @@ class MusicPlayer:
                 pass
             
             # Check voice client again after state change
-            voice_client = self.guild.voice_client
+            voice_client = getattr(self.guild, "voice_client", None)
             if voice_client:
                 try:
                     await voice_client.disconnect(force=True)
                 except Exception:
                     pass
             
-            await asyncio.sleep(1.5)
+            await asyncio.sleep(1.0)
             try:
-                self.voice_client = await channel.connect()
+                self.voice_client = await channel.connect(timeout=20.0, reconnect=True, self_deaf=True)
             except Exception as retry_err:
                 logger.error(f"Failed to connect to voice channel on retry: {retry_err}")
                 raise retry_err
@@ -286,8 +324,16 @@ class MusicPlayer:
     async def leave_channel(self):
         """Leaves voice channel and clears queue."""
         self.loop = asyncio.get_running_loop()
-        if self.voice_client and await self._is_connected():
-            await self.voice_client.disconnect()
+        vc = self.voice_client or getattr(self.guild, "voice_client", None)
+        if vc:
+            try:
+                await vc.disconnect(force=True)
+            except Exception as e:
+                logger.warning(f"Error disconnecting voice client: {e}")
+        try:
+            await self.guild.change_voice_state(channel=None)
+        except Exception:
+            pass
         self.voice_client = None
         self.queue = []
         self.current = None
@@ -703,11 +749,23 @@ class MusicPlayer:
         return self.volume
 
     def get_status(self) -> dict:
+        vc = self.voice_client or getattr(self.guild, "voice_client", None)
+        is_conn = False
+        if vc:
+            fn = getattr(vc, "is_connected", None)
+            if callable(fn):
+                res = fn()
+                is_conn = bool(res)
+        vc_channel = getattr(vc, "channel", None) if vc else None
+        channel_name = getattr(vc_channel, "name", None) if vc_channel else None
+        channel_id = str(vc_channel.id) if vc_channel and hasattr(vc_channel, "id") else None
         return {
-            "is_playing": self.voice_client.is_playing() if self.voice_client else False,
-            "is_paused": self.voice_client.is_paused() if self.voice_client else False,
+            "is_playing": vc.is_playing() if vc and hasattr(vc, "is_playing") else False,
+            "is_paused": vc.is_paused() if vc and hasattr(vc, "is_paused") else False,
             "current_song": self.current,
             "queue": self.queue,
             "volume": self.volume,
-            "connected": self.voice_client.is_connected() if self.voice_client else False
+            "connected": is_conn,
+            "voice_channel": channel_name,
+            "voice_channel_id": channel_id
         }

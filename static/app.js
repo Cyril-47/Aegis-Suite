@@ -5040,6 +5040,12 @@ function setupEventListeners() {
       else showToast('Please select a voice channel.', 'warning');
     });
   }
+  const btnMusicLeave = document.getElementById('btn-music-leave-channel');
+  if (btnMusicLeave) {
+    btnMusicLeave.addEventListener('click', () => {
+      leaveMusicVoiceChannel();
+    });
+  }
   const btnMusicShuffle = document.getElementById('btn-music-shuffle');
   if (btnMusicShuffle) {
     btnMusicShuffle.addEventListener('click', shuffleMusicQueue);
@@ -6015,15 +6021,17 @@ async function populateMusicVoiceChannels(guildId) {
     if (!res.ok) return;
     const channels = await res.json();
     
+    const curVal = select.value;
     select.innerHTML = '<option value="">Choose voice channel...</option>';
     channels.forEach(ch => {
-      if (ch.type === 'voice') {
+      if (ch.type === 'voice' || ch.type === 'stage') {
         const opt = document.createElement('option');
         opt.value = ch.id;
         opt.textContent = ch.name;
         select.appendChild(opt);
       }
     });
+    if (curVal) select.value = curVal;
   } catch (err) {
     console.error('Error fetching voice channels:', err);
   }
@@ -6073,6 +6081,19 @@ async function fetchMusicStatus() {
       volLabel.textContent = `${volPct}%`;
     }
     
+    const voiceStatusText = document.getElementById('music-voice-status-text');
+    if (voiceStatusText) {
+      if (status.connected && status.voice_channel) {
+        voiceStatusText.innerHTML = `<i class="fa-solid fa-circle text-success font-size-06 mr-1"></i> Connected to <strong>${escapeHtml(status.voice_channel)}</strong>`;
+        const voiceSelect = document.getElementById('music-voice-select');
+        if (voiceSelect && status.voice_channel_id && !voiceSelect.value) {
+          voiceSelect.value = status.voice_channel_id;
+        }
+      } else {
+        voiceStatusText.innerHTML = `<i class="fa-solid fa-circle text-muted font-size-06 mr-1"></i> Disconnected`;
+      }
+    }
+
     renderMusicQueue(status.queue);
   } catch (err) {
     console.error('Error fetching music status:', err);
@@ -6140,21 +6161,25 @@ async function playMusicTrack(query) {
     showToast('Please select a server first.', 'warning');
     return;
   }
+  const voiceSelect = document.getElementById('music-voice-select');
+  const channel_id = voiceSelect ? voiceSelect.value : null;
   try {
     showToast(`Searching/Queuing track: "${query}"...`, 'info');
     const res = await fetch(`/api/guilds/${activeGuildId}/music/play`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query })
+      body: JSON.stringify({ query, channel_id: channel_id || undefined })
     });
     if (res.ok) {
       const data = await res.json();
-      showToast(`Added to queue: "${data.song.title}"`, 'success');
-      document.getElementById('music-search-query').value = '';
+      const songTitle = data.song?.title || query;
+      showToast(`Added to queue: "${songTitle}"`, 'success');
+      const searchInput = document.getElementById('music-search-query');
+      if (searchInput) searchInput.value = '';
       fetchMusicStatus();
     } else {
       const err = await res.json();
-      showToast(err.detail || 'Failed to play track. Ensure bot is in voice channel.', 'error');
+      showToast(err.detail || 'Failed to play track. Ensure bot has permission to join voice channel.', 'error');
     }
   } catch (err) {
     showToast('Network error playing track.', 'error');
@@ -6231,19 +6256,42 @@ async function setMusicVolume(vol) {
 
 async function joinMusicVoiceChannel(channelId) {
   if (!activeGuildId) return;
-  try {
-    showToast('Connecting bot to voice channel...', 'info');
-    const res = await fetch(`/api/guilds/${activeGuildId}/voice/join/${channelId}`, { method: 'POST' });
-    if (res.ok) {
-      showToast('Successfully joined voice channel!', 'success');
-      fetchMusicStatus();
-    } else {
-      const err = await res.json();
-      showToast(err.detail || 'Failed to join voice channel.', 'error');
+  const btn = document.getElementById('btn-music-join-channel');
+  await withButtonLock(btn, async () => {
+    try {
+      showToast('Connecting bot to voice channel...', 'info');
+      const res = await fetch(`/api/guilds/${activeGuildId}/voice/join/${channelId}`, { method: 'POST' });
+      if (res.ok) {
+        showToast('Successfully joined voice channel!', 'success');
+        await fetchMusicStatus();
+      } else {
+        const err = await res.json();
+        showToast(err.detail || 'Failed to join voice channel.', 'error');
+      }
+    } catch (err) {
+      showToast('Network error joining voice channel.', 'error');
     }
-  } catch (err) {
-    showToast('Network error joining voice channel.', 'error');
-  }
+  });
+}
+
+async function leaveMusicVoiceChannel() {
+  if (!activeGuildId) return;
+  const btn = document.getElementById('btn-music-leave-channel');
+  await withButtonLock(btn, async () => {
+    try {
+      showToast('Disconnecting bot from voice channel...', 'info');
+      const res = await fetch(`/api/guilds/${activeGuildId}/voice/leave`, { method: 'POST' });
+      if (res.ok) {
+        showToast('Bot disconnected from voice channel.', 'success');
+        await fetchMusicStatus();
+      } else {
+        const err = await res.json();
+        showToast(err.detail || 'Failed to leave voice channel.', 'error');
+      }
+    } catch (err) {
+      showToast('Network error leaving voice channel.', 'error');
+    }
+  });
 }
 
 async function shuffleMusicQueue() {

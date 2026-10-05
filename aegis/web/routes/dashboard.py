@@ -273,6 +273,7 @@ class TemplateUploadRequest(BaseModel):
 
 class MusicPlayRequest(BaseModel):
     query: str
+    channel_id: Optional[str] = None
 
 class MusicVolumeRequest(BaseModel):
     volume: float
@@ -1785,7 +1786,12 @@ async def get_voice_channels(guild_id: str):
     guild = bot.get_guild(parse_id(guild_id, "guild_id"))
     if not guild:
         return []
-    return [{"id": str(ch.id), "name": ch.name, "type": "voice"} for ch in guild.voice_channels]
+    channels = []
+    for ch in getattr(guild, "voice_channels", []):
+        channels.append({"id": str(ch.id), "name": ch.name, "type": "voice"})
+    for ch in getattr(guild, "stage_channels", []):
+        channels.append({"id": str(ch.id), "name": f"Stage: {ch.name}", "type": "stage"})
+    return channels
 
 @router.post("/api/guilds/{guild_id}/music/play")
 async def music_play_endpoint(guild_id: str, request: MusicPlayRequest):
@@ -1796,18 +1802,44 @@ async def music_play_endpoint(guild_id: str, request: MusicPlayRequest):
     if not player:
         raise HTTPException(status_code=404, detail="Guild/Player not found.")
     
-    if not player.voice_client or not player.voice_client.is_connected():
+    vc = getattr(player, "voice_client", None)
+    is_connected = False
+    if vc:
+        fn = getattr(vc, "is_connected", None)
+        if callable(fn):
+            res = fn()
+            if asyncio.iscoroutine(res):
+                is_connected = await res
+            else:
+                is_connected = bool(res)
+
+    if not is_connected:
         guild = bot.get_guild(parse_id(guild_id, "guild_id"))
-        if guild and guild.voice_channels:
-            await player.join_channel(guild.voice_channels[0].id)
+        target_channel_id = None
+        if request.channel_id:
+            try:
+                target_channel_id = parse_id(request.channel_id, "channel_id")
+            except Exception:
+                target_channel_id = None
+
+        if not target_channel_id and guild and guild.voice_channels:
+            target_channel_id = guild.voice_channels[0].id
+
+        if target_channel_id:
+            try:
+                await player.join_channel(target_channel_id)
+            except Exception as e:
+                logger.error(f"Failed to join voice channel {target_channel_id}: {e}")
+                raise HTTPException(status_code=400, detail=f"Failed to join voice channel: {str(e)}")
         else:
-            raise HTTPException(status_code=400, detail="No voice channel available to join.")
+            raise HTTPException(status_code=400, detail="No voice channel available to join. Please select a voice channel.")
             
     try:
         song = await player.add_to_queue(request.query)
-        audit_log.log_action("dashboard", "MUSIC_ACTION", f"Played/queued song '{song['title']}'", guild_id)
+        audit_log.log_action("dashboard", "MUSIC_ACTION", f"Played/queued song '{song.get('title', 'Unknown')}'", guild_id)
         return {"status": "success", "song": song}
     except Exception as e:
+        logger.error(f"Failed to queue music: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/api/guilds/{guild_id}/music/pause")
@@ -1894,22 +1926,37 @@ async def music_remove_queue_endpoint(guild_id: str, index: int):
 @router.post("/api/guilds/{guild_id}/voice/join/{channel_id}")
 async def voice_join_endpoint(guild_id: str, channel_id: str):
     bot = get_active_bot()
-    player = bot.get_music_player(parse_id(guild_id, "guild_id"))
-    if player:
+    if not bot:
+        raise HTTPException(status_code=503, detail="Bot is not connected.")
+    player = bot.get_music_player(parse_id(guild_id, "guild_id")) if hasattr(bot, "get_music_player") else None
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found.")
+    try:
         await player.join_channel(parse_id(channel_id, "channel_id"))
         audit_log.log_action("dashboard", "MUSIC_ACTION", f"Joined voice channel {channel_id}", guild_id)
         return {"status": "success"}
-    raise HTTPException(status_code=404, detail="Player not found.")
+    except (ValueError, RuntimeError) as e:
+        logger.warning(f"Voice join rejected: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Voice join error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to connect to voice channel: {str(e)}")
 
 @router.post("/api/guilds/{guild_id}/voice/leave")
 async def voice_leave_endpoint(guild_id: str):
     bot = get_active_bot()
-    player = bot.get_music_player(parse_id(guild_id, "guild_id"))
-    if player:
+    if not bot:
+        raise HTTPException(status_code=503, detail="Bot is not connected.")
+    player = bot.get_music_player(parse_id(guild_id, "guild_id")) if hasattr(bot, "get_music_player") else None
+    if not player:
+        raise HTTPException(status_code=404, detail="Player not found.")
+    try:
         await player.leave_channel()
         audit_log.log_action("dashboard", "MUSIC_ACTION", "Left voice channel", guild_id)
         return {"status": "success"}
-    raise HTTPException(status_code=404, detail="Player not found.")
+    except Exception as e:
+        logger.error(f"Voice leave error: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to disconnect from voice channel: {str(e)}")
 
 # Scheduled Messages Endpoints
 

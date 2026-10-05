@@ -164,7 +164,51 @@ class MusicCog(commands.Cog, name="Music"):
         else:
             await ctx.send("❌ Queue has fewer than 2 songs to shuffle.")
 
+    @commands.hybrid_command(name="join", description="Connects the bot to your current voice channel.")
+    @app_commands.describe(channel="Specific voice channel to join (optional)")
+    @music_permission_gate(CommandRegistry.MUSIC_PLAY)
+    async def join_command(self, ctx: commands.Context, channel: Optional[discord.VoiceChannel] = None):
+        """Join a voice channel."""
+        target_channel = channel
+        if not target_channel:
+            if ctx.author.voice and ctx.author.voice.channel:
+                target_channel = ctx.author.voice.channel
+            else:
+                await ctx.send("❌ You must be in a voice channel or specify one to use this command.")
+                return
+
+        player = self.bot.get_music_player(ctx.guild.id)
+        if not player:
+            await ctx.send("❌ Failed to initialize music player.")
+            return
+
+        try:
+            await player.join_channel(target_channel.id)
+            player.last_text_channel = ctx.channel
+            await ctx.send(f"🔊 Joined **{target_channel.name}**!")
+        except Exception as e:
+            logger.error(f"Failed to join voice channel: {e}")
+            await ctx.send(f"❌ Failed to join **{target_channel.name}**: {e}")
+
+    @commands.hybrid_command(name="leave", aliases=["dc", "disconnect"], description="Disconnects the bot from the voice channel.")
+    @music_permission_gate(CommandRegistry.MUSIC_STOP)
+    async def leave_command(self, ctx: commands.Context):
+        """Leave the voice channel."""
+        player = self.bot.get_music_player(ctx.guild.id)
+        vc = getattr(player, "voice_client", None) or getattr(ctx.guild, "voice_client", None)
+        if not player or not vc:
+            await ctx.send("❌ The bot is not in a voice channel.")
+            return
+
+        try:
+            await player.leave_channel()
+            await ctx.send("👋 Disconnected from voice channel.")
+        except Exception as e:
+            logger.error(f"Failed to leave voice channel: {e}")
+            await ctx.send(f"❌ Failed to disconnect: {e}")
+
 
 async def setup(bot):
     """Add the cog to the bot."""
     await bot.add_cog(MusicCog(bot))
+
