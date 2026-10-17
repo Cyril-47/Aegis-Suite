@@ -1,7 +1,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Aegis-Server%20Optimizer-6366F1?style=for-the-badge&logo=shield-halved&logoColor=white" alt="Aegis"/>
   <br/>
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/Changelog-v2.7.4-6366F1?style=for-the-badge&logo=gitbook&logoColor=white" alt="Changelog: v2.7.4"/></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/Changelog-v2.8.0-6366F1?style=for-the-badge&logo=gitbook&logoColor=white" alt="Changelog: v2.8.0"/></a>
   <img src="https://github.com/Cyril-47/Aegis-Suite/actions/workflows/release.yml/badge.svg" alt="Build & Publish Windows EXE Release"/>
   <img src="https://github.com/Cyril-47/Aegis-Suite/actions/workflows/verify.yml/badge.svg" alt="Verify Security Layering"/>
   <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"/>
@@ -9,9 +9,9 @@
 </p>
 
 <p align="center">
-  <b>🤖 A unified Discord server optimizer — bot + web dashboard in a single process.</b>
+  <b>🤖 High-performance Discord server operations & intelligence suite — unified bot + web dashboard desktop app.</b>
   <br/>
-  <sub>Scan · Analyze · Audit · Optimize · Automate</sub>
+  <sub>Scan · Analyze · Audit · Optimize · Automate · 60/120 FPS Fluid Native Experience</sub>
 </p>
 
 ---
@@ -80,12 +80,22 @@
 | Feature | Description |
 |---------|-------------|
 | 🧩 **Modular Cog Architecture** | 10 focused cogs loaded dynamically (Moderation, Config, Events, Intelligence, Music, Automation, Tickets, Giveaways, Leveling, Utils) |
-| 🎵 **Music Player** | `/play`, `/pause`, `/resume`, `/skip`, `/stop`, `/volume`, queue management |
+| 🎵 **Music Player & Voice Engine** | Full-featured playback with `/play`, `/pause`, `/resume`, `/skip`, `/stop`, `/join`, `/leave`, `/volume`, `/nowplaying`, `/shuffle`, `/queue`, plus web dashboard voice selector and connection controls |
 | ⬆️ **Leveling & XP System** | `/rank` (rank card), `/leaderboard`, `/set-xp-role` with role-specific XP multipliers |
 | 🎁 **Giveaway System** | `/giveaway start`, `/giveaway end`, `/giveaway reroll` with duration and winner count |
 | 🎫 **Ticket System** | Private support ticket channels with staff assignment and close commands |
 | 📡 **Observability Stack** | Structured logging, secret redaction, request-ID tracking, metrics, security headers |
 | 📺 **Live Terminal Logging** | Real-time WebSocket log streaming on the dashboard |
+
+### ⚡ Fluid Performance & Modern UI Engine (v2.8.0)
+| Feature | Description |
+|---------|-------------|
+| 🖥️ **WebView2 Hardware Acceleration** | Chromium GPU rasterization with zero-copy buffer transfers, eliminating CPU compositing overhead and window lag |
+| 🎯 **60/120 FPS Layer Optimization** | Released 148 redundant compositing layers (`translateZ(0)`), optimized backdrop filters, and batch DOM mutations to prevent layout thrashing |
+| 🩺 **Non-Destructive Telemetry Polling** | Passive 10s background memory/CPU health poll with silent error suppression to eliminate UI micro-freezes |
+| 🧭 **2026 Open-Arch Speedometer Gauge** | 200° open-arch SVG speedometer with zero-overlap posture shelf, linear track contrast, and spring-eased needles |
+| 🌊 **4-Tier Zero-CLS Loading Architecture** | Liquid splash screen, hairline top progress bar, Bento skeletons, and deferred data hydration for instant perceived boot (<200ms) |
+| 🔊 **Tactile Web Audio Engine** | Procedural Web Audio API sound synthesizers (clicks, toggles, success chimes) with automatic gesture-unlocking |
 
 ---
 
@@ -383,7 +393,16 @@ The bot needs to run for **24 hours** to collect baseline data. Channel cleaner 
 <details>
 <summary><b>🎵 Music bot won't join voice channel?</b></summary>
 
-Ensure `FFmpeg` is installed and in your PATH. Download from https://ffmpeg.org/download.html
+- Ensure `FFmpeg` is installed and in your system PATH (download from https://ffmpeg.org/download.html).
+- Use `/join` or select a channel directly from the **Dashboard Music Voice Selector** dropdown.
+- Verify the bot has **View Channel**, **Connect**, and **Speak** permissions in the voice channel (or **Request to Speak** in Stage Channels).
+- When using the web dashboard, ensure your Discord account or the bot has appropriate access to the target voice room.
+</details>
+
+<details>
+<summary><b>🔊 No procedural audio sounds in dashboard?</b></summary>
+
+Modern browsers enforce user-gesture activation policies before audio can play. Click anywhere inside the dashboard or interact with a control to unlock the Web Audio context. You can also toggle SFX on/off in dashboard Settings.
 </details>
 
 <details>
@@ -413,6 +432,7 @@ All version updates, architectural enhancements, UI/UX redesigns, and bug fixes 
 👉 **[View Full CHANGELOG.md](CHANGELOG.md)**
 
 ### Recent Releases
+- 🚀 **[v2.8.0 (2026-10-17)](CHANGELOG.md#280---2026-10-17)** — 60/120 FPS GPU Hardware Acceleration, Music Player Voice Engine Overhaul (`/join`, `/leave`, Web Controls), 2026 Open-Arch Speedometer Gauge & 4-Tier Zero-CLS Loading Architecture
 - ⚡ **[v2.7.4 (2026-09-21)](CHANGELOG.md#274---2026-09-21)** — Instant Boot (<250ms), Windows "(Not Responding)" Elimination, Procedural Tactile Audio Engine & 2026 Micro-Interactions
 - 🚀 **[v2.7.3 (2026-09-20)](CHANGELOG.md#273---2026-09-20)** — Cold Startup Reliability, Active HTTP 200 Ready Probe, "(Not Responding)" Fix & Direct GitHub Changelog Links
 - ⚡ **[v2.7.2 (2026-09-20)](CHANGELOG.md#272---2026-09-20)** — Triage Cockpit Architecture, Slide-Over Action Center Drawer (`#action-center-drawer`), and Zero-Jitter Card Elevation

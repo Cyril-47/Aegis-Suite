@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aegis-suite"
-version = "2.2.5"
-description = "Interactive server operations suite featuring a FastAPI dashboard and Discord bot."
+version = "2.8.0"
+description = "High-performance Discord server operations & intelligence suite — unified Discord.py bot + FastAPI web dashboard desktop application."
 readme = "README.md"
 requires-python = ">=3.12"
 license = { text = "MIT" }
